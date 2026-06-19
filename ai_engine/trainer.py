@@ -481,6 +481,10 @@ def train_cli() -> None:
             False,
             help="Use a lower-memory model preset suitable for Kaggle T4 full-India runs",
         ),
+        kaggle_medium: bool = typer.Option(
+            False,
+            help="Balanced preset for T4 with 128+ sequences: larger than lite, fits VRAM",
+        ),
         gnn_hidden_dim: int | None = typer.Option(None, help="Override GNN hidden dimension"),
         gnn_num_layers: int | None = typer.Option(None, help="Override GNN layer count"),
         transformer_d_model: int | None = typer.Option(None, help="Override transformer model dimension"),
@@ -541,7 +545,7 @@ def train_cli() -> None:
         }
 
         if kaggle_lite:
-            # Memory-safe preset for large-node graphs (full-India) on T4.
+            # Smallest preset: fits T4 with any sequence count but model is tiny.
             config_kwargs.update(
                 {
                     "gnn_hidden_dim": 64,
@@ -551,9 +555,29 @@ def train_cli() -> None:
                     "transformer_num_layers": 2,
                     "transformer_dim_feedforward": 192,
                     "lambda_smoothness": 0.0,
+                    "lambda_conservation": 0.0,
                     "batch_size": min(batch_size, 1),
                 }
             )
+
+        if kaggle_medium:
+            # Balanced preset: fits T4 with 128 sequences, ~1.3M params, good R² potential.
+            config_kwargs.update(
+                {
+                    "gnn_hidden_dim": 96,
+                    "gnn_num_layers": 2,
+                    "transformer_d_model": 128,
+                    "transformer_nhead": 4,
+                    "transformer_num_layers": 3,
+                    "transformer_dim_feedforward": 256,
+                    "lambda_smoothness": 0.0,
+                    "lambda_conservation": 0.0,
+                    "batch_size": min(batch_size, 1),
+                }
+            )
+
+        if config_kwargs.get("batch_size") == 0:
+            config_kwargs["batch_size"] = 1
 
         if gnn_hidden_dim is not None:
             config_kwargs["gnn_hidden_dim"] = gnn_hidden_dim
