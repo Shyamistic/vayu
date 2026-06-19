@@ -1,0 +1,44 @@
+.env
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+.eggs/
+*.log
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+htmlcov/
+.coverage
+*.pt
+*.pth
+checkpoints/
+data/imd/
+data/mosdac/
+data/processed/
+data/processed_full_india/
+data/kaggle_bundle_full_india/
+node_modules/
+frontend/dist/
+frontend/.vite/
+*.local
+
+# Local Kiro specs and session artifacts
+.kiro/
+
+# Local research docs and working notes
+research/
+
+# Notebook/editor/OS noise
+.ipynb_checkpoints/
+.vscode/
+.idea/
+Thumbs.db
+.DS_Store

@@ -1,0 +1,27 @@
+{
+  "app": "python3 infra/app.py",
+  "watch": {
+    "include": [
+      "**"
+    ],
+    "exclude": [
+      "README.md",
+      "cdk*.json",
+      "**/*.js",
+      "**/*.d.ts",
+      "**/.git",
+      "**/.venv",
+      "**/node_modules",
+      "**/__pycache__"
+    ]
+  },
+  "context": {
+    "@aws-cdk/aws-apigateway:usagePlanKeyOrderInsensitiveId": true,
+    "@aws-cdk/aws-cloudfront:defaultSecurityPolicyTLSv1.2_2021": true,
+    "@aws-cdk/aws-rds:lowercaseDbIdentifier": false,
+    "@aws-cdk/core:stackRelativeExports": true,
+    "@aws-cdk/aws-ec2:restrictDefaultSecurityGroup": true,
+    "region": "ap-south-1",
+    "account": ""
+  }
+}

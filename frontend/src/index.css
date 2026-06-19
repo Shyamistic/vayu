@@ -1,0 +1,50 @@
+/* VAYU Global Styles */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --panel-bg: rgba(10, 15, 30, 0.88);
+    --border-subtle: rgba(255, 255, 255, 0.08);
+    --text-primary: rgba(255, 255, 255, 0.95);
+    --text-secondary: rgba(255, 255, 255, 0.55);
+  }
+}
+
+@layer components {
+  .panel {
+    @apply bg-vayu-panel backdrop-blur-md border border-white/10 rounded-xl;
+  }
+  .panel-tight {
+    @apply bg-vayu-panel backdrop-blur-md border border-white/10 rounded-lg;
+  }
+  .btn-primary {
+    @apply bg-vayu-blue hover:bg-sky-400 text-white font-medium px-4 py-2 rounded-lg
+           transition-colors duration-150 focus:outline-none focus:ring-2 focus:ring-vayu-blue/50
+           disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+  .btn-ghost {
+    @apply bg-white/5 hover:bg-white/10 text-white/80 px-3 py-1.5 rounded-md
+           transition-colors duration-150 text-sm;
+  }
+  .metric-card {
+    @apply panel-tight p-3 flex flex-col gap-1;
+  }
+  .metric-value {
+    @apply text-2xl font-bold text-vayu-accent font-mono;
+  }
+  .metric-label {
+    @apply text-xs text-white/50 uppercase tracking-wide;
+  }
+}
+
+/* CesiumJS toolbar overrides */
+.cesium-toolbar { display: none !important; }
+.cesium-home-button { display: none !important; }
+.cesium-fullscreenButton { display: none !important; }
+.cesium-navigationHelpButton { display: none !important; }
+.cesium-baseLayerPicker { display: none !important; }
+.cesium-geocoder-container { display: none !important; }
+.cesium-animation-container { display: none !important; }
+.cesium-timeline-main { display: none !important; }

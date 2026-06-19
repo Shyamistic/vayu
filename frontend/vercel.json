@@ -1,0 +1,27 @@
+{
+  "version": 2,
+  "name": "vayu-climate-frontend",
+  "buildCommand": "npm run build",
+  "outputDirectory": "dist",
+  "installCommand": "npm install",
+  "framework": "vite",
+  "rewrites": [
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ],
+  "headers": [
+    {
+      "source": "/cesium/(.*)",
+      "headers": [
+        { "key": "Cache-Control", "value": "public, max-age=86400, immutable" }
+      ]
+    }
+  ],
+  "env": {
+    "VITE_API_URL": "@vayu_api_url",
+    "VITE_CESIUM_ION_TOKEN": "@cesium_ion_token",
+    "VITE_GOOGLE_MAPS_API_KEY": "@google_maps_api_key"
+  }
+}
