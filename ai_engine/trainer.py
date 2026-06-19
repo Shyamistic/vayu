@@ -32,6 +32,21 @@ from data_ingestion.graph_builder import ClimateGraphBuilder
 logger = logging.getLogger(__name__)
 
 
+def _json_safe(value):
+    """Recursively convert numpy/torch scalar types to JSON-serializable values."""
+    if isinstance(value, dict):
+        return {k: _json_safe(v) for k, v in value.items()}
+    if isinstance(value, list):
+        return [_json_safe(v) for v in value]
+    if isinstance(value, tuple):
+        return [_json_safe(v) for v in value]
+    if isinstance(value, np.generic):
+        return value.item()
+    if isinstance(value, torch.Tensor) and value.numel() == 1:
+        return value.item()
+    return value
+
+
 def _build_synthetic_sequences(config: ModelConfig) -> tuple[list, list]:
     """Build a tiny synthetic dataset so CLI training can run end-to-end.
 
@@ -315,7 +330,7 @@ class VayuTrainer:
         # Save history
         history_path = self.checkpoint_dir / "training_history.json"
         with open(history_path, "w") as f:
-            json.dump(history, f, indent=2)
+            json.dump(_json_safe(history), f, indent=2)
 
         logger.info("Training complete. Best val_loss=%.4f", best_val_loss)
         return history
