@@ -461,6 +461,18 @@ def train_cli() -> None:
         checkpoint_dir: str = typer.Option("./checkpoints", help="Checkpoint output directory"),
         epochs: int = typer.Option(100, help="Max training epochs"),
         device: str = typer.Option("auto", help="Device: cuda/cpu/auto"),
+        batch_size: int = typer.Option(16, help="Batch size"),
+        kaggle_lite: bool = typer.Option(
+            False,
+            help="Use a lower-memory model preset suitable for Kaggle T4 full-India runs",
+        ),
+        gnn_hidden_dim: int | None = typer.Option(None, help="Override GNN hidden dimension"),
+        gnn_num_layers: int | None = typer.Option(None, help="Override GNN layer count"),
+        transformer_d_model: int | None = typer.Option(None, help="Override transformer model dimension"),
+        transformer_nhead: int | None = typer.Option(None, help="Override transformer attention heads"),
+        transformer_num_layers: int | None = typer.Option(None, help="Override transformer layer count"),
+        transformer_dim_feedforward: int | None = typer.Option(None, help="Override transformer feed-forward dimension"),
+        lambda_smoothness: float | None = typer.Option(None, help="Override smoothness loss weight"),
         smoke_only: bool = typer.Option(
             False,
             help="Run forward-only smoke validation without backprop",
@@ -504,7 +516,46 @@ def train_cli() -> None:
         # In production: load from disk
         # sequences = torch.load(f"{data_dir}/train_sequences.pt")
 
-        config = ModelConfig(max_epochs=epochs)
+        if device == "cuda":
+            # Reduces allocator fragmentation spikes on long attention runs.
+            os.environ.setdefault("PYTORCH_CUDA_ALLOC_CONF", "expandable_segments:True")
+
+        config_kwargs: dict = {
+            "max_epochs": epochs,
+            "batch_size": batch_size,
+        }
+
+        if kaggle_lite:
+            # Memory-safe preset for large-node graphs (full-India) on T4.
+            config_kwargs.update(
+                {
+                    "gnn_hidden_dim": 64,
+                    "gnn_num_layers": 2,
+                    "transformer_d_model": 96,
+                    "transformer_nhead": 4,
+                    "transformer_num_layers": 2,
+                    "transformer_dim_feedforward": 192,
+                    "lambda_smoothness": 0.0,
+                    "batch_size": min(batch_size, 1),
+                }
+            )
+
+        if gnn_hidden_dim is not None:
+            config_kwargs["gnn_hidden_dim"] = gnn_hidden_dim
+        if gnn_num_layers is not None:
+            config_kwargs["gnn_num_layers"] = gnn_num_layers
+        if transformer_d_model is not None:
+            config_kwargs["transformer_d_model"] = transformer_d_model
+        if transformer_nhead is not None:
+            config_kwargs["transformer_nhead"] = transformer_nhead
+        if transformer_num_layers is not None:
+            config_kwargs["transformer_num_layers"] = transformer_num_layers
+        if transformer_dim_feedforward is not None:
+            config_kwargs["transformer_dim_feedforward"] = transformer_dim_feedforward
+        if lambda_smoothness is not None:
+            config_kwargs["lambda_smoothness"] = lambda_smoothness
+
+        config = ModelConfig(**config_kwargs)
         model = VayuClimateModel(config)
         loss_fn = PhysicsInformedLoss(
             lambda_conservation=config.lambda_conservation,
