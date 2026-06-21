@@ -88,7 +88,12 @@ class GraphEncoder(nn.Module):
 
         # Scatter-add edge embeddings to destination nodes
         dst = edge_index[1]  # destination nodes
-        edge_agg = torch.zeros(num_nodes, self.hidden_dim, device=x.device)
+        edge_agg = torch.zeros(
+            num_nodes,
+            self.hidden_dim,
+            device=x.device,
+            dtype=edge_embed.dtype,
+        )
         edge_agg.scatter_add_(0, dst.unsqueeze(1).expand_as(edge_embed), edge_embed)
 
         # Input projection
