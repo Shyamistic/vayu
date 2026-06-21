@@ -28,6 +28,8 @@ data/kaggle_bundle_full_india/
 node_modules/
 frontend/dist/
 frontend/.vite/
+frontend/.tsbuild/
+frontend/*.tsbuildinfo
 *.local
 
 # Local Kiro specs and session artifacts

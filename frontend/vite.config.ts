@@ -29,7 +29,6 @@ export default defineConfig({
     rollupOptions: {
       output: {
         manualChunks: {
-          cesium: ['cesium'],
           plotly: ['plotly.js-dist-min'],
         },
       },

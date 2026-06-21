@@ -28,8 +28,13 @@ export default function TimeSlider({ timeState, onChange }: TimeSliderProps) {
   const { selectedDate, granularity, isPlaying, playbackSpeed } = timeState;
   const animRef = useRef<number | null>(null);
   const lastTickRef = useRef<number>(Date.now());
+  const currentDateRef = useRef<Date>(selectedDate);
 
   const sliderValue = dateToSliderValue(selectedDate);
+
+  useEffect(() => {
+    currentDateRef.current = selectedDate;
+  }, [selectedDate]);
 
   // ── Playback animation ──────────────────────────────────────────────────────
   const tick = useCallback(() => {
@@ -42,16 +47,15 @@ export default function TimeSlider({ timeState, onChange }: TimeSliderProps) {
     const daysPerMs = (365.25 * playbackSpeed) / 2000;
     const daysToAdvance = daysPerMs * elapsed;
 
-    onChange(prev => {
-      const newSlider = dateToSliderValue(prev?.selectedDate ?? selectedDate) + daysToAdvance;
-      if (newSlider >= TOTAL_DAYS) {
-        return { isPlaying: false };
-      }
-      return { selectedDate: sliderValueToDate(Math.floor(newSlider)) };
-    });
+    const newSlider = dateToSliderValue(currentDateRef.current) + daysToAdvance;
+    if (newSlider >= TOTAL_DAYS) {
+      onChange({ isPlaying: false });
+    } else {
+      onChange({ selectedDate: sliderValueToDate(Math.floor(newSlider)) });
+    }
 
     animRef.current = requestAnimationFrame(tick);
-  }, [playbackSpeed, onChange, selectedDate]);
+  }, [playbackSpeed, onChange]);
 
   useEffect(() => {
     if (isPlaying) {

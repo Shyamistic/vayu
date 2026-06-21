@@ -108,6 +108,13 @@ export interface HealthResponse {
 
 export type VariableId = 'rainfall' | 'temp_max' | 'temp_min';
 
+export type RegionId =
+  | 'western_ghats'
+  | 'north_east_india'
+  | 'indo_gangetic_plain'
+  | 'central_india'
+  | 'pilot';
+
 export type ViewMode = 'prediction' | 'historical' | 'scenario' | 'metrics';
 
 export interface TimeState {
@@ -120,6 +127,7 @@ export interface TimeState {
 export interface AppState {
   viewMode: ViewMode;
   selectedVariable: VariableId;
+  selectedRegion: RegionId;
   timeState: TimeState;
   showUncertainty: boolean;
   showSplitScreen: boolean;

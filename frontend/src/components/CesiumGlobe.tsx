@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import * as Cesium from 'cesium';
 import { buildTileUrl } from '../api/client';
-import type { GridCell, ScenarioResponse, VariableId } from '../types';
+import type { GridCell, RegionId, ScenarioResponse, VariableId } from '../types';
+import { REGIONS } from './RegionSelector';
 
 // ── Constants ──────────────────────────────────────────────────────────────────
 
@@ -55,6 +56,7 @@ function valueToColor(value: number, variable: VariableId): Cesium.Color {
 interface CesiumGlobeProps {
   gridCells: GridCell[];
   variable: VariableId;
+  region: RegionId;
   scenarioData: ScenarioResponse | null;
   showSplitScreen: boolean;
   onCellClick?: (cell: GridCell) => void;
@@ -63,6 +65,7 @@ interface CesiumGlobeProps {
 export default function CesiumGlobe({
   gridCells,
   variable,
+  region,
   scenarioData,
   showSplitScreen,
   onCellClick,
@@ -205,6 +208,26 @@ export default function CesiumGlobe({
       });
     }
   }, [gridCells, variable, isReady]);
+
+  // ── Fly to region when region changes ─────────────────────────────────────
+  useEffect(() => {
+    if (!isReady || !viewerRef.current) return;
+    const regionOpt = REGIONS.find((r) => r.id === region);
+    if (!regionOpt) return;
+    viewerRef.current.camera.flyTo({
+      destination: Cesium.Cartesian3.fromDegrees(
+        regionOpt.centerLon,
+        regionOpt.centerLat,
+        regionOpt.altitude,
+      ),
+      orientation: {
+        heading: Cesium.Math.toRadians(0),
+        pitch: Cesium.Math.toRadians(-45),
+        roll: 0,
+      },
+      duration: 2.0,
+    });
+  }, [region, isReady]);
 
   // ── Update scenario delta overlay (right half in split-screen) ─────────────
   useEffect(() => {

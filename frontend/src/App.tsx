@@ -9,10 +9,12 @@ import CesiumGlobe from './components/CesiumGlobe';
 import TimeSlider from './components/TimeSlider';
 import WhatIfPanel from './components/WhatIfPanel';
 import MetricsDashboard from './components/MetricsDashboard';
+import ModelComparisonPanel from './components/ModelComparisonPanel';
+import RegionSelector from './components/RegionSelector';
 import DataProvenancePanel from './components/DataProvenancePanel';
 import { fetchPrediction, fetchHealth } from './api/client';
 import type {
-  AppState, GridCell, HealthResponse, ScenarioResponse,
+  AppState, GridCell, HealthResponse, RegionId, ScenarioResponse,
   TimeState, VariableId, ViewMode,
 } from './types';
 
@@ -28,6 +30,7 @@ const INITIAL_TIME_STATE: TimeState = {
 const INITIAL_STATE: AppState = {
   viewMode: 'prediction',
   selectedVariable: 'rainfall',
+  selectedRegion: 'western_ghats',
   timeState: INITIAL_TIME_STATE,
   showUncertainty: false,
   showSplitScreen: false,
@@ -83,10 +86,10 @@ export default function App() {
     const dateStr = format(state.timeState.selectedDate, 'yyyy-MM-dd');
     update({ isLoading: true, error: null });
 
-    fetchPrediction(dateStr)
+    fetchPrediction(dateStr, state.selectedRegion)
       .then((pred) => update({ activePrediction: pred, isLoading: false }))
       .catch((err) => update({ error: err.message, isLoading: false }));
-  }, [state.timeState.selectedDate, state.viewMode]);
+  }, [state.timeState.selectedDate, state.viewMode, state.selectedRegion]);
 
   // ── Scenario handler ─────────────────────────────────────────────────────────
   const handleScenarioResult = useCallback((result: ScenarioResponse) => {
@@ -109,6 +112,7 @@ export default function App() {
         <CesiumGlobe
           gridCells={gridCells}
           variable={state.selectedVariable}
+          region={state.selectedRegion}
           scenarioData={state.showSplitScreen ? state.activeScenario : null}
           showSplitScreen={state.showSplitScreen}
         />
@@ -125,9 +129,13 @@ export default function App() {
             <span className="text-white font-bold text-sm tracking-wide">VAYU</span>
             <span className="text-white/40 text-xs ml-2">Climate Digital Twin</span>
           </div>
-          <div className="h-4 w-px bg-white/10" />
-          <span className="text-white/40 text-xs">Pilot: Western India (8–20°N, 72–78°E)</span>
         </div>
+
+        {/* Region selector */}
+        <RegionSelector
+          selected={state.selectedRegion}
+          onChange={(r: RegionId) => update({ selectedRegion: r })}
+        />
 
         {/* View mode tabs */}
         <div className="panel-tight px-1 py-1 flex gap-0.5">
@@ -214,10 +222,16 @@ export default function App() {
           />
         )}
         {state.viewMode === 'metrics' && (
-          <MetricsDashboard
-            selectedVariable={state.selectedVariable}
-            onVariableChange={(v) => update({ selectedVariable: v })}
-          />
+          <div className="flex flex-col gap-3">
+            <MetricsDashboard
+              selectedVariable={state.selectedVariable}
+              onVariableChange={(v) => update({ selectedVariable: v })}
+            />
+            <ModelComparisonPanel
+              variable={state.selectedVariable}
+              region={state.selectedRegion}
+            />
+          </div>
         )}
         {state.viewMode === 'historical' && (
           <DataProvenancePanel />
@@ -237,7 +251,7 @@ export default function App() {
         <TimeSlider
           timeState={state.timeState}
           onChange={(patch) =>
-            update((s) => ({ timeState: { ...s.timeState, ...(typeof patch === 'function' ? patch(s.timeState) : patch) } }))
+            update((s) => ({ timeState: { ...s.timeState, ...patch } }))
           }
         />
       </div>
