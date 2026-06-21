@@ -24,6 +24,9 @@ def _resolve_region_bounds(
     region = region.lower()
     if region == "pilot":
         bounds = {"lat_min": 8.0, "lat_max": 20.0, "lon_min": 72.0, "lon_max": 78.0}
+    elif region == "western_ghats":
+        # Extended Western Ghats + west-coast influence band.
+        bounds = {"lat_min": 7.5, "lat_max": 21.5, "lon_min": 72.0, "lon_max": 77.5}
     elif region == "india":
         bounds = {"lat_min": 6.0, "lat_max": 38.0, "lon_min": 68.0, "lon_max": 98.0}
     elif region == "custom":
@@ -36,7 +39,7 @@ def _resolve_region_bounds(
             "lon_max": float(lon_max),
         }
     else:
-        raise typer.BadParameter("region must be one of: pilot, india, custom")
+        raise typer.BadParameter("region must be one of: pilot, western_ghats, india, custom")
 
     if bounds["lat_min"] >= bounds["lat_max"] or bounds["lon_min"] >= bounds["lon_max"]:
         raise typer.BadParameter("Invalid bounds: min values must be less than max values")
@@ -96,7 +99,7 @@ def preprocess(
     output_dir: Path = typer.Option(Path("./data/processed"), "--output-dir"),
     start_year: int = typer.Option(2020),
     end_year: int = typer.Option(2024),
-    region: str = typer.Option("pilot", help="Region preset: pilot | india | custom"),
+    region: str = typer.Option("pilot", help="Region preset: pilot | western_ghats | india | custom"),
     lat_min: float | None = typer.Option(None, help="Custom region latitude min"),
     lat_max: float | None = typer.Option(None, help="Custom region latitude max"),
     lon_min: float | None = typer.Option(None, help="Custom region longitude min"),
@@ -123,6 +126,16 @@ def preprocess(
     out_path = output_dir / f"normalized_{start_year}-{end_year}.nc"
     normalized.to_netcdf(out_path)
     typer.echo(f"Saved to {out_path}")
+
+    # Persist full normalization parameters for denormalized evaluation.
+    norm_ds_vars = {}
+    for var, stats in norm_params.items():
+        norm_ds_vars[f"{var}_mean"] = (("lat", "lon"), stats["mean"].astype("float32"))
+        norm_ds_vars[f"{var}_std"] = (("lat", "lon"), stats["std"].astype("float32"))
+    norm_ds = xr.Dataset(norm_ds_vars, coords={"lat": normalized.lat.values, "lon": normalized.lon.values})
+    norm_path = output_dir / f"norm_params_{start_year}-{end_year}.nc"
+    norm_ds.to_netcdf(norm_path)
+    typer.echo(f"Saved normalization parameters: {norm_path}")
 
     # Reproducible preprocessing provenance log (Requirement 13.2)
     # Keep arrays out of the JSON artifact to avoid huge files.
@@ -160,6 +173,7 @@ def preprocess(
         },
         "outputs": {
             "normalized_dataset": str(out_path),
+            "normalization_parameters": str(norm_path),
             "norm_params": norm_summary,
         },
     }

@@ -5,6 +5,7 @@ Property 14: API rejects invalid parameters with descriptive errors
 
 from __future__ import annotations
 
+import json
 import pytest
 from fastapi.testclient import TestClient
 
@@ -149,6 +150,108 @@ def test_metrics_valid_variable(client):
 def test_metrics_invalid_variable(client):
     resp = client.get("/api/metrics?variable=wind_speed")
     assert resp.status_code == 400
+
+
+def test_metrics_from_vayu_report(client, monkeypatch, tmp_path):
+    report = {
+        "latest_validation_metrics": {
+            "r2_denorm_tmax": 0.41,
+            "rmse_denorm_tmax": 1.9,
+            "mae_denorm_tmax": 1.4,
+            "skill_vs_persistence_denorm_tmax": 0.12,
+        }
+    }
+    metrics_path = tmp_path / "benchmark_report.json"
+    metrics_path.write_text(json.dumps(report), encoding="utf-8")
+    monkeypatch.setenv("METRICS_REPORT_PATH", str(metrics_path))
+
+    resp = client.get(
+        "/api/metrics?variable=temp_max&region=pilot&denormalized=true&source_model=vayu"
+    )
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["denormalized"] is True
+    assert body["source_model"] == "vayu"
+    assert abs(body["r2_score"] - 0.41) < 1e-9
+
+
+def test_metrics_from_baseline_report(client, monkeypatch, tmp_path):
+    baseline_report = {
+        "random_forest": {
+            "r2_rainfall_t1": 0.2,
+            "r2_rainfall_t3": 0.15,
+            "r2_rainfall_t7": 0.1,
+            "rmse_rainfall_t1": 7.0,
+            "rmse_rainfall_t3": 7.5,
+            "rmse_rainfall_t7": 8.0,
+            "mae_rainfall_t1": 4.1,
+            "mae_rainfall_t3": 4.3,
+            "mae_rainfall_t7": 4.6,
+        }
+    }
+    baseline_path = tmp_path / "baseline_benchmark_report.json"
+    baseline_path.write_text(json.dumps(baseline_report), encoding="utf-8")
+    monkeypatch.setenv("BASELINE_REPORT_PATH", str(baseline_path))
+
+    resp = client.get(
+        "/api/metrics?variable=rainfall&region=pilot&source_model=random_forest&lead_time=t3"
+    )
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["source_model"] == "random_forest"
+    assert body["lead_time"] == "t3"
+    assert abs(body["rmse"] - 7.5) < 1e-9
+
+
+def test_metrics_from_baseline_report_region_suffix(client, monkeypatch, tmp_path):
+    baseline_report = {
+        "random_forest": {
+            "r2_rainfall_t1_western_ghats": 0.33,
+            "rmse_rainfall_t1_western_ghats": 6.8,
+            "mae_rainfall_t1_western_ghats": 3.9,
+        }
+    }
+    baseline_path = tmp_path / "baseline_benchmark_report.json"
+    baseline_path.write_text(json.dumps(baseline_report), encoding="utf-8")
+    monkeypatch.setenv("BASELINE_REPORT_PATH", str(baseline_path))
+
+    resp = client.get(
+        "/api/metrics?variable=rainfall&region=western_ghats&source_model=random_forest&lead_time=t1"
+    )
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["region"] == "western_ghats"
+    assert abs(body["r2_score"] - 0.33) < 1e-9
+
+
+def test_metrics_invalid_region(client):
+    resp = client.get("/api/metrics?variable=rainfall&region=antarctica")
+    assert resp.status_code == 400
+
+
+def test_twin_state_endpoint(client):
+    resp = client.get("/api/twin/state")
+    assert resp.status_code == 200
+    body = resp.json()
+    assert "temperature" in body
+    assert "rainfall" in body
+    assert "enso_state" in body
+
+
+def test_twin_update_endpoint(client):
+    resp = client.post(
+        "/api/twin/update",
+        json={
+            "region": "pilot",
+            "temperature": 31.5,
+            "rainfall": 7.2,
+            "enso_state": 0.8,
+        },
+    )
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["region"] == "pilot"
+    assert abs(body["temperature"] - 31.5) < 1e-6
 
 
 # ── CORS headers ──────────────────────────────────────────────────────────────

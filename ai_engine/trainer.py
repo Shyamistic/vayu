@@ -27,6 +27,8 @@ from torch_geometric.data import Data as GraphData
 from .climate_model import VayuClimateModel
 from .config import DataSplit, ModelConfig
 from .loss_functions import PhysicsInformedLoss
+from .baselines import run_baseline_suite
+from .regions import available_regions, region_mask
 from data_ingestion.graph_builder import ClimateGraphBuilder
 
 logger = logging.getLogger(__name__)
@@ -195,6 +197,10 @@ def _collate_sequences(
         edge_index=graphs[0].edge_index,
         edge_attr=graphs[0].edge_attr,
     )
+    if hasattr(graphs[0], "pos"):
+        batched_graph.pos = graphs[0].pos
+    if hasattr(graphs[0], "static_features"):
+        batched_graph.static_features = graphs[0].static_features
     return batched_graph, t_batch
 
 
@@ -223,6 +229,77 @@ def _skill_score(pred: np.ndarray, true: np.ndarray, clim: np.ndarray) -> float:
     return 1.0 - mse_model / mse_clim
 
 
+def _norm_key_for_model_var(model_var: str) -> str:
+    mapping = {
+        "rainfall": "rainfall",
+        "temp_max": "tmax",
+        "temp_min": "tmin",
+    }
+    return mapping.get(model_var, model_var)
+
+
+def _load_norm_params_file(norm_params_file: str | None) -> dict[str, dict[str, np.ndarray]] | None:
+    """Load normalization statistics from NetCDF produced by preprocess CLI."""
+    if not norm_params_file:
+        return None
+
+    path = Path(norm_params_file)
+    if not path.exists():
+        raise FileNotFoundError(f"Normalization parameter file not found: {norm_params_file}")
+
+    ds = xr.open_dataset(path)
+    loaded: dict[str, dict[str, np.ndarray]] = {}
+    for model_var in ["rainfall", "temp_max", "temp_min"]:
+        key = _norm_key_for_model_var(model_var)
+        mean_name = f"{key}_mean"
+        std_name = f"{key}_std"
+        if mean_name in ds and std_name in ds:
+            loaded[model_var] = {
+                "mean": ds[mean_name].values.astype(np.float32),
+                "std": ds[std_name].values.astype(np.float32),
+            }
+    return loaded or None
+
+
+def _denormalize_grid(
+    arr: np.ndarray,
+    mean_grid: np.ndarray,
+    std_grid: np.ndarray,
+) -> np.ndarray:
+    """Denormalize node x horizon tensors using per-node stats."""
+    mean_flat = mean_grid.reshape(-1)
+    std_flat = std_grid.reshape(-1)
+    std_flat = np.where(std_flat < 1e-6, 1e-6, std_flat)
+    return arr * std_flat[:, None] + mean_flat[:, None]
+
+
+def _baseline_from_input(
+    graph: GraphData,
+    horizon: int,
+) -> dict[str, np.ndarray]:
+    """Build persistence and climatology baselines from model input window.
+
+    Returns:
+        Dict with keys:
+            - persistence_<var>
+            - climatology_<var>
+        Each array has shape (num_nodes, horizon).
+    """
+    # graph.x shape: (num_nodes, seq_len, features)
+    x = graph.x.detach().cpu().numpy()
+    # Dynamic channels: rainfall=0, temp_max=1, temp_min=2
+    last_step = x[:, -1, :3]
+    mean_step = x[:, :, :3].mean(axis=1)
+
+    baselines = {}
+    for idx, var in enumerate(["rainfall", "temp_max", "temp_min"]):
+        pers = np.repeat(last_step[:, idx:idx + 1], horizon, axis=1)
+        clim = np.repeat(mean_step[:, idx:idx + 1], horizon, axis=1)
+        baselines[f"persistence_{var}"] = pers
+        baselines[f"climatology_{var}"] = clim
+    return baselines
+
+
 class VayuTrainer:
     """Training and evaluation harness for VayuClimateModel."""
 
@@ -232,6 +309,7 @@ class VayuTrainer:
         loss_fn: PhysicsInformedLoss,
         checkpoint_dir: str = "./checkpoints",
         device: str | None = None,
+        norm_params: dict[str, dict[str, np.ndarray]] | None = None,
     ):
         self.model = model
         self.loss_fn = loss_fn
@@ -245,6 +323,7 @@ class VayuTrainer:
 
         self.model = self.model.to(self.device)
         self.loss_fn = self.loss_fn.to(self.device)
+        self.norm_params = norm_params
         logger.info("Trainer using device: %s", self.device)
 
     def train(
@@ -253,6 +332,7 @@ class VayuTrainer:
         val_sequences: list,
         config: ModelConfig | None = None,
         early_stopping_patience: int = 10,
+        require_benchmark_comparison: bool = True,
     ) -> dict:
         """Full training loop.
 
@@ -288,7 +368,13 @@ class VayuTrainer:
             num_workers=0,
         )
 
-        history = {"train_loss": [], "val_loss": [], "val_r2": [], "epochs": []}
+        history = {
+            "train_loss": [],
+            "val_loss": [],
+            "val_r2": [],
+            "epochs": [],
+            "benchmark_metrics": [],
+        }
         best_val_loss = float("inf")
         patience_counter = 0
         best_checkpoint = self.checkpoint_dir / "vayu_best.pt"
@@ -298,6 +384,22 @@ class VayuTrainer:
             train_loss = self._train_epoch(train_loader, optimizer)
             val_loss, val_metrics = self._eval_epoch(val_loader)
 
+            if require_benchmark_comparison:
+                benchmark_keys = {
+                    "skill_vs_persistence_rain",
+                    "skill_vs_persistence_tmax",
+                    "skill_vs_persistence_tmin",
+                    "skill_vs_climatology_rain",
+                    "skill_vs_climatology_tmax",
+                    "skill_vs_climatology_tmin",
+                }
+                missing = sorted(k for k in benchmark_keys if k not in val_metrics)
+                if missing:
+                    raise RuntimeError(
+                        "Benchmark comparison is mandatory; missing metrics: "
+                        + ", ".join(missing)
+                    )
+
             scheduler.step(val_loss)
             elapsed = time.time() - t0
 
@@ -305,6 +407,7 @@ class VayuTrainer:
             history["val_loss"].append(val_loss)
             history["val_r2"].append(val_metrics.get("r2_tmax", float("nan")))
             history["epochs"].append(epoch)
+            history["benchmark_metrics"].append(val_metrics)
 
             logger.info(
                 "Epoch %3d/%d | train_loss=%.4f | val_loss=%.4f | "
@@ -331,6 +434,16 @@ class VayuTrainer:
         history_path = self.checkpoint_dir / "training_history.json"
         with open(history_path, "w") as f:
             json.dump(_json_safe(history), f, indent=2)
+
+        # Every experiment writes benchmark comparison report.
+        benchmark_report = {
+            "best_val_loss": best_val_loss,
+            "latest_validation_metrics": history["benchmark_metrics"][-1] if history["benchmark_metrics"] else {},
+            "num_epochs": len(history["epochs"]),
+        }
+        report_path = self.checkpoint_dir / "benchmark_report.json"
+        with open(report_path, "w", encoding="utf-8") as f:
+            json.dump(_json_safe(benchmark_report), f, indent=2)
 
         logger.info("Training complete. Best val_loss=%.4f", best_val_loss)
         return history
@@ -378,6 +491,16 @@ class VayuTrainer:
         n_batches = 0
         all_preds: dict[str, list] = {"rainfall": [], "temp_max": [], "temp_min": []}
         all_targets: dict[str, list] = {"rainfall": [], "temp_max": [], "temp_min": []}
+        all_persistence: dict[str, list] = {"rainfall": [], "temp_max": [], "temp_min": []}
+        all_climatology: dict[str, list] = {"rainfall": [], "temp_max": [], "temp_min": []}
+        all_preds_denorm: dict[str, list] = {"rainfall": [], "temp_max": [], "temp_min": []}
+        all_targets_denorm: dict[str, list] = {"rainfall": [], "temp_max": [], "temp_min": []}
+        all_persistence_denorm: dict[str, list] = {"rainfall": [], "temp_max": [], "temp_min": []}
+        all_climatology_denorm: dict[str, list] = {"rainfall": [], "temp_max": [], "temp_min": []}
+
+        reg_names = [r for r in available_regions() if r != "pilot"]
+        reg_preds = {r: {"rainfall": [], "temp_max": [], "temp_min": []} for r in reg_names}
+        reg_targets = {r: {"rainfall": [], "temp_max": [], "temp_min": []} for r in reg_names}
 
         for graph_batch, targets in loader:
             batch_size = targets.shape[0]
@@ -393,12 +516,45 @@ class VayuTrainer:
                 total_loss += loss_dict["total_loss"].item()
                 n_batches += 1
 
+                baselines = _baseline_from_input(g, horizon=target.shape[0])
+                pos = getattr(g, "pos", None)
+                node_latlon = pos.detach().cpu().numpy() if pos is not None else None
+                region_masks: dict[str, np.ndarray] = {}
+                if node_latlon is not None:
+                    for reg in reg_names:
+                        region_masks[reg] = region_mask(node_latlon, reg)
+
                 # Collect predictions for metric computation
                 for v_idx, var in enumerate(["rainfall", "temp_max", "temp_min"]):
-                    p = preds[var].cpu().numpy().ravel()  # (num_nodes * horizon,)
-                    t = target[..., v_idx].cpu().numpy().ravel()
+                    p_2d = preds[var].cpu().numpy()  # (num_nodes, horizon)
+                    t_2d = target[..., v_idx].cpu().numpy().transpose(1, 0)  # (num_nodes, horizon)
+                    p = p_2d.ravel()
+                    t = t_2d.ravel()
                     all_preds[var].append(p)
                     all_targets[var].append(t)
+                    all_persistence[var].append(baselines[f"persistence_{var}"].ravel())
+                    all_climatology[var].append(baselines[f"climatology_{var}"].ravel())
+
+                    for reg, mask in region_masks.items():
+                        if mask.any():
+                            reg_preds[reg][var].append(p_2d[mask, :].ravel())
+                            reg_targets[reg][var].append(t_2d[mask, :].ravel())
+
+                    if self.norm_params and var in self.norm_params:
+                        mean_grid = self.norm_params[var]["mean"]
+                        std_grid = self.norm_params[var]["std"]
+                        p_denorm = _denormalize_grid(p_2d, mean_grid, std_grid)
+                        t_denorm = _denormalize_grid(t_2d, mean_grid, std_grid)
+                        persist_denorm = _denormalize_grid(
+                            baselines[f"persistence_{var}"], mean_grid, std_grid
+                        )
+                        clim_denorm = _denormalize_grid(
+                            baselines[f"climatology_{var}"], mean_grid, std_grid
+                        )
+                        all_preds_denorm[var].append(p_denorm.ravel())
+                        all_targets_denorm[var].append(t_denorm.ravel())
+                        all_persistence_denorm[var].append(persist_denorm.ravel())
+                        all_climatology_denorm[var].append(clim_denorm.ravel())
 
         # Compute R² per variable
         metrics = {}
@@ -406,9 +562,32 @@ class VayuTrainer:
         for var, short in var_short.items():
             p = np.concatenate(all_preds[var])
             t = np.concatenate(all_targets[var])
+            p_persist = np.concatenate(all_persistence[var])
+            p_clim = np.concatenate(all_climatology[var])
             metrics[f"r2_{short}"] = _r2_score(p, t)
             metrics[f"rmse_{short}"] = float(np.sqrt(np.nanmean((p - t) ** 2)))
             metrics[f"mae_{short}"] = float(np.nanmean(np.abs(p - t)))
+            metrics[f"skill_vs_persistence_{short}"] = _skill_score(p, t, p_persist)
+            metrics[f"skill_vs_climatology_{short}"] = _skill_score(p, t, p_clim)
+
+            if all_preds_denorm[var]:
+                pdn = np.concatenate(all_preds_denorm[var])
+                tdn = np.concatenate(all_targets_denorm[var])
+                pdn_persist = np.concatenate(all_persistence_denorm[var])
+                pdn_clim = np.concatenate(all_climatology_denorm[var])
+                metrics[f"r2_denorm_{short}"] = _r2_score(pdn, tdn)
+                metrics[f"rmse_denorm_{short}"] = float(np.sqrt(np.nanmean((pdn - tdn) ** 2)))
+                metrics[f"mae_denorm_{short}"] = float(np.nanmean(np.abs(pdn - tdn)))
+                metrics[f"skill_vs_persistence_denorm_{short}"] = _skill_score(pdn, tdn, pdn_persist)
+                metrics[f"skill_vs_climatology_denorm_{short}"] = _skill_score(pdn, tdn, pdn_clim)
+
+            for reg in reg_names:
+                if reg_preds[reg][var]:
+                    rp = np.concatenate(reg_preds[reg][var])
+                    rt = np.concatenate(reg_targets[reg][var])
+                    metrics[f"r2_{short}_{reg}"] = _r2_score(rp, rt)
+                    metrics[f"rmse_{short}_{reg}"] = float(np.sqrt(np.nanmean((rp - rt) ** 2)))
+                    metrics[f"mae_{short}_{reg}"] = float(np.nanmean(np.abs(rp - rt)))
 
         return total_loss / max(n_batches, 1), metrics
 
@@ -431,6 +610,12 @@ class VayuTrainer:
 
         all_preds: dict[str, list] = {"rainfall": [], "temp_max": [], "temp_min": []}
         all_targets: dict[str, list] = {"rainfall": [], "temp_max": [], "temp_min": []}
+        all_persistence: dict[str, list] = {"rainfall": [], "temp_max": [], "temp_min": []}
+        all_climatology: dict[str, list] = {"rainfall": [], "temp_max": [], "temp_min": []}
+        all_preds_denorm: dict[str, list] = {"rainfall": [], "temp_max": [], "temp_min": []}
+        all_targets_denorm: dict[str, list] = {"rainfall": [], "temp_max": [], "temp_min": []}
+        all_persistence_denorm: dict[str, list] = {"rainfall": [], "temp_max": [], "temp_min": []}
+        all_climatology_denorm: dict[str, list] = {"rainfall": [], "temp_max": [], "temp_min": []}
 
         for graph_batch, targets in test_loader:
             g = GraphData(
@@ -440,26 +625,57 @@ class VayuTrainer:
             )
             target = targets[0].to(self.device)
             preds = self.model(g)
+            baselines = _baseline_from_input(g, horizon=target.shape[0])
             for v_idx, var in enumerate(["rainfall", "temp_max", "temp_min"]):
-                all_preds[var].append(preds[var].cpu().numpy().ravel())
-                all_targets[var].append(target[..., v_idx].cpu().numpy().ravel())
+                p_2d = preds[var].cpu().numpy()
+                t_2d = target[..., v_idx].cpu().numpy().transpose(1, 0)
+                all_preds[var].append(p_2d.ravel())
+                all_targets[var].append(t_2d.ravel())
+                all_persistence[var].append(baselines[f"persistence_{var}"].ravel())
+                all_climatology[var].append(baselines[f"climatology_{var}"].ravel())
+
+                if self.norm_params and var in self.norm_params:
+                    mean_grid = self.norm_params[var]["mean"]
+                    std_grid = self.norm_params[var]["std"]
+                    all_preds_denorm[var].append(_denormalize_grid(p_2d, mean_grid, std_grid).ravel())
+                    all_targets_denorm[var].append(_denormalize_grid(t_2d, mean_grid, std_grid).ravel())
+                    all_persistence_denorm[var].append(
+                        _denormalize_grid(baselines[f"persistence_{var}"], mean_grid, std_grid).ravel()
+                    )
+                    all_climatology_denorm[var].append(
+                        _denormalize_grid(baselines[f"climatology_{var}"], mean_grid, std_grid).ravel()
+                    )
 
         results = {}
         for var in ["rainfall", "temp_max", "temp_min"]:
             p = np.concatenate(all_preds[var])
             t = np.concatenate(all_targets[var])
-            # Use mean as a simple climatology baseline
-            clim = np.full_like(t, np.nanmean(t))
+            p_persist = np.concatenate(all_persistence[var])
+            p_clim = np.concatenate(all_climatology[var])
             results[var] = {
                 "r2": _r2_score(p, t),
                 "rmse": float(np.sqrt(np.nanmean((p - t) ** 2))),
                 "mae": float(np.nanmean(np.abs(p - t))),
-                "skill_score": _skill_score(p, t, clim),
+                "skill_vs_persistence": _skill_score(p, t, p_persist),
+                "skill_vs_climatology": _skill_score(p, t, p_clim),
             }
+
+            if all_preds_denorm[var]:
+                pdn = np.concatenate(all_preds_denorm[var])
+                tdn = np.concatenate(all_targets_denorm[var])
+                pdn_persist = np.concatenate(all_persistence_denorm[var])
+                pdn_clim = np.concatenate(all_climatology_denorm[var])
+                results[var]["r2_denorm"] = _r2_score(pdn, tdn)
+                results[var]["rmse_denorm"] = float(np.sqrt(np.nanmean((pdn - tdn) ** 2)))
+                results[var]["mae_denorm"] = float(np.nanmean(np.abs(pdn - tdn)))
+                results[var]["skill_vs_persistence_denorm"] = _skill_score(pdn, tdn, pdn_persist)
+                results[var]["skill_vs_climatology_denorm"] = _skill_score(pdn, tdn, pdn_clim)
             logger.info(
-                "Test %s: R²=%.3f, RMSE=%.3f, MAE=%.3f, Skill=%.3f",
+                "Test %s: R²=%.3f, RMSE=%.3f, MAE=%.3f, Skill(persist)=%.3f, Skill(clim)=%.3f",
                 var, results[var]["r2"], results[var]["rmse"],
-                results[var]["mae"], results[var]["skill_score"],
+                results[var]["mae"],
+                results[var]["skill_vs_persistence"],
+                results[var]["skill_vs_climatology"],
             )
 
         return results
@@ -492,6 +708,10 @@ def train_cli() -> None:
         transformer_num_layers: int | None = typer.Option(None, help="Override transformer layer count"),
         transformer_dim_feedforward: int | None = typer.Option(None, help="Override transformer feed-forward dimension"),
         lambda_smoothness: float | None = typer.Option(None, help="Override smoothness loss weight"),
+        norm_params_file: str | None = typer.Option(
+            None,
+            help="Path to norm_params_YYYY-YYYY.nc for denormalized physical metrics",
+        ),
         smoke_only: bool = typer.Option(
             False,
             help="Run forward-only smoke validation without backprop",
@@ -499,6 +719,18 @@ def train_cli() -> None:
         force_backprop: bool = typer.Option(
             False,
             help="Force full training even on known unstable local runtimes",
+        ),
+        require_benchmarks: bool = typer.Option(
+            True,
+            help="Require persistence and climatology benchmark comparisons for every experiment",
+        ),
+        run_baselines: bool = typer.Option(
+            False,
+            help="Run classical baseline suite (persistence, climatology, RF, XGBoost)",
+        ),
+        baseline_report_file: str = typer.Option(
+            "baseline_benchmark_report.json",
+            help="Output filename for baseline suite report inside checkpoint directory",
         ),
     ):
         """Train VayuClimateModel on preprocessed IMD data."""
@@ -600,7 +832,14 @@ def train_cli() -> None:
             lambda_conservation=config.lambda_conservation,
             lambda_smoothness=config.lambda_smoothness,
         )
-        trainer = VayuTrainer(model, loss_fn, checkpoint_dir, device=device)
+        norm_params = _load_norm_params_file(norm_params_file)
+        trainer = VayuTrainer(
+            model,
+            loss_fn,
+            checkpoint_dir,
+            device=device,
+            norm_params=norm_params,
+        )
 
         train_sequences, val_sequences, source = _load_or_build_sequences(data_dir, config)
         logger.info(
@@ -610,13 +849,26 @@ def train_cli() -> None:
             source,
         )
 
+        if run_baselines:
+            logger.info("Running classical baseline suite...")
+            baseline_report = run_baseline_suite(train_sequences, val_sequences)
+            out_path = Path(checkpoint_dir) / baseline_report_file
+            out_path.parent.mkdir(parents=True, exist_ok=True)
+            out_path.write_text(json.dumps(_json_safe(baseline_report), indent=2), encoding="utf-8")
+            logger.info("Saved baseline benchmark report: %s", out_path)
+
         if smoke_only:
             logger.info("Starting smoke-only validation (device=%s)…", device)
             _run_smoke_forward(model, loss_fn, train_sequences, device, checkpoint_dir)
             return
 
         logger.info("Starting training (device=%s)…", device)
-        trainer.train(train_sequences, val_sequences, config)
+        trainer.train(
+            train_sequences,
+            val_sequences,
+            config,
+            require_benchmark_comparison=require_benchmarks,
+        )
 
     app()
 

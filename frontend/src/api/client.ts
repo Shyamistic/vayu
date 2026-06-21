@@ -77,9 +77,27 @@ export async function fetchHistorical(params: {
 export async function fetchMetrics(
   variable: VariableId,
   region = 'pilot',
+  options?: {
+    denormalized?: boolean;
+    sourceModel?: 'vayu' | 'persistence' | 'climatology' | 'random_forest' | 'xgboost';
+    leadTime?: 'aggregate' | 't1' | 't3' | 't7';
+  },
 ): Promise<MetricsResponse> {
+  const q = new URLSearchParams({
+    variable,
+    region,
+  });
+  if (options?.denormalized !== undefined) {
+    q.set('denormalized', String(options.denormalized));
+  }
+  if (options?.sourceModel) {
+    q.set('source_model', options.sourceModel);
+  }
+  if (options?.leadTime) {
+    q.set('lead_time', options.leadTime);
+  }
   return apiFetch<MetricsResponse>(
-    `/api/metrics?variable=${variable}&region=${region}`,
+    `/api/metrics?${q.toString()}`,
   );
 }
 

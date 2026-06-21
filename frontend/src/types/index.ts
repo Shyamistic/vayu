@@ -78,6 +78,9 @@ export interface MetricsResponse {
   rmse: number;
   mae: number;
   skill_score: number;
+  source_model?: string;
+  lead_time?: string;
+  denormalized?: boolean;
 }
 
 // ── Historical types ──────────────────────────────────────────────────────────

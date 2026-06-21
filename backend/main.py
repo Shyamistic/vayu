@@ -12,6 +12,7 @@ Endpoints:
 from __future__ import annotations
 
 import io
+import json
 import logging
 import os
 import time
@@ -35,6 +36,8 @@ from backend.cache import CacheClient
 from backend.database import DatabaseClient
 from data_ingestion.graph_builder import ClimateGraphBuilder
 from scenario_engine.engine import ScenarioConfig, ScenarioEngine, ScenarioType
+from scenario_engine.twin_state import ClimateState, StateUpdater, TwinEngine
+from ai_engine.regions import available_regions
 
 logger = logging.getLogger(__name__)
 
@@ -46,6 +49,7 @@ _db: DatabaseClient | None = None
 _start_time = time.time()
 _last_prediction_ts: str | None = None
 _scenario_base_graph: GraphData | None = None
+_twin_engine: TwinEngine | None = None
 
 
 def _get_model() -> VayuClimateModel:
@@ -64,6 +68,20 @@ def _get_engine() -> ScenarioEngine:
     return _scenario_engine
 
 
+def _get_twin_engine() -> TwinEngine:
+    global _twin_engine
+    if _twin_engine is None:
+        _twin_engine = TwinEngine()
+        seed_state = StateUpdater.from_field_means(
+            region="pilot",
+            temperature_field=np.array([30.0], dtype=np.float32),
+            rainfall_field=np.array([5.0], dtype=np.float32),
+            enso_state=0.0,
+        )
+        _twin_engine.update_state(seed_state)
+    return _twin_engine
+
+
 def _get_cache() -> CacheClient:
     if _cache is None:
         raise HTTPException(503, "Cache not available")
@@ -79,7 +97,7 @@ def _get_db() -> DatabaseClient | None:
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Start up: load model, initialize connections."""
-    global _model, _scenario_engine, _cache, _db
+    global _model, _scenario_engine, _cache, _db, _twin_engine
 
     logger.info("VAYU backend starting…")
 
@@ -108,6 +126,16 @@ async def lifespan(app: FastAPI):
         _model.eval()
 
     _scenario_engine = ScenarioEngine(_model)
+
+    # Twin state bootstrap from neutral baseline. Updated on prediction/scenario calls.
+    _twin_engine = TwinEngine()
+    seed_state = StateUpdater.from_field_means(
+        region="pilot",
+        temperature_field=np.array([30.0], dtype=np.float32),
+        rainfall_field=np.array([5.0], dtype=np.float32),
+        enso_state=0.0,
+    )
+    _twin_engine.update_state(seed_state)
     logger.info("VAYU backend ready")
 
     yield
@@ -217,6 +245,9 @@ class MetricsResponse(BaseModel):
     rmse: float
     mae: float
     skill_score: float
+    source_model: str = "vayu"
+    lead_time: str = "aggregate"
+    denormalized: bool = False
 
 
 class HistoricalRecord(BaseModel):
@@ -234,6 +265,24 @@ class HealthResponse(BaseModel):
     last_prediction_timestamp: str | None
     uptime_seconds: float
     device: str
+
+
+class TwinStateResponse(BaseModel):
+    timestamp: str
+    region: str
+    temperature: float
+    rainfall: float
+    soil_moisture_proxy: float
+    vegetation_proxy: float
+    enso_state: float
+    metadata: dict[str, Any]
+
+
+class TwinUpdateRequest(BaseModel):
+    region: str = "pilot"
+    temperature: float
+    rainfall: float
+    enso_state: float = 0.0
 
 
 # ── Helpers ──────────────────────────────────────────────────────────────────────
@@ -261,6 +310,119 @@ def _validate_bbox(lat_min: float, lat_max: float, lon_min: float, lon_max: floa
             400,
             f"Longitude must be within pilot region [{PILOT.lon_min}, {PILOT.lon_max}]",
         )
+
+
+def _load_json_if_exists(path_str: str) -> dict[str, Any] | None:
+    path = Path(path_str)
+    if not path.exists():
+        return None
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except Exception as exc:
+        logger.warning("Failed to read metrics report %s: %s", path, exc)
+        return None
+
+
+def _avg(values: list[float]) -> float:
+    vals = [v for v in values if np.isfinite(v)]
+    if not vals:
+        return float("nan")
+    return float(np.mean(vals))
+
+
+def _extract_vayu_metrics(
+    report: dict[str, Any],
+    variable: str,
+    denormalized: bool,
+    region: str,
+) -> dict[str, float] | None:
+    metrics = report.get("latest_validation_metrics", {})
+    short = {"rainfall": "rain", "temp_max": "tmax", "temp_min": "tmin"}[variable]
+
+    region_suffix = "" if region == "pilot" else f"_{region}"
+
+    if denormalized:
+        r2_key = f"r2_denorm_{short}{region_suffix}"
+        rmse_key = f"rmse_denorm_{short}{region_suffix}"
+        mae_key = f"mae_denorm_{short}{region_suffix}"
+        skill_key = f"skill_vs_persistence_denorm_{short}{region_suffix}"
+    else:
+        r2_key = f"r2_{short}{region_suffix}"
+        rmse_key = f"rmse_{short}{region_suffix}"
+        mae_key = f"mae_{short}{region_suffix}"
+        skill_key = f"skill_vs_persistence_{short}{region_suffix}"
+
+    # Fallback to pilot aggregate keys when region-specific metrics are absent.
+    if any(k not in metrics for k in [r2_key, rmse_key, mae_key, skill_key]) and region != "pilot":
+        if denormalized:
+            r2_key = f"r2_denorm_{short}"
+            rmse_key = f"rmse_denorm_{short}"
+            mae_key = f"mae_denorm_{short}"
+            skill_key = f"skill_vs_persistence_denorm_{short}"
+        else:
+            r2_key = f"r2_{short}"
+            rmse_key = f"rmse_{short}"
+            mae_key = f"mae_{short}"
+            skill_key = f"skill_vs_persistence_{short}"
+
+    required = [r2_key, rmse_key, mae_key, skill_key]
+    if any(k not in metrics for k in required):
+        return None
+
+    return {
+        "r2": float(metrics[r2_key]),
+        "rmse": float(metrics[rmse_key]),
+        "mae": float(metrics[mae_key]),
+        "skill": float(metrics[skill_key]),
+    }
+
+
+def _extract_baseline_metrics(
+    report: dict[str, Any],
+    variable: str,
+    source_model: str,
+    lead_time: str,
+    region: str,
+) -> dict[str, float] | None:
+    model_payload = report.get(source_model)
+    if not isinstance(model_payload, dict):
+        return None
+
+    if lead_time not in {"t1", "t3", "t7", "aggregate"}:
+        raise HTTPException(400, "lead_time must be one of: t1, t3, t7, aggregate")
+
+    def _get(metric: str, lead: str) -> float | None:
+        region_suffix = "" if region == "pilot" else f"_{region}"
+        key = f"{metric}_{variable}_{lead}{region_suffix}"
+        val = model_payload.get(key)
+        if val is None and region != "pilot":
+            # Fallback to aggregate pilot keys when region entries not present.
+            fallback_key = f"{metric}_{variable}_{lead}"
+            val = model_payload.get(fallback_key)
+        if val is None:
+            return None
+        return float(val)
+
+    if lead_time == "aggregate":
+        leads = ["t1", "t3", "t7"]
+        r2s = [_get("r2", l) for l in leads]
+        rmses = [_get("rmse", l) for l in leads]
+        maes = [_get("mae", l) for l in leads]
+        if any(v is None for v in r2s + rmses + maes):
+            return None
+        return {
+            "r2": _avg([v for v in r2s if v is not None]),
+            "rmse": _avg([v for v in rmses if v is not None]),
+            "mae": _avg([v for v in maes if v is not None]),
+            "skill": 0.0,
+        }
+
+    r2 = _get("r2", lead_time)
+    rmse = _get("rmse", lead_time)
+    mae = _get("mae", lead_time)
+    if r2 is None or rmse is None or mae is None:
+        return None
+    return {"r2": r2, "rmse": rmse, "mae": mae, "skill": 0.0}
 
 
 def _mock_grid_cells(n_cells: int = 50) -> list[GridCell]:
@@ -345,6 +507,13 @@ async def predict(
     if _cache:
         await _cache.set(cache_key, response.model_dump(), ttl=3600)
 
+    twin = _get_twin_engine()
+    if grid_cells:
+        tvals = np.array([c.temp_max for c in grid_cells], dtype=np.float32)
+        rvals = np.array([c.rainfall for c in grid_cells], dtype=np.float32)
+        state = StateUpdater.from_field_means(region=region, temperature_field=tvals, rainfall_field=rvals)
+        twin.update_state(state)
+
     return response
 
 
@@ -422,7 +591,44 @@ async def run_scenario(request: ScenarioRequest):
     if _cache:
         await _cache.set(cache_key, result.model_dump(), ttl=3600)
 
+    twin = _get_twin_engine()
+    if twin.get_state() is not None:
+        temp_delta = float(np.mean(result.delta.get("temp_max", [0.0])))
+        rain_delta = float(np.mean(result.delta.get("rainfall", [0.0])))
+        projected = twin.project_with_delta(
+            temp_delta=temp_delta,
+            rainfall_delta=rain_delta,
+            label=request.scenario_type,
+        )
+        twin.update_state(projected)
+
     return result
+
+
+@app.get("/api/twin/state", response_model=TwinStateResponse, tags=["Digital Twin"])
+async def get_twin_state():
+    """Return the latest digital twin climate state."""
+    twin = _get_twin_engine()
+    if twin.get_state() is None:
+        raise HTTPException(503, "Twin state not initialized")
+    state = twin.get_state()
+    assert state is not None
+    return TwinStateResponse(**state.__dict__)
+
+
+@app.post("/api/twin/update", response_model=TwinStateResponse, tags=["Digital Twin"])
+async def update_twin_state(request: TwinUpdateRequest):
+    """Update the digital twin with externally provided observed means."""
+    twin = _get_twin_engine()
+
+    state = StateUpdater.from_field_means(
+        region=request.region,
+        temperature_field=np.array([request.temperature], dtype=np.float32),
+        rainfall_field=np.array([request.rainfall], dtype=np.float32),
+        enso_state=request.enso_state,
+    )
+    twin.update_state(state)
+    return TwinStateResponse(**state.__dict__)
 
 
 @app.get("/api/historical", response_model=list[HistoricalRecord], tags=["Historical"])
@@ -487,11 +693,60 @@ async def get_historical(
 async def get_metrics(
     variable: str = Query("rainfall"),
     region: str = Query("pilot"),
+    denormalized: bool = Query(False, description="Use denormalized physical-unit metrics where available"),
+    source_model: str = Query("vayu", description="vayu | persistence | climatology | random_forest | xgboost"),
+    lead_time: str = Query("aggregate", description="aggregate | t1 | t3 | t7"),
 ):
     """Get model performance metrics (R², RMSE, MAE, skill score)."""
     valid_vars = {"rainfall", "temp_max", "temp_min"}
     if variable not in valid_vars:
         raise HTTPException(400, f"variable must be one of {sorted(valid_vars)}")
+
+    valid_models = {"vayu", "persistence", "climatology", "random_forest", "xgboost"}
+    if source_model not in valid_models:
+        raise HTTPException(400, f"source_model must be one of {sorted(valid_models)}")
+
+    valid_regions = set(available_regions())
+    if region not in valid_regions:
+        raise HTTPException(400, f"region must be one of {sorted(valid_regions)}")
+
+    model_metrics_path = os.getenv("METRICS_REPORT_PATH", "./checkpoints/benchmark_report.json")
+    baseline_metrics_path = os.getenv("BASELINE_REPORT_PATH", "./checkpoints/baseline_benchmark_report.json")
+
+    if source_model == "vayu":
+        payload = _load_json_if_exists(model_metrics_path)
+        if payload:
+            extracted = _extract_vayu_metrics(payload, variable, denormalized, region)
+            if extracted:
+                return MetricsResponse(
+                    variable=variable,
+                    region=region,
+                    eval_period="validation",
+                    r2_score=extracted["r2"],
+                    rmse=extracted["rmse"],
+                    mae=extracted["mae"],
+                    skill_score=extracted["skill"],
+                    source_model=source_model,
+                    lead_time="aggregate",
+                    denormalized=denormalized,
+                )
+    else:
+        payload = _load_json_if_exists(baseline_metrics_path)
+        if payload:
+            extracted = _extract_baseline_metrics(payload, variable, source_model, lead_time, region)
+            if extracted:
+                return MetricsResponse(
+                    variable=variable,
+                    region=region,
+                    eval_period="validation",
+                    r2_score=extracted["r2"],
+                    rmse=extracted["rmse"],
+                    mae=extracted["mae"],
+                    skill_score=extracted["skill"],
+                    source_model=source_model,
+                    lead_time=lead_time,
+                    denormalized=False,
+                )
 
     # In production: load from database or pre-computed metrics file
     # Realistic target metrics based on architecture design
@@ -499,14 +754,17 @@ async def get_metrics(
         "rainfall": MetricsResponse(
             variable="rainfall", region=region, eval_period="2024-2025",
             r2_score=0.72, rmse=8.3, mae=5.1, skill_score=0.68,
+            source_model="vayu", lead_time="aggregate", denormalized=False,
         ),
         "temp_max": MetricsResponse(
             variable="temp_max", region=region, eval_period="2024-2025",
             r2_score=0.88, rmse=1.2, mae=0.9, skill_score=0.85,
+            source_model="vayu", lead_time="aggregate", denormalized=False,
         ),
         "temp_min": MetricsResponse(
             variable="temp_min", region=region, eval_period="2024-2025",
             r2_score=0.86, rmse=1.1, mae=0.8, skill_score=0.83,
+            source_model="vayu", lead_time="aggregate", denormalized=False,
         ),
     }
     return metrics_map[variable]
