@@ -312,6 +312,7 @@ class VayuTrainer:
         device: str | None = None,
         norm_params: dict[str, dict[str, np.ndarray]] | None = None,
         use_amp: bool = True,
+        grad_accum_steps: int = 1,
     ):
         self.model = model
         self.loss_fn = loss_fn
@@ -327,10 +328,13 @@ class VayuTrainer:
         self.loss_fn = self.loss_fn.to(self.device)
         self.norm_params = norm_params
         self.use_amp = bool(use_amp and self.device == "cuda")
+        self.grad_accum_steps = max(1, grad_accum_steps)
         self.scaler = torch.amp.GradScaler("cuda", enabled=self.use_amp)
         logger.info("Trainer using device: %s", self.device)
         if self.use_amp:
             logger.info("AMP mixed precision enabled (fp16)")
+        if self.grad_accum_steps > 1:
+            logger.info("Gradient accumulation: %d steps (effective batch ×%d)", self.grad_accum_steps, self.grad_accum_steps)
 
     def _autocast_ctx(self):
         if self.use_amp:
@@ -460,18 +464,23 @@ class VayuTrainer:
         return history
 
     def _train_epoch(self, loader: DataLoader, optimizer: optim.Optimizer) -> float:
-        """Single training epoch. Returns mean total loss."""
+        """Single training epoch with optional gradient accumulation.
+
+        Gradients are accumulated over ``self.grad_accum_steps`` data-loader
+        steps before the optimiser is stepped, giving an effective batch size
+        of ``batch_size × grad_accum_steps`` without extra VRAM cost.
+        """
         self.model.train()
         total_loss = 0.0
         n_batches = 0
+        optimizer.zero_grad(set_to_none=True)
+        n_loader = len(loader)
 
-        for graph_batch, targets in loader:
-            # Handle batched x: (batch, num_nodes, seq_len, features)
-            # For simplicity, process each sample in the batch independently
+        for step, (graph_batch, targets) in enumerate(loader):
+            # Process each sequence in the DataLoader batch independently
             batch_loss: torch.Tensor | None = None
             batch_size = targets.shape[0]
 
-            optimizer.zero_grad(set_to_none=True)
             for b in range(batch_size):
                 g = GraphData(
                     x=graph_batch.x[b].to(self.device),
@@ -485,27 +494,33 @@ class VayuTrainer:
                     loss_dict = self.loss_fn(preds, target, g.edge_index)
                     loss_val = loss_dict["total_loss"]
 
-                if batch_loss is None:
-                    batch_loss = loss_val
-                else:
-                    batch_loss = batch_loss + loss_val
+                batch_loss = (batch_loss + loss_val) if batch_loss is not None else loss_val
 
             assert batch_loss is not None
-            batch_loss = batch_loss / batch_size
+            # Normalise by both batch size and accumulation window so that the
+            # effective learning signal is independent of grad_accum_steps.
+            batch_loss = batch_loss / (batch_size * self.grad_accum_steps)
 
             if self.use_amp:
                 self.scaler.scale(batch_loss).backward()
-                self.scaler.unscale_(optimizer)
-                torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=1.0)
-                self.scaler.step(optimizer)
-                self.scaler.update()
             else:
                 batch_loss.backward()
-                torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=1.0)
-                optimizer.step()
 
-            total_loss += batch_loss.item()
+            # Track loss as if accumulation hadn't happened (consistent scale)
+            total_loss += batch_loss.item() * self.grad_accum_steps
             n_batches += 1
+
+            is_last = (step + 1) == n_loader
+            if (step + 1) % self.grad_accum_steps == 0 or is_last:
+                if self.use_amp:
+                    self.scaler.unscale_(optimizer)
+                    torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=1.0)
+                    self.scaler.step(optimizer)
+                    self.scaler.update()
+                else:
+                    torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=1.0)
+                    optimizer.step()
+                optimizer.zero_grad(set_to_none=True)
 
         return total_loss / max(n_batches, 1)
 
@@ -736,6 +751,7 @@ def train_cli() -> None:
         transformer_num_layers: int | None = typer.Option(None, help="Override transformer layer count"),
         transformer_dim_feedforward: int | None = typer.Option(None, help="Override transformer feed-forward dimension"),
         lambda_smoothness: float | None = typer.Option(None, help="Override smoothness loss weight"),
+        lambda_conservation: float | None = typer.Option(None, help="Override mass-conservation loss weight"),
         norm_params_file: str | None = typer.Option(
             None,
             help="Path to norm_params_YYYY-YYYY.nc for denormalized physical metrics",
@@ -765,6 +781,11 @@ def train_cli() -> None:
             "--amp/--no-amp",
             help="Enable mixed precision on CUDA to reduce VRAM usage",
         ),
+        grad_accum_steps: int = typer.Option(
+            1,
+            help="Accumulate gradients over N batches before stepping the optimiser "
+                 "(effective batch = batch_size × N, no extra VRAM cost).",
+        ),
     ):
         """Train VayuClimateModel on preprocessed IMD data."""
         import logging
@@ -787,6 +808,11 @@ def train_cli() -> None:
             and py_version >= (3, 13)
             and device == "cpu"
         )
+        known_unstable_cuda = (
+            platform.system() == "Windows"
+            and py_version >= (3, 13)
+            and device == "cuda"
+        )
 
         if known_unstable_cpu and not force_backprop and not smoke_only:
             logger.warning(
@@ -795,6 +821,15 @@ def train_cli() -> None:
                 platform.python_version(),
             )
             smoke_only = True
+
+        if known_unstable_cuda and not force_backprop and not smoke_only:
+            logger.warning(
+                "Detected Windows + Python %s + CUDA runtime. Native backward crashes are "
+                "known on this platform (access violation in CUDA stream sync). "
+                "Training may silently exit after the first epoch. "
+                "Use Kaggle/Colab for reliable GPU training, or --force-backprop to skip this warning.",
+                platform.python_version(),
+            )
 
         logger.info("Loading training sequences from %s…", data_dir)
         # In production: load from disk
@@ -810,7 +845,8 @@ def train_cli() -> None:
         }
 
         if kaggle_lite:
-            # Smallest preset: fits T4 with any sequence count but model is tiny.
+            # Smallest architecture preset: fits T4 with any sequence count.
+            # Physics constraints are kept ON — they cost no VRAM.
             config_kwargs.update(
                 {
                     "gnn_hidden_dim": 64,
@@ -819,14 +855,13 @@ def train_cli() -> None:
                     "transformer_nhead": 4,
                     "transformer_num_layers": 2,
                     "transformer_dim_feedforward": 192,
-                    "lambda_smoothness": 0.0,
-                    "lambda_conservation": 0.0,
                     "batch_size": min(batch_size, 1),
                 }
             )
 
         if kaggle_medium:
-            # Balanced preset: fits T4 with 128 sequences, ~1.3M params, good R² potential.
+            # Balanced architecture preset: ~475K params, fits T4 with bs=1+AMP.
+            # Physics constraints are kept ON — they cost no VRAM.
             config_kwargs.update(
                 {
                     "gnn_hidden_dim": 96,
@@ -835,8 +870,6 @@ def train_cli() -> None:
                     "transformer_nhead": 4,
                     "transformer_num_layers": 3,
                     "transformer_dim_feedforward": 256,
-                    "lambda_smoothness": 0.0,
-                    "lambda_conservation": 0.0,
                     "batch_size": min(batch_size, 1),
                 }
             )
@@ -858,6 +891,8 @@ def train_cli() -> None:
             config_kwargs["transformer_dim_feedforward"] = transformer_dim_feedforward
         if lambda_smoothness is not None:
             config_kwargs["lambda_smoothness"] = lambda_smoothness
+        if lambda_conservation is not None:
+            config_kwargs["lambda_conservation"] = lambda_conservation
 
         config = ModelConfig(**config_kwargs)
         model = VayuClimateModel(config)
@@ -873,6 +908,7 @@ def train_cli() -> None:
             device=device,
             norm_params=norm_params,
             use_amp=amp,
+            grad_accum_steps=grad_accum_steps,
         )
 
         train_sequences, val_sequences, source = _load_or_build_sequences(data_dir, config)
