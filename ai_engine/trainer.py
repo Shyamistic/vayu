@@ -14,6 +14,7 @@ import logging
 import os
 import platform
 import time
+from contextlib import nullcontext
 from pathlib import Path
 from typing import Generator
 
@@ -310,6 +311,7 @@ class VayuTrainer:
         checkpoint_dir: str = "./checkpoints",
         device: str | None = None,
         norm_params: dict[str, dict[str, np.ndarray]] | None = None,
+        use_amp: bool = True,
     ):
         self.model = model
         self.loss_fn = loss_fn
@@ -324,7 +326,16 @@ class VayuTrainer:
         self.model = self.model.to(self.device)
         self.loss_fn = self.loss_fn.to(self.device)
         self.norm_params = norm_params
+        self.use_amp = bool(use_amp and self.device == "cuda")
+        self.scaler = torch.amp.GradScaler("cuda", enabled=self.use_amp)
         logger.info("Trainer using device: %s", self.device)
+        if self.use_amp:
+            logger.info("AMP mixed precision enabled (fp16)")
+
+    def _autocast_ctx(self):
+        if self.use_amp:
+            return torch.autocast(device_type="cuda", dtype=torch.float16)
+        return nullcontext()
 
     def train(
         self,
@@ -457,9 +468,10 @@ class VayuTrainer:
         for graph_batch, targets in loader:
             # Handle batched x: (batch, num_nodes, seq_len, features)
             # For simplicity, process each sample in the batch independently
-            batch_loss = torch.tensor(0.0, device=self.device)
+            batch_loss: torch.Tensor | None = None
             batch_size = targets.shape[0]
 
+            optimizer.zero_grad(set_to_none=True)
             for b in range(batch_size):
                 g = GraphData(
                     x=graph_batch.x[b].to(self.device),
@@ -468,15 +480,29 @@ class VayuTrainer:
                 )
                 target = targets[b].to(self.device)  # (horizon, num_nodes, 3)
 
-                preds = self.model(g, mc_dropout=False)
-                loss_dict = self.loss_fn(preds, target, g.edge_index)
-                batch_loss = batch_loss + loss_dict["total_loss"]
+                with self._autocast_ctx():
+                    preds = self.model(g, mc_dropout=False)
+                    loss_dict = self.loss_fn(preds, target, g.edge_index)
+                    loss_val = loss_dict["total_loss"]
 
+                if batch_loss is None:
+                    batch_loss = loss_val
+                else:
+                    batch_loss = batch_loss + loss_val
+
+            assert batch_loss is not None
             batch_loss = batch_loss / batch_size
-            optimizer.zero_grad(set_to_none=True)
-            batch_loss.backward()
-            torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=1.0)
-            optimizer.step()
+
+            if self.use_amp:
+                self.scaler.scale(batch_loss).backward()
+                self.scaler.unscale_(optimizer)
+                torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=1.0)
+                self.scaler.step(optimizer)
+                self.scaler.update()
+            else:
+                batch_loss.backward()
+                torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=1.0)
+                optimizer.step()
 
             total_loss += batch_loss.item()
             n_batches += 1
@@ -511,8 +537,9 @@ class VayuTrainer:
                     edge_attr=graph_batch.edge_attr.to(self.device),
                 )
                 target = targets[b].to(self.device)
-                preds = self.model(g)
-                loss_dict = self.loss_fn(preds, target, g.edge_index)
+                with self._autocast_ctx():
+                    preds = self.model(g)
+                    loss_dict = self.loss_fn(preds, target, g.edge_index)
                 total_loss += loss_dict["total_loss"].item()
                 n_batches += 1
 
@@ -624,7 +651,8 @@ class VayuTrainer:
                 edge_attr=graph_batch.edge_attr.to(self.device),
             )
             target = targets[0].to(self.device)
-            preds = self.model(g)
+            with self._autocast_ctx():
+                preds = self.model(g)
             baselines = _baseline_from_input(g, horizon=target.shape[0])
             for v_idx, var in enumerate(["rainfall", "temp_max", "temp_min"]):
                 p_2d = preds[var].cpu().numpy()
@@ -731,6 +759,11 @@ def train_cli() -> None:
         baseline_report_file: str = typer.Option(
             "baseline_benchmark_report.json",
             help="Output filename for baseline suite report inside checkpoint directory",
+        ),
+        amp: bool = typer.Option(
+            True,
+            "--amp/--no-amp",
+            help="Enable mixed precision on CUDA to reduce VRAM usage",
         ),
     ):
         """Train VayuClimateModel on preprocessed IMD data."""
@@ -839,6 +872,7 @@ def train_cli() -> None:
             checkpoint_dir,
             device=device,
             norm_params=norm_params,
+            use_amp=amp,
         )
 
         train_sequences, val_sequences, source = _load_or_build_sequences(data_dir, config)

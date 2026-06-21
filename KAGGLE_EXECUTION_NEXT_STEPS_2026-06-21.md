@@ -114,7 +114,7 @@ Cell 7: real VAYU run (first priority)
 
 ```python
 %cd /kaggle/working/isro
-!python -m ai_engine.trainer --data-dir ./data/processed_western_ghats --checkpoint-dir ./checkpoints/wg_main --epochs 50 --device auto --norm-params-file ./data/processed_western_ghats/norm_params_2010-2025.nc --run-baselines --require-benchmarks
+!python -m ai_engine.trainer --data-dir ./data/processed_western_ghats --checkpoint-dir ./checkpoints/wg_main --epochs 50 --device auto --amp --norm-params-file ./data/processed_western_ghats/norm_params_2010-2025.nc --run-baselines --require-benchmarks
 ```
 
 If you hit CUDA out-of-memory on Cell 7, use this fallback sequence:
@@ -133,7 +133,7 @@ Cell 7b: medium preset run
 import os
 os.environ['PYTORCH_CUDA_ALLOC_CONF'] = 'expandable_segments:True'
 %cd /kaggle/working/isro
-!python -m ai_engine.trainer --data-dir ./data/processed_western_ghats --checkpoint-dir ./checkpoints/wg_main_medium --epochs 30 --device cuda --kaggle-medium --batch-size 1 --norm-params-file ./data/processed_western_ghats/norm_params_2010-2025.nc --run-baselines --require-benchmarks
+!python -m ai_engine.trainer --data-dir ./data/processed_western_ghats --checkpoint-dir ./checkpoints/wg_main_medium --epochs 30 --device cuda --amp --kaggle-medium --batch-size 1 --norm-params-file ./data/processed_western_ghats/norm_params_2010-2025.nc --run-baselines --require-benchmarks
 ```
 
 Cell 7c: lite preset run (if 7b still OOM)
@@ -142,7 +142,7 @@ Cell 7c: lite preset run (if 7b still OOM)
 import os
 os.environ['PYTORCH_CUDA_ALLOC_CONF'] = 'expandable_segments:True'
 %cd /kaggle/working/isro
-!python -m ai_engine.trainer --data-dir ./data/processed_western_ghats --checkpoint-dir ./checkpoints/wg_main_lite --epochs 30 --device cuda --kaggle-lite --batch-size 1 --norm-params-file ./data/processed_western_ghats/norm_params_2010-2025.nc --run-baselines --require-benchmarks
+!python -m ai_engine.trainer --data-dir ./data/processed_western_ghats --checkpoint-dir ./checkpoints/wg_main_lite --epochs 30 --device cuda --amp --kaggle-lite --batch-size 1 --norm-params-file ./data/processed_western_ghats/norm_params_2010-2025.nc --run-baselines --require-benchmarks
 ```
 
 Cell 8: collect artifacts
@@ -228,7 +228,7 @@ print('Using DATASET_DIR =', DATASET_DIR)
 ```python
 # Cell H - Real VAYU Run
 %cd /kaggle/working/isro
-!python -m ai_engine.trainer --data-dir ./data/processed_western_ghats --checkpoint-dir ./checkpoints/wg_main --epochs 50 --device auto --norm-params-file ./data/processed_western_ghats/norm_params_2010-2025.nc --run-baselines --require-benchmarks
+!python -m ai_engine.trainer --data-dir ./data/processed_western_ghats --checkpoint-dir ./checkpoints/wg_main --epochs 50 --device auto --amp --norm-params-file ./data/processed_western_ghats/norm_params_2010-2025.nc --run-baselines --require-benchmarks
 ```
 
 ```python
@@ -242,7 +242,7 @@ print('Using DATASET_DIR =', DATASET_DIR)
 import os
 os.environ['PYTORCH_CUDA_ALLOC_CONF'] = 'expandable_segments:True'
 %cd /kaggle/working/isro
-!python -m ai_engine.trainer --data-dir ./data/processed_western_ghats --checkpoint-dir ./checkpoints/wg_main_medium --epochs 30 --device cuda --kaggle-medium --batch-size 1 --norm-params-file ./data/processed_western_ghats/norm_params_2010-2025.nc --run-baselines --require-benchmarks
+!python -m ai_engine.trainer --data-dir ./data/processed_western_ghats --checkpoint-dir ./checkpoints/wg_main_medium --epochs 30 --device cuda --amp --kaggle-medium --batch-size 1 --norm-params-file ./data/processed_western_ghats/norm_params_2010-2025.nc --run-baselines --require-benchmarks
 ```
 
 ```python
@@ -250,7 +250,7 @@ os.environ['PYTORCH_CUDA_ALLOC_CONF'] = 'expandable_segments:True'
 import os
 os.environ['PYTORCH_CUDA_ALLOC_CONF'] = 'expandable_segments:True'
 %cd /kaggle/working/isro
-!python -m ai_engine.trainer --data-dir ./data/processed_western_ghats --checkpoint-dir ./checkpoints/wg_main_lite --epochs 30 --device cuda --kaggle-lite --batch-size 1 --norm-params-file ./data/processed_western_ghats/norm_params_2010-2025.nc --run-baselines --require-benchmarks
+!python -m ai_engine.trainer --data-dir ./data/processed_western_ghats --checkpoint-dir ./checkpoints/wg_main_lite --epochs 30 --device cuda --amp --kaggle-lite --batch-size 1 --norm-params-file ./data/processed_western_ghats/norm_params_2010-2025.nc --run-baselines --require-benchmarks
 ```
 
 ```python
