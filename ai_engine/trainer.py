@@ -348,6 +348,7 @@ class VayuTrainer:
         config: ModelConfig | None = None,
         early_stopping_patience: int = 10,
         require_benchmark_comparison: bool = True,
+        use_cosine_lr: bool = True,
     ) -> dict:
         """Full training loop.
 
@@ -360,9 +361,19 @@ class VayuTrainer:
             lr=cfg.learning_rate,
             weight_decay=cfg.weight_decay,
         )
-        scheduler = optim.lr_scheduler.ReduceLROnPlateau(
-            optimizer, mode="min", factor=0.5, patience=5, min_lr=1e-6
-        )
+        # Cosine annealing decays LR smoothly to eta_min over all epochs,
+        # finding sharper minima than reactive ReduceLROnPlateau.
+        # ReduceLROnPlateau is kept as fallback when use_cosine_lr=False.
+        if use_cosine_lr:
+            scheduler = optim.lr_scheduler.CosineAnnealingLR(
+                optimizer,
+                T_max=cfg.max_epochs,
+                eta_min=1e-6,
+            )
+        else:
+            scheduler = optim.lr_scheduler.ReduceLROnPlateau(
+                optimizer, mode="min", factor=0.5, patience=5, min_lr=1e-6
+            )
 
         train_dataset = ClimateSequenceDataset(train_sequences)
         val_dataset = ClimateSequenceDataset(val_sequences)
@@ -416,6 +427,8 @@ class VayuTrainer:
                     )
 
             scheduler.step(val_loss)
+        else:
+            scheduler.step()
             elapsed = time.time() - t0
 
             history["train_loss"].append(train_loss)
@@ -752,6 +765,11 @@ def train_cli() -> None:
         transformer_dim_feedforward: int | None = typer.Option(None, help="Override transformer feed-forward dimension"),
         lambda_smoothness: float | None = typer.Option(None, help="Override smoothness loss weight"),
         lambda_conservation: float | None = typer.Option(None, help="Override mass-conservation loss weight"),
+        weight_decay: float | None = typer.Option(None, help="Override Adam weight decay (default 1e-5; try 1e-4 for more regularization)"),
+        gnn_dropout: float | None = typer.Option(None, help="Override GNN dropout rate (default 0.1)"),
+        early_stopping_patience: int = typer.Option(10, help="Epochs without val_loss improvement before stopping"),
+        cosine_lr: bool = typer.Option(True, "--cosine-lr/--no-cosine-lr",
+            help="Use cosine annealing LR schedule (recommended). Disable for ReduceLROnPlateau."),
         norm_params_file: str | None = typer.Option(
             None,
             help="Path to norm_params_YYYY-YYYY.nc for denormalized physical metrics",
@@ -893,6 +911,10 @@ def train_cli() -> None:
             config_kwargs["lambda_smoothness"] = lambda_smoothness
         if lambda_conservation is not None:
             config_kwargs["lambda_conservation"] = lambda_conservation
+        if weight_decay is not None:
+            config_kwargs["weight_decay"] = weight_decay
+        if gnn_dropout is not None:
+            config_kwargs["gnn_dropout"] = gnn_dropout
 
         config = ModelConfig(**config_kwargs)
         model = VayuClimateModel(config)
@@ -937,7 +959,9 @@ def train_cli() -> None:
             train_sequences,
             val_sequences,
             config,
+            early_stopping_patience=early_stopping_patience,
             require_benchmark_comparison=require_benchmarks,
+            use_cosine_lr=cosine_lr,
         )
 
     app()
