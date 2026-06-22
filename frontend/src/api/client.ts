@@ -32,9 +32,10 @@ async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
 export async function fetchPrediction(
   date: string,
   region = 'pilot',
+  forecastDay = 1,
 ): Promise<PredictionResponse> {
   return apiFetch<PredictionResponse>(
-    `/api/predict?date=${date}&region=${region}`,
+    `/api/predict?date=${date}&region=${region}&lead_day=${forecastDay}`,
   );
 }
 

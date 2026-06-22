@@ -12,6 +12,8 @@ import MetricsDashboard from './components/MetricsDashboard';
 import ModelComparisonPanel from './components/ModelComparisonPanel';
 import RegionSelector from './components/RegionSelector';
 import DataProvenancePanel from './components/DataProvenancePanel';
+import ColorLegend from './components/ColorLegend';
+import ForecastDaySelector from './components/ForecastDaySelector';
 import { fetchPrediction, fetchHealth } from './api/client';
 import type {
   AppState, GridCell, HealthResponse, RegionId, ScenarioResponse,
@@ -31,6 +33,7 @@ const INITIAL_STATE: AppState = {
   viewMode: 'prediction',
   selectedVariable: 'rainfall',
   selectedRegion: 'western_ghats',
+  forecastDay: 1,
   timeState: INITIAL_TIME_STATE,
   showUncertainty: false,
   showSplitScreen: false,
@@ -86,10 +89,10 @@ export default function App() {
     const dateStr = format(state.timeState.selectedDate, 'yyyy-MM-dd');
     update({ isLoading: true, error: null });
 
-    fetchPrediction(dateStr, state.selectedRegion)
+    fetchPrediction(dateStr, state.selectedRegion, state.forecastDay)
       .then((pred) => update({ activePrediction: pred, isLoading: false }))
       .catch((err) => update({ error: err.message, isLoading: false }));
-  }, [state.timeState.selectedDate, state.viewMode, state.selectedRegion]);
+  }, [state.timeState.selectedDate, state.viewMode, state.selectedRegion, state.forecastDay]);
 
   // ── Scenario handler ─────────────────────────────────────────────────────────
   const handleScenarioResult = useCallback((result: ScenarioResponse) => {
@@ -247,7 +250,17 @@ export default function App() {
       </div>
 
       {/* ── Time slider (bottom) ── */}
-      <div className="absolute bottom-4 left-24 right-4 z-20">
+      <div className="absolute bottom-4 left-24 right-4 z-20 flex flex-col gap-2">
+        {/* Forecast day selector — only in prediction mode */}
+        {state.viewMode === 'prediction' && (
+          <div className="flex items-center gap-3">
+            <ForecastDaySelector
+              selected={state.forecastDay ?? 1}
+              onChange={(d) => update({ forecastDay: d })}
+            />
+            <ColorLegend variable={state.selectedVariable} />
+          </div>
+        )}
         <TimeSlider
           timeState={state.timeState}
           onChange={(patch) =>

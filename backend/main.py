@@ -475,6 +475,7 @@ def _get_scenario_base_graph() -> GraphData:
 async def predict(
     target_date: date = Query(..., alias="date", description="Target date for prediction (YYYY-MM-DD)"),
     region: str = Query("pilot", description="Region identifier"),
+    lead_day: int = Query(1, ge=1, le=7, description="Forecast lead day (1=T+1 … 7=T+7)"),
 ):
     """Run climate prediction for T+1 to T+7 days.
 
@@ -485,7 +486,7 @@ async def predict(
         raise HTTPException(400, "Date must be between 1951-01-01 and 2025-12-31")
 
     global _last_prediction_ts
-    cache_key = f"predict:{target_date}:{region}"
+    cache_key = f"predict:{target_date}:{region}:day{lead_day}"
     cached = _cache and await _cache.get(cache_key)
     if cached:
         return JSONResponse(content=cached, headers={"X-Cache": "HIT"})

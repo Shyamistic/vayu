@@ -128,6 +128,7 @@ export interface AppState {
   viewMode: ViewMode;
   selectedVariable: VariableId;
   selectedRegion: RegionId;
+  forecastDay: number;         // 1–7: which T+N day to display on the globe
   timeState: TimeState;
   showUncertainty: boolean;
   showSplitScreen: boolean;
