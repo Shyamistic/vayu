@@ -30,7 +30,12 @@ How to update each session:
 
 ### Model architecture (current)
 - VayuClimateModel: 2.3M params (GraphSAGE 3L hidden=128 + Transformer 4L d_model=256 8h)
-- Node features: 13 (was 11; added jjas_flag + monsoon_progress in 2026-06-22 session)
+- Node features: **16** (was 13; added uwnd_850/vwnd_850/shum_850 in 2026-06-23 session)
+  - Dynamic (5): rainfall, tmax, tmin, insat_lst, insat_sst
+  - Temporal (2): day_sin, day_cos
+  - Monsoon (2): jjas_flag, monsoon_progress
+  - Wind/humidity (3): uwnd_850, vwnd_850, shum_850 (NCEP 850 hPa; fallback 0 when absent)
+  - Static (4): elevation, land_sea_mask, lat_norm, lon_norm
 - Loss: PhysicsInformedLoss — focal regression for rainfall (gamma=1.5), temp MSE
 - Training: AMP fp16, grad-accum×8, cosine LR, weight_decay=1e-4, stochastic depth
 - Sequences: 1024 train / 256 val, stride=2, 30-day input → 7-day forecast

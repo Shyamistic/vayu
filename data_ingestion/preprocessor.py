@@ -7,6 +7,7 @@ model-ready, normalized tensors on the 0.25° pilot region grid.
 from __future__ import annotations
 
 import logging
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 import numpy as np
@@ -435,6 +436,9 @@ class ClimatePreprocessor:
         tmax_ds: xr.Dataset,
         tmin_ds: xr.Dataset,
         climatology_ds: xr.Dataset | None = None,
+        ncep_dir: str | None = None,
+        start_year: int = 2010,
+        end_year: int = 2025,
     ) -> tuple[xr.Dataset, dict[str, dict]]:
         """Full IMD preprocessing pipeline.
 
@@ -488,7 +492,125 @@ class ClimatePreprocessor:
         # 6. Encode cyclical time
         normalized = self.encode_cyclical_time(normalized)
 
+        # 7. Merge NCEP wind at 850 hPa (optional — graceful fallback if absent)
+        if ncep_dir is not None:
+            ncep_ds = self.load_ncep_wind_at_850(ncep_dir, start_year, end_year)
+            if ncep_ds is not None:
+                # Align to the same time axis as the IMD data
+                ncep_aligned = ncep_ds.reindex(time=normalized.time, method="nearest", tolerance="1D")
+                for var in ncep_ds.data_vars:
+                    if var not in normalized:
+                        normalized[var] = ncep_aligned[var].fillna(0.0)
+                logger.info("Merged NCEP 850 hPa wind into normalized dataset: %s", list(ncep_ds.data_vars))
+
         return normalized, norm_params
+
+    def load_ncep_wind_at_850(
+        self,
+        ncep_dir: str,
+        start_year: int,
+        end_year: int,
+    ) -> xr.Dataset | None:
+        """Load NCEP-NCAR daily wind + humidity, select 850 hPa, regrid to 0.25°.
+
+        Reads ``uwnd.YYYY.nc``, ``vwnd.YYYY.nc``, ``shum.YYYY.nc`` from *ncep_dir*
+        for the given year range, extracts the 850 hPa level, and bilinearly
+        regrids from 2.5° → 0.25° onto the preprocessor's pilot region grid.
+
+        Returns None (with a warning) if no files are found so the pipeline
+        degrades gracefully when NCEP data is absent.
+        """
+        import glob as _glob
+
+        ncep_path = Path(ncep_dir)
+        var_map = {"uwnd": "uwnd_850", "vwnd": "vwnd_850", "shum": "shum_850"}
+        combined: dict[str, list[xr.DataArray]] = {v: [] for v in var_map.values()}
+
+        for short, long in var_map.items():
+            for year in range(start_year, end_year + 1):
+                pattern = str(ncep_path / f"{short}.{year}.nc")
+                files = _glob.glob(pattern)
+                if not files:
+                    logger.warning("NCEP file not found: %s (skipping year %d)", pattern, year)
+                    continue
+                ds = xr.open_dataset(files[0])
+                # Select 850 hPa level — NCEP uses 'level' coordinate in hPa
+                if "level" in ds.dims:
+                    ds = ds.sel(level=850, method="nearest")
+                arr = ds[[v for v in ds.data_vars if short in v.lower()][0]]
+                arr.name = long
+                combined[long].append(arr)
+
+        # Check any data was found
+        if not any(combined.values()):
+            logger.warning("No NCEP wind files found in %s — skipping wind features", ncep_dir)
+            return None
+
+        arrays = {}
+        for long_name, da_list in combined.items():
+            if da_list:
+                merged_da = xr.concat(da_list, dim="time").sortby("time")
+                # Rename lat/lon if needed (NCEP sometimes uses 'lat'/'lon' already)
+                rename_map = {}
+                if "latitude" in merged_da.dims:
+                    rename_map["latitude"] = "lat"
+                if "longitude" in merged_da.dims:
+                    rename_map["longitude"] = "lon"
+                if rename_map:
+                    merged_da = merged_da.rename(rename_map)
+                arrays[long_name] = merged_da
+
+        if not arrays:
+            return None
+
+        ncep_ds = xr.Dataset(arrays)
+
+        # Regrid 2.5° NCEP → 0.25° target grid
+        target_lats = np.arange(self.lat_min, self.lat_max + self.resolution / 2, self.resolution)
+        target_lons = np.arange(self.lon_min, self.lon_max + self.resolution / 2, self.resolution)
+        margin = 5.0
+        ncep_clipped = ncep_ds.sel(
+            lat=slice(self.lat_min - margin, self.lat_max + margin),
+            lon=slice(self.lon_min - margin, self.lon_max + margin),
+        )
+
+        src_lats = ncep_clipped.lat.values.astype(float)
+        src_lons = ncep_clipped.lon.values.astype(float)
+        regridded: dict[str, xr.DataArray] = {}
+
+        for var in ncep_clipped.data_vars:
+            arr = ncep_clipped[var].values.astype(np.float32)  # (time, lat, lon)
+            out = np.full((arr.shape[0], len(target_lats), len(target_lons)), np.nan, dtype=np.float32)
+            for t in range(arr.shape[0]):
+                slab = arr[t]
+                nan_mask = np.isnan(slab)
+                if nan_mask.all():
+                    continue
+                if nan_mask.any():
+                    from scipy.ndimage import distance_transform_edt
+                    idx = distance_transform_edt(nan_mask, return_distances=False, return_indices=True)
+                    slab = slab[tuple(idx)]
+                interp = RegularGridInterpolator(
+                    (src_lats, src_lons), slab,
+                    method="linear", bounds_error=False, fill_value=None,
+                )
+                tlon, tlat = np.meshgrid(target_lons, target_lats)
+                out[t] = interp(np.stack([tlat.ravel(), tlon.ravel()], axis=1)).reshape(
+                    len(target_lats), len(target_lons)
+                )
+            regridded[var] = xr.DataArray(
+                out,
+                coords={"time": ncep_clipped.time, "lat": target_lats, "lon": target_lons},
+                dims=["time", "lat", "lon"],
+            )
+
+        result = xr.Dataset(regridded)
+        logger.info(
+            "NCEP wind loaded: %d days, variables=%s",
+            len(result.time),
+            list(result.data_vars),
+        )
+        return result
 
 
 # Need pandas for timestamp operations

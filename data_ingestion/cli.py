@@ -105,6 +105,12 @@ def preprocess(
     lon_min: float | None = typer.Option(None, help="Custom region longitude min"),
     lon_max: float | None = typer.Option(None, help="Custom region longitude max"),
     resolution: float = typer.Option(0.25, help="Target output grid resolution in degrees"),
+    ncep_wind_dir: Path | None = typer.Option(
+        None, "--ncep-wind-dir",
+        help="Directory containing NCEP-NCAR uwnd/vwnd/shum.YYYY.nc files. "
+             "When provided, u-wind, v-wind, and specific humidity at 850 hPa are merged "
+             "into the normalized dataset as uwnd_850/vwnd_850/shum_850 node features.",
+    ),
 ):
     """Run full preprocessing pipeline: regrid, QC, normalize, encode."""
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
@@ -121,7 +127,12 @@ def preprocess(
     tmin = xr.open_dataset(data_dir / f"tmin_{start_year}-{end_year}.nc")
 
     typer.echo("Preprocessing...")
-    normalized, norm_params = preprocessor.preprocess_imd(rain, tmax, tmin)
+    normalized, norm_params = preprocessor.preprocess_imd(
+        rain, tmax, tmin,
+        ncep_dir=str(ncep_wind_dir) if ncep_wind_dir else None,
+        start_year=start_year,
+        end_year=end_year,
+    )
 
     out_path = output_dir / f"normalized_{start_year}-{end_year}.nc"
     normalized.to_netcdf(out_path)
@@ -160,6 +171,7 @@ def preprocess(
             "quality_control",
             "normalize",
             "encode_cyclical_time",
+            *([] if ncep_wind_dir is None else ["merge_ncep_wind_850hpa"]),
         ],
         "config": {
             "region_bounds": {

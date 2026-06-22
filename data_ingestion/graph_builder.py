@@ -322,14 +322,19 @@ class ClimateGraphBuilder:
         # ── Concatenate to node feature matrix ────────────────────────────
         # Order: rainfall, tmax, tmin, lst, sst,
         #        day_sin, day_cos, jjas_flag, monsoon_progress,
+        #        uwnd_850, vwnd_850, shum_850,          ← NEW (0 if NCEP absent)
         #        elev, lsm, lat_norm, lon_norm
-        # Total: 13 features (was 11; +jjas_flag, +monsoon_progress)
+        # Total: 16 features (was 13; +3 NCEP wind/humidity at 850 hPa)
+        uwnd_850 = _get_var("uwnd_850", default=0.0)
+        vwnd_850 = _get_var("vwnd_850", default=0.0)
+        shum_850 = _get_var("shum_850", default=0.0)
         x = np.stack([
             rainfall, tmax, tmin, lst, sst,
             day_sin, day_cos,
             jjas, monsoon_progress,
+            uwnd_850, vwnd_850, shum_850,
             elev_norm, lsm, lat_norm, lon_norm,
-        ], axis=1)  # (num_nodes, 13)
+        ], axis=1)  # (num_nodes, 16)
 
         # ── Static features tensor (for graph-level ops) ──────────────────
         static = np.stack([elev, lsm, lat_grid, lon_grid], axis=1)  # (N, 4)
