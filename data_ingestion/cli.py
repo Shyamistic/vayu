@@ -111,6 +111,12 @@ def preprocess(
              "When provided, u-wind, v-wind, and specific humidity at 850 hPa are merged "
              "into the normalized dataset as uwnd_850/vwnd_850/shum_850 node features.",
     ),
+    chirps_dir: Path | None = typer.Option(
+        None, "--chirps-dir",
+        help="Directory containing CHIRPS subsetted files (chirps_YYYY_WG.nc) or global "
+             "chirps-v2.0.YYYY.days_p25.nc files. CHIRPS gauge-satellite rainfall is blended "
+             "over IMD as the primary rainfall source.",
+    ),
 ):
     """Run full preprocessing pipeline: regrid, QC, normalize, encode."""
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
@@ -130,6 +136,7 @@ def preprocess(
     normalized, norm_params = preprocessor.preprocess_imd(
         rain, tmax, tmin,
         ncep_dir=str(ncep_wind_dir) if ncep_wind_dir else None,
+        chirps_dir=str(chirps_dir) if chirps_dir else None,
         start_year=start_year,
         end_year=end_year,
     )

@@ -437,6 +437,7 @@ class ClimatePreprocessor:
         tmin_ds: xr.Dataset,
         climatology_ds: xr.Dataset | None = None,
         ncep_dir: str | None = None,
+        chirps_dir: str | None = None,
         start_year: int = 2010,
         end_year: int = 2025,
     ) -> tuple[xr.Dataset, dict[str, dict]]:
@@ -458,7 +459,7 @@ class ClimatePreprocessor:
         tmax_rg = self.regrid_to_target(tmax_ds)
         tmin_rg = self.regrid_to_target(tmin_ds)
 
-        # 2. Clip rainfall to pilot region
+        # 2. Clip rainfall to pilot region — optionally blend with CHIRPS
         rain_clipped = rainfall_ds.sel(
             lat=slice(self.lat_min, self.lat_max),
             lon=slice(self.lon_min, self.lon_max),
@@ -467,6 +468,18 @@ class ClimatePreprocessor:
         # IMD rainfall can arrive as either "rain" or "rainfall" depending on source path.
         if "rainfall" not in rain_clipped.data_vars and "rain" in rain_clipped.data_vars:
             rain_clipped = rain_clipped.rename({"rain": "rainfall"})
+
+        if chirps_dir is not None:
+            chirps = self._load_chirps(chirps_dir, start_year, end_year)
+            if chirps is not None:
+                # Blend: use CHIRPS where available, fall back to IMD
+                # CHIRPS is gauge-calibrated satellite, better for Western Ghats orographic rain
+                chirps_aligned = chirps.reindex_like(rain_clipped, method="nearest", tolerance=1)
+                rain_merged = xr.where(~np.isnan(chirps_aligned["rainfall"]),
+                                       chirps_aligned["rainfall"],
+                                       rain_clipped["rainfall"])
+                rain_clipped["rainfall"] = rain_merged
+                logger.info("CHIRPS blended into rainfall (priority over IMD)")
 
         # 3. QC each variable
         rain_qc = self.quality_control(rain_clipped, "rainfall", climatology_ds)
@@ -611,6 +624,68 @@ class ClimatePreprocessor:
             list(result.data_vars),
         )
         return result
+
+    def _load_chirps(
+        self,
+        chirps_dir: str,
+        start_year: int,
+        end_year: int,
+    ) -> xr.Dataset | None:
+        """Load CHIRPS gauge-satellite merged rainfall, clipped to region.
+
+        Expects files named ``chirps_YYYY_WG.nc`` (subsetted) OR the global
+        ``chirps-v2.0.YYYY.days_p25.nc`` files. Subsetted files are preferred
+        for speed; global files are automatically clipped on load.
+
+        Returns None with a warning if no files are found.
+        """
+        import glob as _glob
+
+        chirps_path = Path(chirps_dir)
+        yearly: list[xr.Dataset] = []
+
+        for year in range(start_year, end_year + 1):
+            # Prefer pre-subsetted file
+            subsetted = list(chirps_path.glob(f"chirps_{year}_WG.nc"))
+            global_f  = list(chirps_path.glob(f"chirps-v2.0.{year}*.nc"))
+            candidates = subsetted or global_f
+
+            if not candidates:
+                logger.debug("No CHIRPS file for %d — skipping", year)
+                continue
+
+            ds = xr.open_dataset(candidates[0])
+            # Normalise coordinate names
+            rename = {}
+            if "latitude"  in ds.dims: rename["latitude"]  = "lat"
+            if "longitude" in ds.dims: rename["longitude"] = "lon"
+            if rename: ds = ds.rename(rename)
+
+            # Clip if not already subsetted
+            ds = ds.sel(
+                lat=slice(self.lat_min, self.lat_max),
+                lon=slice(self.lon_min, self.lon_max),
+            )
+
+            # Normalise variable name to 'rainfall'
+            for v in list(ds.data_vars):
+                if v.lower() in ("precip", "precipitation", "prcp", "p", "rr"):
+                    ds = ds.rename({v: "rainfall"})
+                    break
+
+            if "rainfall" not in ds.data_vars:
+                logger.warning("CHIRPS %d: no recognisable rainfall variable, skipping", year)
+                continue
+
+            yearly.append(ds[["rainfall"]])
+
+        if not yearly:
+            logger.warning("No CHIRPS files found in %s — skipping CHIRPS blend", chirps_dir)
+            return None
+
+        chirps_merged = xr.concat(yearly, dim="time").sortby("time")
+        logger.info("CHIRPS loaded: %d days, region clipped to model grid", len(chirps_merged.time))
+        return chirps_merged
 
 
 # Need pandas for timestamp operations
