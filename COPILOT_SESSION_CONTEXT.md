@@ -23,11 +23,43 @@ How to update each session:
 - Infra: Docker Compose locally; AWS/CDK scaffolds present
 
 ### Training status (latest known)
-- Full-India training now runs on Kaggle with GPU using reduced-memory presets.
-- `kaggle_lite` and `kaggle_medium` presets added in `ai_engine/trainer.py`.
-- JSON serialization issue in training history fixed (NumPy/Torch scalar conversion).
-- Recent completed run (64/16 sequences, 30 epochs) showed best val_loss around 0.0825, but R² remained negative.
-- New run in progress with `kaggle_medium` and 128/32 sequences; loss continues improving but R² remains negative so far.
+- Western Ghats run on Kaggle T4×2: 33+ epochs completed, best val_loss=0.1930 (epoch 27).
+- R²_tmax=0.817, R²_rain=0.201 after 33 epochs. Model is learning; rain still below target.
+- Next run queued: GEBCO elevation (re-download N=22,S=7,W=71,E=79), ERA5 wind features, full quality stack.
+- Kaggle notebook: `notebooks/vayu_kaggle_training.ipynb` — fully self-contained, uses sys.executable.
+
+### Model architecture (current)
+- VayuClimateModel: 2.3M params (GraphSAGE 3L hidden=128 + Transformer 4L d_model=256 8h)
+- Node features: 13 (was 11; added jjas_flag + monsoon_progress in 2026-06-22 session)
+- Loss: PhysicsInformedLoss — focal regression for rainfall (gamma=1.5), temp MSE
+- Training: AMP fp16, grad-accum×8, cosine LR, weight_decay=1e-4, stochastic depth
+- Sequences: 1024 train / 256 val, stride=2, 30-day input → 7-day forecast
+
+### Quality improvements implemented (2026-06-22 session)
+- `--kaggle-medium`/`--kaggle-lite` presets: physics constraints RESTORED (was wrongly zeroed)
+- `--grad-accum-steps N`: gradient accumulation, effective batch = N×batch_size
+- Focal regression loss for rainfall (replaces log1p MSE), weight=1.5, gamma=1.5
+- Rainfall loss weight: 0.5 → 1.5
+- Stochastic depth in TemporalTransformer (linear drop 0→0.2 across layers)
+- Monsoon JJAS flag + monsoon_progress added as node features (gnn_in_features: 11→13)
+- Feature noise augmentation (std=0.02) in _train_epoch
+- Cosine annealing LR (replaces ReduceLROnPlateau)
+- `--weight-decay`, `--gnn-dropout`, `--early-stopping-patience`, `--cosine-lr` CLI flags
+- `--elevation-file` / `--lsm-file` flags in `build-sequences` CLI (GEBCO support)
+- GEBCO file downloaded: `gebco/gebco_2026_n20.0_s8.0_w72.0_e78.0.nc` (needs re-download: N=22,S=7)
+
+### Data sources to integrate (next session)
+- ERA5 u850/v850/q850/msl: Copernicus CDS (cds.climate.copernicus.eu), free account
+  - Adds monsoon low-level jet — single biggest R²_rain improvement after GEBCO
+  - Download: ERA5 single levels, 7.5–22°N 71–79°E, 2010–2025, daily
+- CHIRPS rainfall: chc.ucsb.edu/data/chirps — no login, better than IMD for Ghats
+- NCEP NOAA wind: psl.noaa.gov/data/gridded/data.ncep.reanalysis.html
+
+### Known active constraints
+- gnn_in_features now 13 — existing checkpoints with 11 features are INCOMPATIBLE
+- Kaggle notebook: requires git pull to pick up latest code before running
+- Windows CUDA backward: known native crash; use Kaggle for all training
+- GEBCO bounds were wrong (n20 s8); re-download with N=22 S=7 W=71 E=79
 
 ### Data status
 - Large local data folders are excluded from git via `.gitignore`.

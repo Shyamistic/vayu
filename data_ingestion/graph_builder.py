@@ -282,6 +282,29 @@ class ClimateGraphBuilder:
         day_sin = np.full(self.num_nodes, day_sin_val, dtype=np.float32)
         day_cos = np.full(self.num_nodes, day_cos_val, dtype=np.float32)
 
+        # ── Monsoon features ──────────────────────────────────────────────
+        # JJAS (June-July-August-September) = Indian summer monsoon season.
+        # These two features let the model explicitly learn the wet/dry regime
+        # shift and progress through the monsoon, which is the dominant signal
+        # for Western Ghats rainfall.
+        try:
+            import pandas as _pd
+            _ts = _pd.Timestamp(ds.time.values[t])
+            _month = _ts.month
+            _day_of_year = _ts.day_of_year
+        except Exception:
+            _month = 7  # assume mid-monsoon if parsing fails
+            _day_of_year = 180
+        jjas_flag = 1.0 if _month in {6, 7, 8, 9} else 0.0
+        # Monsoon progress: 0 at Jun-1, 1 at Sep-30 (122-day season); 0 outside
+        if jjas_flag:
+            _monsoon_start_doy = 152  # ~Jun 1
+            monsoon_prog = min((_day_of_year - _monsoon_start_doy) / 122.0, 1.0)
+        else:
+            monsoon_prog = 0.0
+        jjas = np.full(self.num_nodes, jjas_flag, dtype=np.float32)
+        monsoon_progress = np.full(self.num_nodes, float(monsoon_prog), dtype=np.float32)
+
         # ── Static features ───────────────────────────────────────────────
         elev = self.elevation.reshape(-1)
         lsm = self.land_sea_mask.reshape(-1)
@@ -297,13 +320,16 @@ class ClimateGraphBuilder:
         elev_norm = elev / 2000.0  # rough max elevation in region
 
         # ── Concatenate to node feature matrix ────────────────────────────
-        # Order: rainfall, tmax, tmin, lst, sst, day_sin, day_cos,
+        # Order: rainfall, tmax, tmin, lst, sst,
+        #        day_sin, day_cos, jjas_flag, monsoon_progress,
         #        elev, lsm, lat_norm, lon_norm
+        # Total: 13 features (was 11; +jjas_flag, +monsoon_progress)
         x = np.stack([
             rainfall, tmax, tmin, lst, sst,
             day_sin, day_cos,
+            jjas, monsoon_progress,
             elev_norm, lsm, lat_norm, lon_norm,
-        ], axis=1)  # (num_nodes, 11)
+        ], axis=1)  # (num_nodes, 13)
 
         # ── Static features tensor (for graph-level ops) ──────────────────
         static = np.stack([elev, lsm, lat_grid, lon_grid], axis=1)  # (N, 4)

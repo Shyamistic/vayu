@@ -313,6 +313,7 @@ class VayuTrainer:
         norm_params: dict[str, dict[str, np.ndarray]] | None = None,
         use_amp: bool = True,
         grad_accum_steps: int = 1,
+        feature_noise_std: float = 0.02,
     ):
         self.model = model
         self.loss_fn = loss_fn
@@ -329,6 +330,7 @@ class VayuTrainer:
         self.norm_params = norm_params
         self.use_amp = bool(use_amp and self.device == "cuda")
         self.grad_accum_steps = max(1, grad_accum_steps)
+        self.feature_noise_std = feature_noise_std
         self.scaler = torch.amp.GradScaler("cuda", enabled=self.use_amp)
         logger.info("Trainer using device: %s", self.device)
         if self.use_amp:
@@ -495,8 +497,14 @@ class VayuTrainer:
             batch_size = targets.shape[0]
 
             for b in range(batch_size):
+                g_x = graph_batch.x[b].to(self.device)
+                # Feature noise augmentation: small Gaussian noise on every input
+                # feature during training. Acts like input-level dropout, preventing
+                # the model from memorising specific sequence patterns.
+                if self.feature_noise_std > 0.0:
+                    g_x = g_x + torch.randn_like(g_x) * self.feature_noise_std
                 g = GraphData(
-                    x=graph_batch.x[b].to(self.device),
+                    x=g_x,
                     edge_index=graph_batch.edge_index.to(self.device),
                     edge_attr=graph_batch.edge_attr.to(self.device),
                 )

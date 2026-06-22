@@ -103,6 +103,14 @@ class TemporalTransformer(nn.Module):
         )
         self.norm = nn.LayerNorm(d_model)
 
+        # Stochastic depth: linearly increase drop probability across layers.
+        # Layer 0 is never dropped (drop_prob=0); final layer has the highest.
+        # This regularises the deeper layers most, as in ClimaX / DeiT.
+        max_drop = 0.2
+        self.stochastic_depth_probs = [
+            max_drop * i / max(num_layers - 1, 1) for i in range(num_layers)
+        ]
+
     def forward(
         self,
         spatial_embeddings: torch.Tensor,
@@ -131,8 +139,14 @@ class TemporalTransformer(nn.Module):
         # Positional encoding
         x = self.pos_enc(x)
 
-        # Transformer (treating each node's sequence independently)
-        x = self.transformer(x, src_key_padding_mask=src_key_padding_mask)
+        # Stochastic depth: randomly skip transformer layers during training.
+        # Each layer has an independent Bernoulli trial; the skip probability
+        # increases linearly from 0 (layer 0) to max_drop (final layer).
+        for layer, drop_prob in zip(self.transformer.layers, self.stochastic_depth_probs):
+            if self.training and drop_prob > 0.0 and torch.rand(1, device=x.device).item() < drop_prob:
+                continue  # skip this layer; its residual stream passes through unchanged
+            x = layer(x, src_key_padding_mask=src_key_padding_mask)
+
         x = self.norm(x)
 
         # Extract CLS token as the temporal summary

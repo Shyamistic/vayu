@@ -93,28 +93,27 @@ class PhysicsInformedLoss(nn.Module):
                 targets["temp_min"].T,
             ], dim=-1)
 
-        # ── Prediction Loss (weighted MSE) ───────────────────────────────────
+        # ── Prediction Loss (weighted MSE / focal) ──────────────────────────────
         pred_loss = torch.tensor(0.0, device=pred_stacked.device)
         for v_idx, var_name in enumerate(VARIABLE_ORDER):
             weight = VARIABLE_WEIGHTS[var_name]
             var_pred = pred_stacked[..., v_idx]  # (horizon, num_nodes)
             var_true = targets[..., v_idx]
-            # Mask NaN in targets
             valid = ~torch.isnan(var_true)
             if valid.sum() == 0:
                 continue
-            # Apply log1p transform to rainfall to handle heavy-tailed distribution.
-            # log1p(x) = log(1+x) compresses extreme events so the model learns
-            # the spatial pattern rather than fitting outlier magnitudes.
-            # Values can be negative after z-score normalization; shift first.
             if var_name == "rainfall":
-                shift = var_pred[valid].detach().min().clamp(max=0.0)
-                p = torch.log1p(torch.clamp(var_pred[valid] - shift, min=0.0))
-                t = torch.log1p(torch.clamp(var_true[valid] - shift, min=0.0))
+                # Focal regression loss: upweights heavy-rain events.
+                # weight_i = (1 + relu(y_true_i))^gamma so that rare high-rainfall
+                # nodes/timesteps receive proportionally larger gradients.
+                # gamma=1.5 is empirically good for monsoon rainfall distributions.
+                gamma = 1.5
+                rain_pos = torch.clamp(var_true[valid], min=0.0)
+                focal_w = (1.0 + rain_pos).pow(gamma)
+                focal_w = focal_w / (focal_w.mean() + 1e-8)  # normalise to mean=1
+                mse = (focal_w * (var_pred[valid] - var_true[valid]).pow(2)).mean()
             else:
-                p = var_pred[valid]
-                t = var_true[valid]
-            mse = F.mse_loss(p, t, reduction="mean")
+                mse = F.mse_loss(var_pred[valid], var_true[valid], reduction="mean")
             pred_loss = pred_loss + weight * mse
         pred_loss = pred_loss / len(VARIABLE_ORDER)
 
