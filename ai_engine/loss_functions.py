@@ -16,8 +16,12 @@ import torch.nn.functional as F
 
 
 # Per-variable MSE weights
+# Rainfall weight is higher (1.5) because:
+#   - It is the primary target variable for Western Ghats
+#   - log1p transform (applied below) already tames the heavy tail
+#   - Temperature gets 1.0; both matter equally per original design
 VARIABLE_WEIGHTS = {
-    "rainfall": 0.5,   # Harder to predict, less weight to avoid dominating gradient
+    "rainfall": 1.5,
     "temp_max": 1.0,
     "temp_min": 1.0,
 }
@@ -99,7 +103,18 @@ class PhysicsInformedLoss(nn.Module):
             valid = ~torch.isnan(var_true)
             if valid.sum() == 0:
                 continue
-            mse = F.mse_loss(var_pred[valid], var_true[valid], reduction="mean")
+            # Apply log1p transform to rainfall to handle heavy-tailed distribution.
+            # log1p(x) = log(1+x) compresses extreme events so the model learns
+            # the spatial pattern rather than fitting outlier magnitudes.
+            # Values can be negative after z-score normalization; shift first.
+            if var_name == "rainfall":
+                shift = var_pred[valid].detach().min().clamp(max=0.0)
+                p = torch.log1p(torch.clamp(var_pred[valid] - shift, min=0.0))
+                t = torch.log1p(torch.clamp(var_true[valid] - shift, min=0.0))
+            else:
+                p = var_pred[valid]
+                t = var_true[valid]
+            mse = F.mse_loss(p, t, reduction="mean")
             pred_loss = pred_loss + weight * mse
         pred_loss = pred_loss / len(VARIABLE_ORDER)
 

@@ -193,6 +193,10 @@ def build_sequences(
     max_val: int = typer.Option(128, help="Cap val sequence count for memory control"),
     stride: int = typer.Option(3, help="Sampling stride for sequence starts"),
     fillna_value: float | None = typer.Option(0.0, help="Fill NaNs before sequence creation; set to none to disable"),
+    elevation_file: Path | None = typer.Option(None, "--elevation-file",
+        help="Path to 0.25\u00b0 DEM NetCDF (var=\"elevation\"). If omitted, synthetic ridge is used."),
+    lsm_file: Path | None = typer.Option(None, "--lsm-file",
+        help="Path to 0.25\u00b0 land-sea mask NetCDF (var=\"lsm\"). If omitted, geometric mask is used."),
 ):
     """Build train/val sequence tensors from a normalized dataset."""
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
@@ -205,7 +209,11 @@ def build_sequences(
     if fillna_value is not None:
         ds = ds.fillna(fillna_value)
 
-    builder = ClimateGraphBuilder.from_dataset(ds)
+    builder = ClimateGraphBuilder.from_dataset(
+        ds,
+        elevation_path=elevation_file,
+        land_sea_mask_path=lsm_file,
+    )
     ntime = int(ds.sizes["time"])
     total_len = input_window + target_window
     possible = max(0, ntime - total_len + 1)
