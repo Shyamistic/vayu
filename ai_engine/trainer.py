@@ -428,9 +428,10 @@ class VayuTrainer:
                         + ", ".join(missing)
                     )
 
-            scheduler.step(val_loss)
-        else:
-            scheduler.step()
+            if use_cosine_lr:
+                scheduler.step()
+            else:
+                scheduler.step(val_loss)
             elapsed = time.time() - t0
 
             history["train_loss"].append(train_loss)
