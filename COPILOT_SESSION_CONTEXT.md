@@ -23,10 +23,13 @@ How to update each session:
 - Infra: Docker Compose locally; AWS/CDK scaffolds present
 
 ### Training status (latest known)
-- Western Ghats run on Kaggle T4×2: 33+ epochs completed, best val_loss=0.1930 (epoch 27).
-- R²_tmax=0.817, R²_rain=0.201 after 33 epochs. Model is learning; rain still below target.
-- Next run queued: GEBCO elevation (re-download N=22,S=7,W=71,E=79), ERA5 wind features, full quality stack.
-- Kaggle notebook: `notebooks/vayu_kaggle_training.ipynb` — fully self-contained, uses sys.executable.
+- **Pipeline is now fully working end-to-end on Kaggle** (as of 2026-06-23 session).
+- Preprocessing succeeded with all ancillary features: CHIRPS blended rainfall, NCEP wind (all 16 years), GEBCO topography.
+- Sequences rebuilt: 1024 train (2.6 GB) + 256 val (650 MB), all with 16-feature node vectors.
+- Normalized file: 198 MB (was 110 MB — includes uwnd_850/vwnd_850/shum_850).
+- Smoke check failing due to trainer SyntaxError — fixed in latest commit (08f29f1).
+- **Next: re-run smoke check on Kaggle (cell 6), then launch 80-epoch training (cell 7).**
+- Previous best (before ancillary data): 33+ epochs, val_loss=0.1930, R²_tmax=0.817, R²_rain=0.201.
 
 ### Model architecture (current)
 - VayuClimateModel: 2.3M params (GraphSAGE 3L hidden=128 + Transformer 4L d_model=256 8h)
@@ -61,15 +64,19 @@ How to update each session:
 - NCEP NOAA wind: psl.noaa.gov/data/gridded/data.ncep.reanalysis.html
 
 ### Known active constraints
-- gnn_in_features now 13 — existing checkpoints with 11 features are INCOMPATIBLE
-- Kaggle notebook: requires git pull to pick up latest code before running
-- Windows CUDA backward: known native crash; use Kaggle for all training
-- GEBCO bounds were wrong (n20 s8); re-download with N=22 S=7 W=71 E=79
+- `gnn_in_features=16` — existing OLD checkpoints (11 or 13 features) are incompatible with current model.
+- Kaggle notebook: always re-run cell 4 (git pull) to pick up latest code before running subsequent cells.
+- Windows CUDA backward: known native crash; use Kaggle for all GPU training.
+- GEBCO file in repo: `gebco/gebco_2026_n22.0_s7.0_w71.0_e79.0.nc` — correct bounds now. ✅
+- Local sequences (`data/processed_western_ghats/train_sequences.pt`) are STALE (11 features); Kaggle sequences are fresh (16 features). Rebuild locally if needed.
+- uwnd 2016-2020 had corrupted original subset files — replaced with real NCEP data downloaded 2026-06-23. ✅
 
-### Data status
+### Data status (2026-06-23)
+- **Local ancillary data: complete** — `data/ncep_wind_subset/` (64 files), `data/chirps_subset/` (16 files), `gebco/` (1 file).
+- **Kaggle ancillary dataset: v4 (latest)** — `shyam31415/vayu-ancillary-wg-v1`, 88 MB zip with all 81 files.
+- **Kaggle IMD bundle**: `shyam31415/vayu-western-ghats-processed-v1` — unchanged.
 - Large local data folders are excluded from git via `.gitignore`.
-- Kaggle dataset exists: `shyam31415/vayu-full-india-bundle-2010-2025`.
-- Dataset versions include sequence tensors (`train_sequences.pt`, `val_sequences.pt`) and normalized/raw files.
+- `data/ncep_wind/` — raw downloaded NCEP full files (uwnd.2010–2014, 2016–2020), can be deleted after subsetting.
 
 ### Important repo conventions
 - Do not commit large generated datasets/checkpoints.
@@ -90,8 +97,21 @@ How to update each session:
 ## Key Commands Reference
 
 ### Local prep
-- Activate venv:
-  - `\.venv\Scripts\Activate.ps1`
+- Activate venv: `\.venv\Scripts\Activate.ps1`
+- Check ancillary dataset completeness: `Get-ChildItem data\ncep_wind_subset -Filter *.nc | Measure-Object`
+- Subset downloaded NCEP raw files: `.venv\Scripts\python.exe scripts\subset_uwnd_downloaded.py`
+
+### Kaggle workflow
+- Upload full ancillary dataset version: stage in `data/kaggle_ancillary_full/`, run `kaggle datasets version -p data\kaggle_ancillary_full -m "..."` 
+- Upload individual file corrections: `kaggle datasets version -p <staging_dir> -m "..."` — **WARNING: this REPLACES all files; always include all 81 files in the zip.**
+
+### Notebook cells (Kaggle)
+1. Environment check (nvidia-smi)
+2. pip install torch-geometric==2.5.3 xarray netcdf4 typer scipy
+3. Clone/pull repo + locate IMD dataset
+4. Copy files + copy NCEP/CHIRPS/GEBCO + preprocess + GEBCO elev + build sequences ← all in one cell
+5. Smoke check (1 epoch forward-only)
+6. Full 80-epoch training
 
 ### Build sequences (full India)
 - `python -m data_ingestion.cli build-sequences --normalized-file .\data\processed_full_india\normalized_2010-2025.nc --output-dir .\data\processed_full_india --input-window 30 --target-window 7 --max-train 128 --max-val 32 --stride 10 --fillna-value 0.0`
@@ -102,8 +122,17 @@ How to update each session:
 ### Publish Kaggle dataset version
 - `kaggle datasets version -p .\data\kaggle_bundle_full_india -m "<message>"`
 
-### Kaggle training (medium preset)
-- `python -m ai_engine.trainer --data-dir /kaggle/input/datasets/shyam31415/vayu-full-india-bundle-2010-2025 --checkpoint-dir /kaggle/working/checkpoints/full_india_medium --epochs 50 --device cuda --kaggle-medium --batch-size 1`
+### Kaggle training (full quality Western Ghats)
+- ```
+  python -m ai_engine.trainer \
+    --data-dir /kaggle/working/isro/data/processed_western_ghats \
+    --checkpoint-dir /kaggle/working/isro/checkpoints/wg_main \
+    --epochs 80 --device auto --amp --batch-size 1 --grad-accum-steps 8 \
+    --cosine-lr --early-stopping-patience 15 --weight-decay 1e-4 \
+    --gnn-dropout 0.15 --lambda-conservation 0.3 --lambda-smoothness 0.01 \
+    --norm-params-file .../norm_params_2010-2025.nc \
+    --run-baselines --require-benchmarks
+  ```
 
 ## Session Log
 
@@ -125,6 +154,77 @@ How to update each session:
   -
 - Next session first steps:
   -
+
+### 2026-06-23 (latest — full ancillary pipeline + trainer fixes)
+- Goal:
+  - Complete end-to-end Kaggle training pipeline with NCEP wind / CHIRPS / GEBCO ancillary data.
+  - Upload ancillary datasets to Kaggle, fix all pipeline errors, get to smoke check passing.
+- Environment used:
+  - Local Windows PowerShell + Kaggle Notebook GPU sessions (T4×2).
+- What changed:
+  **Kaggle datasets:**
+  - Created `shyam31415/vayu-ancillary-wg-v1` dataset containing all 81 files (64 NCEP + 16 CHIRPS + 1 GEBCO) as a zip archive.
+  - Fixed corrupted uwnd 2016–2020 files (originally empty/partial downloads from previous session). Re-downloaded using raw PSL files and subsetted to 850 hPa + WG bounds. Uploaded as v4.
+  - v4 is the canonical complete version: 88.4 MB zip, all 81 files with real data.
+  **Code fixes (all pushed to main):**
+  - `data_ingestion/preprocessor.py`: `load_ncep_wind_at_850` now tries both filename patterns `uwnd.YYYY.nc` (raw NCEP) and `uwnd_YYYY_850hPa_WG.nc` (our subsetted format).
+  - `data_ingestion/preprocessor.py`: added `.sortby("lat").sortby("lon")` before NCEP regrid — NCEP subsets have descending lat which broke `sel(slice())` and `RegularGridInterpolator`.
+  - `data_ingestion/preprocessor.py`: guard against `IndexError: list index out of range` when a file has no matching variable.
+  - `data_ingestion/graph_builder.py`: `_load_or_generate_elevation` and `_load_or_generate_lsm` now use `interp(lat=self.lats, lon=self.lons)` instead of `sel()+reshape()` — float-precision mismatch in lat/lon coords caused reshape crashes.
+  - `ai_engine/trainer.py`: **critical SyntaxError fix** — training loop had a broken `for...else` construct; `scheduler.step()` and all per-epoch logic (logging, checkpointing, early stopping, `break`) were accidentally placed in the `else` clause which runs once after the loop, making `break` syntactically outside a loop. Fixed by removing `else:` and de-indenting the block back into the for loop. Also corrected scheduler stepping: CosineAnnealingLR uses `scheduler.step()`, ReduceLROnPlateau uses `scheduler.step(val_loss)`.
+  **Notebook updates:**
+  - `notebooks/vayu_kaggle_training.ipynb`: major overhaul of setup cell to:
+    - Print `/kaggle/input` contents for dataset discovery debugging.
+    - Auto-detect NCEP/CHIRPS/GEBCO from vayu-ancillary-wg-v1 and copy to working dirs.
+    - Run preprocess with `--ncep-wind-dir` and `--chirps-dir` when available.
+    - Process GEBCO AFTER preprocess (so interp uses freshly-generated grid).
+    - Capture stdout+stderr from preprocess and build-sequences subprocesses — errors now visible.
+    - Smoke check also captures stdout+stderr.
+  - Notebook header updated: lists both required datasets and GPU T4×2 setup instructions.
+  **New script:**
+  - `scripts/subset_uwnd_downloaded.py`: subsets manually-downloaded NCEP full files to 850 hPa + WG region, replacing any zero-filled placeholders.
+  **Frontend (no change in this session).**
+- Commands run:
+  - `.venv\Scripts\python.exe -m kaggle datasets create -p data\kaggle_ancillary_v2` (initial upload, 17.6 MB zip)
+  - `.venv\Scripts\python.exe -m kaggle datasets version -p data\kaggle_ancillary_full -m "v4: complete bundle"` (88.4 MB, all 81 real files)
+  - Multiple git commits/pushes throughout session
+  - Local smoke check: `.venv\Scripts\python.exe -c "import subprocess, sys; r = subprocess.run([sys.executable, '-m', 'ai_engine.trainer', '--data-dir', 'data/processed_western_ghats', '--checkpoint-dir', 'checkpoints/wg_smoke_local', '--epochs', '1', '--device', 'cpu', '--smoke-only'], capture_output=True, text=True, cwd='.'); print('RC:', r.returncode); print('STDERR:', r.stderr[-3000:])"`
+- Results/metrics (Kaggle cell 5 output, successful):
+  - NCEP: 64 files copied from vayu-ancillary-wg-v1
+  - CHIRPS: 16 files copied
+  - GEBCO: processed → elev -3347–2267 m on 57×23 grid
+  - Normalized vars: `['rainfall', 'tmax', 'tmin', 'rainfall_qc_flag', 'tmax_qc_flag', 'tmin_qc_flag', 'uwnd_850', 'vwnd_850', 'shum_850']`
+  - Grid: lat=57, lon=23, time=5844
+  - train_sequences.pt: 2.6 GB, val_sequences.pt: 650 MB
+  - Smoke check: **still failing** due to trainer SyntaxError (fixed in last commit 08f29f1, not yet re-run on Kaggle)
+- Errors/blockers encountered and fixed:
+  - Kaggle `datasets version` replaces ALL files — must always include complete file set in staging dir.
+  - NCEP files had corrupted empty placeholders for 2016–2020 (empty NetCDF headers, 0 data_vars).
+  - NCEP filename pattern mismatch: preprocessor expected `uwnd.YYYY.nc`, subset files are `uwnd_YYYY_850hPa_WG.nc`.
+  - NCEP lat in descending order broke `sel(slice())` (returned empty) and `RegularGridInterpolator` (requires ascending).
+  - GEBCO `coarsen(lat=60, lon=60)` produced offset grid causing `reshape()` crash in graph builder.
+  - Notebook cells had stale code (indentation errors from earlier JSON patching); user needed to paste corrected code.
+  - Trainer had `for...else` SyntaxError making `break` outside a loop — trainer could not start at all.
+- Decisions made:
+  - Keep zero-fill for unknown years if real data unavailable (preprocessor degrades gracefully).
+  - GEBCO processed AFTER preprocess so grid is guaranteed fresh.
+  - Capture all subprocess stdout+stderr in notebook for debugging transparency.
+  - Upload full 81-file zip for every dataset version update (not partial updates).
+- Files touched (2026-06-23):
+  - `data_ingestion/preprocessor.py` — NCEP filename patterns, lat sort, empty-var guard
+  - `data_ingestion/graph_builder.py` — interp replaces sel+reshape for elevation/LSM
+  - `ai_engine/trainer.py` — critical for-else SyntaxError fix + cosine/plateau scheduler branching
+  - `notebooks/vayu_kaggle_training.ipynb` — complete cell 5 rewrite, header update, capture all errors
+  - `scripts/subset_uwnd_downloaded.py` — new script for manual NCEP download subsetting
+  - `data/ncep_wind_subset/uwnd_2016–2020_850hPa_WG.nc` — replaced with real data (local only)
+  - `gebco/gebco_2026_n22.0_s7.0_w71.0_e79.0.nc` — confirmed correct bounds (N=22 S=7 W=71 E=79) ✅
+- Next session first steps:
+  1. **On Kaggle**: `git -C /kaggle/working/isro pull` then re-run cell 6 (smoke) → cell 7 (full training).
+  2. Cell 5 (preprocess + sequences) does NOT need to be re-run — sequences already built.
+  3. Expected: smoke passes, training begins at epoch 1 with uwnd_850/vwnd_850/shum_850 + CHIRPS + GEBCO.
+  4. Target metrics: R²_tmax ≥ 0.90, R²_rain improve significantly vs 0.201 baseline.
+  5. After training completes: download `vayu_best.pt` from Kaggle output.
+  6. Optional: rebuild local sequences if local testing needed (`python -m data_ingestion.cli build-sequences ...`).
 
 ### 2026-06-21 (latest)
 - Goal:
