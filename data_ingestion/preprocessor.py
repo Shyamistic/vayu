@@ -588,6 +588,10 @@ class ClimatePreprocessor:
 
         ncep_ds = xr.Dataset(arrays)
 
+        # Ensure lat/lon are ascending — NCEP subsets may have descending lat.
+        # sortby is required both for sel(slice) and RegularGridInterpolator.
+        ncep_ds = ncep_ds.sortby("lat").sortby("lon")
+
         # Regrid 2.5° NCEP → 0.25° target grid
         target_lats = np.arange(self.lat_min, self.lat_max + self.resolution / 2, self.resolution)
         target_lons = np.arange(self.lon_min, self.lon_max + self.resolution / 2, self.resolution)
