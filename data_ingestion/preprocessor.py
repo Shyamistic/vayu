@@ -560,7 +560,14 @@ class ClimatePreprocessor:
                 # Select 850 hPa level — NCEP uses 'level' coordinate in hPa
                 if "level" in ds.dims:
                     ds = ds.sel(level=850, method="nearest")
-                arr = ds[[v for v in ds.data_vars if short in v.lower()][0]]
+                matching_vars = [v for v in ds.data_vars if short in v.lower()]
+                if not matching_vars:
+                    logger.warning(
+                        "No variable matching '%s' in %s (data_vars=%s) — skipping",
+                        short, files[0], list(ds.data_vars),
+                    )
+                    continue
+                arr = ds[matching_vars[0]]
                 arr.name = long
                 combined[long].append(arr)
 
