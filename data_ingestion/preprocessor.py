@@ -541,8 +541,18 @@ class ClimatePreprocessor:
 
         for short, long in var_map.items():
             for year in range(start_year, end_year + 1):
-                pattern = str(ncep_path / f"{short}.{year}.nc")
-                files = _glob.glob(pattern)
+                # Try both NCEP-raw format (uwnd.YYYY.nc) and subsetted format (uwnd_YYYY_850hPa_WG.nc)
+                candidates = [
+                    str(ncep_path / f"{short}.{year}.nc"),
+                    str(ncep_path / f"{short}_{year}_850hPa_WG.nc"),
+                    str(ncep_path / f"{short}_{year}_*.nc"),
+                ]
+                files = []
+                for pattern in candidates:
+                    files = _glob.glob(pattern)
+                    if files:
+                        break
+                pattern = candidates[0]  # for logging only
                 if not files:
                     logger.warning("NCEP file not found: %s (skipping year %d)", pattern, year)
                     continue
