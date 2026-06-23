@@ -147,10 +147,11 @@ class ClimateGraphBuilder:
         if path is not None and Path(path).exists():
             import xarray as xr
             dem = xr.open_dataset(path)["elevation"]
+            # Use interp to exact grid coords — avoids reshape failures from float-precision mismatch
             return (
-                dem.sel(lat=slice(self.lat_min, self.lat_max), lon=slice(self.lon_min, self.lon_max))
+                dem.interp(lat=self.lats, lon=self.lons, method="linear")
+                .fillna(0.0)
                 .values.astype(np.float32)
-                .reshape(self.nlat, self.nlon)
             )
 
         # Synthetic elevation: Western Ghats ridge ~73-74°E
@@ -170,10 +171,11 @@ class ClimateGraphBuilder:
         if path is not None and Path(path).exists():
             import xarray as xr
             lsm = xr.open_dataset(path)["lsm"]
+            # Use interp to exact grid coords — avoids reshape failures from float-precision mismatch
             return (
-                lsm.sel(lat=slice(self.lat_min, self.lat_max), lon=slice(self.lon_min, self.lon_max))
+                lsm.interp(lat=self.lats, lon=self.lons, method="linear")
+                .fillna(0.0)
                 .values.astype(np.float32)
-                .reshape(self.nlat, self.nlon)
             )
 
         # Simple geometric land-sea mask for Western India
