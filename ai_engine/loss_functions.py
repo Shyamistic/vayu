@@ -17,20 +17,20 @@ import torch.nn.functional as F
 
 
 # Per-variable loss weights.
-# Rainfall is 2.5× temperature because:
+# Rainfall is 1.5× temperature because:
 #   - It is the primary competition target for Western Ghats
 #   - It has 5-10× harder prediction variance (zero-inflated, heavy-tailed)
-#   - Temperature is predictable with simple interpolation; rain is not
+#   - Higher weights destabilize training; 1.5 balances emphasis without explosion
 VARIABLE_WEIGHTS = {
-    "rainfall": 2.5,
+    "rainfall": 1.5,
     "temp_max": 1.0,
     "temp_min": 1.0,
 }
 
 # Focal regression gamma for rainfall.
-# Higher gamma = stronger upweighting of heavy-rain events.
-# 2.5 is empirically strong for orographic monsoon distributions (was 1.5).
-RAIN_FOCAL_GAMMA = 2.5
+# 1.0 = standard weighted MSE (no focal amplification).
+# Higher gamma was causing gradient explosions under AMP; keeping at 1.0 for stability.
+RAIN_FOCAL_GAMMA = 1.0
 
 # Normalized threshold separating "dry" vs "wet" days (≈1 mm/day after z-score).
 RAIN_WET_THRESHOLD = 0.1
@@ -120,16 +120,14 @@ class PhysicsInformedLoss(nn.Module):
                 occ_true = (var_true[valid] > RAIN_WET_THRESHOLD).float()
                 occ_loss = F.binary_cross_entropy(occ_pred, occ_true, reduction="mean")
 
-                # Stage 2: Amount (conditional on rain, focal + asymmetric)
-                #   Focal weight emphasises heavy-rain events (gamma=2.5).
-                #   Asymmetric weight: under-prediction (pred < true) penalised 2×
-                #   because missing a heavy rainfall event is worse than over-predicting.
+                # Stage 2: Amount (conditional on rain, focal)
+                #   Focal weight emphasises heavy-rain events (gamma=1.0 = no amplification).
+                #   Asymmetric penalty removed — it caused gradient instability.
                 rain_pos = torch.clamp(var_true[valid], min=0.0)
                 focal_w = (1.0 + rain_pos).pow(RAIN_FOCAL_GAMMA)
                 focal_w = focal_w / (focal_w.mean() + 1e-8)
                 residual = var_pred[valid] - var_true[valid]
-                asym_w = torch.where(residual < 0, torch.full_like(residual, 2.0), torch.ones_like(residual))
-                amt_loss = (asym_w * focal_w * residual.pow(2)).mean()
+                amt_loss = (focal_w * residual.pow(2)).mean()
 
                 # Combine: equal weight on occurrence and amount
                 mse = 0.5 * occ_loss + 0.5 * amt_loss
