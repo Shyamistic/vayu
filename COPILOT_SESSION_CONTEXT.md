@@ -23,25 +23,26 @@ How to update each session:
 - Infra: Docker Compose locally; AWS/CDK scaffolds present
 
 ### Training status (latest known)
-- **Pipeline is now fully working end-to-end on Kaggle** (as of 2026-06-23 session).
-- Preprocessing succeeded with all ancillary features: CHIRPS blended rainfall, NCEP wind (all 16 years), GEBCO topography.
-- Sequences rebuilt: 1024 train (2.6 GB) + 256 val (650 MB), all with 16-feature node vectors.
-- Normalized file: 198 MB (was 110 MB — includes uwnd_850/vwnd_850/shum_850).
-- Smoke check failing due to trainer SyntaxError — fixed in latest commit (08f29f1).
-- **Next: re-run smoke check on Kaggle (cell 6), then launch 80-epoch training (cell 7).**
-- Previous best (before ancillary data): 33+ epochs, val_loss=0.1930, R²_tmax=0.817, R²_rain=0.201.
+- **Two completed training runs on Kaggle T4×2 (2026-06-23)**:
+  - Run A (NCEP+CHIRPS+GEBCO): 40 epochs, best val_loss=0.8322, R²_tmax≤0.795, R²_rain **always negative** — CHIRPS was replacing IMD rainfall as the ground truth target (root cause fixed).
+  - Run B (IMD-only): 37 epochs, best val_loss=0.1930, R²_tmax=0.817, R²_rain=0.201 — current best checkpoint.
+- **CHIRPS bug fixed (2026-06-25)**: CHIRPS now added as auxiliary feature `chirps_rain` instead of replacing IMD rainfall.
+- **Major rainfall loss overhaul (2026-06-25)**: two-stage loss, weight 2.5, gamma 2.5, asymmetric penalty, lambda_conservation 0.05.
+- **Next training run**: Kaggle, `git pull`, re-run cells 5→6→7. Expected R²_rain 0.35–0.50.
+- **Competition deadline**: July 1, 2026 — focus on Western Ghats only.
 
 ### Model architecture (current)
 - VayuClimateModel: 2.3M params (GraphSAGE 3L hidden=128 + Transformer 4L d_model=256 8h)
-- Node features: **16** (was 13; added uwnd_850/vwnd_850/shum_850 in 2026-06-23 session)
+- Node features: **17** (added chirps_rain as 17th feature 2026-06-25)
   - Dynamic (5): rainfall, tmax, tmin, insat_lst, insat_sst
   - Temporal (2): day_sin, day_cos
   - Monsoon (2): jjas_flag, monsoon_progress
-  - Wind/humidity (3): uwnd_850, vwnd_850, shum_850 (NCEP 850 hPa; fallback 0 when absent)
+  - Wind/humidity (3): uwnd_850, vwnd_850, shum_850 (NCEP 850 hPa; 0 when absent)
+  - CHIRPS (1): chirps_rain (satellite precip as predictor, NOT target)
   - Static (4): elevation, land_sea_mask, lat_norm, lon_norm
-- Loss: PhysicsInformedLoss — focal regression for rainfall (gamma=1.5), temp MSE
+- Loss: Soft two-stage rainfall (BCE occurrence + asymmetric focal amount), rainfall weight=2.5, gamma=2.5, lambda_conservation=0.05
 - Training: AMP fp16, grad-accum×8, cosine LR, weight_decay=1e-4, stochastic depth
-- Sequences: 1024 train / 256 val, stride=2, 30-day input → 7-day forecast
+- Sequences: **2048 train / 384 val, stride=1**, 30-day input → 7-day forecast
 
 ### Quality improvements implemented (2026-06-22 session)
 - `--kaggle-medium`/`--kaggle-lite` presets: physics constraints RESTORED (was wrongly zeroed)
@@ -64,12 +65,38 @@ How to update each session:
 - NCEP NOAA wind: psl.noaa.gov/data/gridded/data.ncep.reanalysis.html
 
 ### Known active constraints
-- `gnn_in_features=16` — existing OLD checkpoints (11 or 13 features) are incompatible with current model.
-- Kaggle notebook: always re-run cell 4 (git pull) to pick up latest code before running subsequent cells.
+- `gnn_in_features=17` — sequences from previous runs (16 features) are STALE; rebuild with `stride=1 --max-train 2048`.
+- Kaggle notebook: always re-run cell 4 (git pull) before subsequent cells.
 - Windows CUDA backward: known native crash; use Kaggle for all GPU training.
-- GEBCO file in repo: `gebco/gebco_2026_n22.0_s7.0_w71.0_e79.0.nc` — correct bounds now. ✅
-- Local sequences (`data/processed_western_ghats/train_sequences.pt`) are STALE (11 features); Kaggle sequences are fresh (16 features). Rebuild locally if needed.
-- uwnd 2016-2020 had corrupted original subset files — replaced with real NCEP data downloaded 2026-06-23. ✅
+- GEBCO file: `gebco/gebco_2026_n22.0_s7.0_w71.0_e79.0.nc` ✅
+- CHIRPS must NOT replace IMD rainfall target — fixed, now `chirps_rain` auxiliary feature only.
+- `lambda_conservation=0.3` was suppressing extreme rainfall — changed to `0.05` in notebook.
+
+### Frontend status (2026-06-26)
+- **ISRO Earth View** built: cinematic intro (space → India), full atmosphere + lighting.
+- **Cesium Ion** token in `frontend/.env` — world terrain, Bing satellite, OSM buildings.
+- **NASA GIBS** free satellite layers (no key needed):
+  - MODIS Terra TrueColor (daily)
+  - NASA IMERG Precipitation Rate
+  - MODIS Cloud Fraction
+  - Earth at Night (Cesium Ion asset 3812)
+- **IMD standard colormap** for rainfall (white → green → blue → orange → red → purple).
+- **3D extruded rainfall bars** — height proportional to intensity.
+- **LayerControlPanel.tsx** — NASA WorldView-style switcher with date picker for GIBS.
+- Mouse coordinate HUD, VAYU/ISRO branding overlay, active layer badge.
+- `frontend/.env` is populated; `frontend/.env.example` documents all keys.
+
+### Key files changed (2026-06-25/26)
+- `ai_engine/loss_functions.py` — two-stage rainfall loss, weight 2.5, gamma 2.5, asymmetric penalty
+- `ai_engine/config.py` — gnn_in_features 16→17, lambda_conservation 0.1→0.05
+- `data_ingestion/preprocessor.py` — CHIRPS no longer replaces rainfall, added as chirps_rain feature
+- `data_ingestion/graph_builder.py` — chirps_rain added to node feature stack (17th feature)
+- `ai_engine/trainer.py` — for-else SyntaxError fixed (critical crash fix)
+- `notebooks/vayu_kaggle_training.ipynb` — stride=1, 2048 seqs, lambda_conservation=0.05, 100 epochs, smoke check auto-pull
+- `frontend/src/components/CesiumGlobe.tsx` — full ISRO Earth View overhaul
+- `frontend/src/components/LayerControlPanel.tsx` — new component
+- `frontend/src/App.tsx` — EarthLayer state wired through
+- `frontend/.env` / `frontend/.env.example` — Ion token + API key docs
 
 ### Data status (2026-06-23)
 - **Local ancillary data: complete** — `data/ncep_wind_subset/` (64 files), `data/chirps_subset/` (16 files), `gebco/` (1 file).
@@ -122,17 +149,20 @@ How to update each session:
 ### Publish Kaggle dataset version
 - `kaggle datasets version -p .\data\kaggle_bundle_full_india -m "<message>"`
 
-### Kaggle training (full quality Western Ghats)
+### Kaggle training (full quality Western Ghats — CURRENT)
 - ```
   python -m ai_engine.trainer \
     --data-dir /kaggle/working/isro/data/processed_western_ghats \
     --checkpoint-dir /kaggle/working/isro/checkpoints/wg_main \
-    --epochs 80 --device auto --amp --batch-size 1 --grad-accum-steps 8 \
-    --cosine-lr --early-stopping-patience 15 --weight-decay 1e-4 \
-    --gnn-dropout 0.15 --lambda-conservation 0.3 --lambda-smoothness 0.01 \
+    --epochs 100 --device auto --amp --batch-size 1 --grad-accum-steps 8 \
+    --cosine-lr --early-stopping-patience 20 --weight-decay 1e-4 \
+    --gnn-dropout 0.15 --lambda-conservation 0.05 --lambda-smoothness 0.01 \
     --norm-params-file .../norm_params_2010-2025.nc \
     --run-baselines --require-benchmarks
   ```
+
+### Frontend dev
+- `cd frontend && npm run dev`  (requires VITE_CESIUM_ION_TOKEN in frontend/.env)
 
 ## Session Log
 
@@ -141,19 +171,46 @@ How to update each session:
 - Goal:
 - Environment used:
 - What changed:
-  -
 - Commands run:
-  -
 - Results/metrics:
-  -
 - Errors/blockers:
-  -
 - Decisions made:
-  -
 - Files touched:
-  -
 - Next session first steps:
-  -
+
+### 2026-06-25/26 — CHIRPS fix + loss overhaul + ISRO Earth View
+- Goal: Fix R²_rain (stuck at 0.20, going negative with CHIRPS), build ISRO Earth View frontend.
+- Environment: Local Windows + Kaggle T4×2.
+- What changed:
+  - **Root cause of R²_rain = negative**: `preprocessor.py` was replacing IMD ground-truth rainfall with CHIRPS satellite estimates (`xr.where(chirps, chirps, imd)`). CHIRPS has systematic orographic cloud bias in Western Ghats.
+  - **CHIRPS fix**: now added as separate auxiliary feature `chirps_rain` (17th node feature), IMD rainfall remains the prediction target.
+  - **Two-stage rainfall loss**: BCE occurrence (dry/wet boundary) + asymmetric focal amount (2× under-prediction penalty) + gamma 2.5, weight 2.5.
+  - **lambda_conservation 0.3 → 0.05**: conservation constraint at 0.3 was actively suppressing extreme rainfall predictions.
+  - **2048 sequences, stride=1**: doubled training data from same dataset.
+  - **100 epochs, patience=20**.
+  - **trainer.py SyntaxError (for-else) fixed**: entire per-epoch logging/checkpointing/early-stopping was in `for...else` clause — ran once after loop, made `break` syntactically invalid. Critical crash fix.
+  - **ISRO Earth View**: full CesiumGlobe overhaul — cinematic space intro, IMD colormap, 3D rain bars, NASA GIBS free layers, layercontrol panel, ISRO HUD branding.
+  - **frontend/.env**: Cesium Ion token populated; `VITE_OPENWEATHERMAP_KEY` added (empty).
+- Results/metrics:
+  - Previous best (IMD-only run): val_loss=0.1930, R²_tmax=0.817, R²_rain=0.201.
+  - NCEP+CHIRPS run (bad): val_loss=0.8322, R²_rain always negative.
+  - Expected after new run: R²_rain 0.35–0.50, R²_tmax 0.85–0.88.
+- Decisions made:
+  - Western Ghats only until July 1 deadline.
+  - CHIRPS is predictor, NOT target — fixed permanently.
+  - NASA GIBS for free satellite layers instead of Google Maps API.
+- Files touched:
+  - `ai_engine/loss_functions.py`, `ai_engine/config.py`, `ai_engine/trainer.py`
+  - `data_ingestion/preprocessor.py`, `data_ingestion/graph_builder.py`
+  - `notebooks/vayu_kaggle_training.ipynb`
+  - `frontend/src/components/CesiumGlobe.tsx`, `LayerControlPanel.tsx`
+  - `frontend/src/App.tsx`, `frontend/.env`, `frontend/.env.example`
+- Next session first steps:
+  1. Kaggle: `git pull` in cell 4, re-run cells 5→6→7 with new 17-feature sequences.
+  2. Check R²_rain improvement — target ≥0.35.
+  3. If R²_rain still low: add IVT derived feature (`uwnd_850 × shum_850`) in graph_builder.
+  4. Frontend: run `npm run dev`, verify globe loads with Ion token + NASA GIBS layers.
+  5. Start PDF proposal for July 1 deadline.
 
 ### 2026-06-23 (latest — full ancillary pipeline + trainer fixes)
 - Goal:
