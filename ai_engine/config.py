@@ -37,7 +37,7 @@ class ModelConfig:
     learning_rate: float = 1e-4
     batch_size: int = 16
     max_epochs: int = 100
-    lambda_conservation: float = 0.1
+    lambda_conservation: float = 0.05   # was 0.1; reduced to prevent suppression of extreme rain events
     lambda_smoothness: float = 0.05
     mc_dropout_passes: int = 10
     weight_decay: float = 1e-5
