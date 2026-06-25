@@ -13,6 +13,8 @@ import ModelComparisonPanel from './components/ModelComparisonPanel';
 import RegionSelector from './components/RegionSelector';
 import DataProvenancePanel from './components/DataProvenancePanel';
 import ColorLegend from './components/ColorLegend';
+import LayerControlPanel from './components/LayerControlPanel';
+import type { EarthLayer } from './components/CesiumGlobe';
 import ForecastDaySelector from './components/ForecastDaySelector';
 import { fetchPrediction, fetchHealth } from './api/client';
 import type {
@@ -63,6 +65,8 @@ const VIEW_TABS: { id: ViewMode; label: string; icon: React.ReactNode }[] = [
 export default function App() {
   const [state, setState] = useState<AppState>(INITIAL_STATE);
   const [health, setHealth] = useState<HealthResponse | null>(null);
+  const [activeLayer, setActiveLayer] = useState<EarthLayer>('satellite');
+  const [gibsDate, setGibsDate] = useState<string>(new Date().toISOString().split('T')[0]);
 
   const update = useCallback((patch: Partial<AppState> | ((prev: AppState) => Partial<AppState>)) => {
     setState((prev) => ({
@@ -118,6 +122,8 @@ export default function App() {
           region={state.selectedRegion}
           scenarioData={state.showSplitScreen ? state.activeScenario : null}
           showSplitScreen={state.showSplitScreen}
+          activeLayer={activeLayer}
+          gibsDate={gibsDate}
         />
       </div>
 
@@ -217,7 +223,18 @@ export default function App() {
       </div>
 
       {/* ── Right panel (context-dependent) ── */}
-      <div className="absolute right-4 top-20 bottom-28 z-20 overflow-y-auto scrollbar-none">
+      <div className="absolute right-4 top-20 bottom-28 z-20 overflow-y-auto scrollbar-none flex flex-col gap-3">
+
+        {/* Layer switcher — always visible */}
+        <div className="panel-tight p-3">
+          <LayerControlPanel
+            activeLayer={activeLayer}
+            onLayerChange={setActiveLayer}
+            gibsDate={gibsDate}
+            onDateChange={setGibsDate}
+          />
+        </div>
+
         {state.viewMode === 'scenario' && (
           <WhatIfPanel
             onResult={handleScenarioResult}
