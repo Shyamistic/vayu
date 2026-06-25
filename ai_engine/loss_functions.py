@@ -114,11 +114,11 @@ class PhysicsInformedLoss(nn.Module):
             if var_name == "rainfall":
                 # ── Soft two-stage rainfall loss ─────────────────────────────
                 # Stage 1: Occurrence (will it rain?)
-                #   Soft threshold via sigmoid so gradients flow during training.
-                #   BCE teaches the model the dry/wet boundary explicitly.
-                occ_pred = torch.sigmoid((var_pred[valid] - RAIN_WET_THRESHOLD) * 10.0)
+                #   Use logits (pre-sigmoid) with BCE_with_logits for AMP compatibility.
+                #   This is numerically more stable than sigmoid + BCE.
+                occ_logits = (var_pred[valid] - RAIN_WET_THRESHOLD) * 10.0
                 occ_true = (var_true[valid] > RAIN_WET_THRESHOLD).float()
-                occ_loss = F.binary_cross_entropy(occ_pred, occ_true, reduction="mean")
+                occ_loss = F.binary_cross_entropy_with_logits(occ_logits, occ_true, reduction="mean")
 
                 # Stage 2: Amount (conditional on rain, focal)
                 #   Focal weight emphasises heavy-rain events (gamma=1.0 = no amplification).

@@ -578,7 +578,9 @@ class VayuTrainer:
                 target = targets[b].to(self.device)
                 with self._autocast_ctx():
                     preds = self.model(g)
-                    loss_dict = self.loss_fn(preds, target, g.edge_index)
+                # Loss in fp32 (same as training) to avoid BCE autocast error
+                preds_fp32 = {k: v.float() for k, v in preds.items()}
+                loss_dict = self.loss_fn(preds_fp32, target.float(), g.edge_index)
                 total_loss += loss_dict["total_loss"].item()
                 n_batches += 1
 
