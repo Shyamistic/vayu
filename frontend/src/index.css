@@ -48,3 +48,22 @@
 .cesium-geocoder-container { display: none !important; }
 .cesium-animation-container { display: none !important; }
 .cesium-timeline-main { display: none !important; }
+
+/* Critical: Cesium viewer MUST fill its container absolutely */
+.cesium-viewer,
+.cesium-viewer-cesiumWidgetContainer,
+.cesium-widget,
+.cesium-widget canvas {
+  position: absolute !important;
+  top: 0 !important;
+  left: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+}
+
+/* Ensure the Cesium info box doesn't overflow */
+.cesium-infoBox { max-width: 350px; }
+
+/* Custom scrollbar for panels */
+.scrollbar-none::-webkit-scrollbar { display: none; }
+.scrollbar-none { -ms-overflow-style: none; scrollbar-width: none; }

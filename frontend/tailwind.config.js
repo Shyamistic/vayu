@@ -4,14 +4,19 @@ export default {
   theme: {
     extend: {
       colors: {
-        // VAYU brand palette — space-to-earth aesthetic
+        // VAYU brand palette — ISRO space-to-earth aesthetic
         'vayu-blue': '#0ea5e9',
-        'vayu-dark': '#0a0f1e',
-        'vayu-panel': 'rgba(10, 15, 30, 0.85)',
+        'vayu-dark': '#030810',
+        'vayu-panel': 'rgba(6, 10, 22, 0.90)',
         'vayu-accent': '#22d3ee',
-        'vayu-warn': '#f97316',
+        'vayu-warm': '#ff6b35',
         'vayu-hot': '#ef4444',
         'vayu-cool': '#3b82f6',
+        'vayu-success': '#22c55e',
+        // ISRO tricolor accents
+        'isro-saffron': '#ff9933',
+        'isro-navy': '#0a2351',
+        'isro-green': '#138808',
       },
       fontFamily: {
         sans: ['Inter', 'system-ui', 'sans-serif'],
