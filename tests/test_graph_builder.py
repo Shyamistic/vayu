@@ -63,9 +63,9 @@ def test_graph_node_count(builder, small_ds):
 
 
 def test_graph_node_features(builder, small_ds):
-    """Each node has 11 features (5 dynamic + 2 temporal + 4 static)."""
+    """Each node has 17 features (5 dynamic + 2 temporal + 2 monsoon + 3 NCEP + 1 CHIRPS + 4 static)."""
     graph = builder.build_graph(small_ds, time_idx=0)
-    assert graph.x.shape[1] == 11, f"Expected 11 features, got {graph.x.shape[1]}"
+    assert graph.x.shape[1] == 17, f"Expected 17 features, got {graph.x.shape[1]}"
 
 
 def test_interior_node_has_8_edges(builder, small_ds):
@@ -130,7 +130,7 @@ def test_training_sequence_input_shape(builder, small_ds):
     input_window, target_window = 10, 5
     pairs = builder.create_training_sequences(small_ds, input_window, target_window)
     g, _ = pairs[0]
-    assert g.x.shape == (builder.num_nodes, input_window, 11), (
+    assert g.x.shape == (builder.num_nodes, input_window, 17), (
         f"Input shape mismatch: {g.x.shape}"
     )
 

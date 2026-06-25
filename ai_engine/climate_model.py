@@ -118,8 +118,10 @@ class VayuClimateModel(nn.Module):
         # ── Step 2: Temporal attention ───────────────────────────────────────
         temporal_ctx = self.transformer(spatial_seq)  # (num_nodes, d_model)
 
-        # ── Step 3: Prediction heads ─────────────────────────────────────────
-        predictions = self.heads(temporal_ctx)  # dict[var → (num_nodes, horizon)]
+        # ── Step 3: Prediction heads with persistence skip connection ────────
+        # Pass last timestep's raw features so heads can learn residuals
+        last_input = x[:, -1, :]  # (num_nodes, in_features) — last day's features
+        predictions = self.heads(temporal_ctx, last_input)  # dict[var → (num_nodes, horizon)]
 
         return predictions
 

@@ -41,7 +41,7 @@ def base_graph():
     builder = ClimateGraphBuilder()
     num_nodes = builder.num_nodes
     seq_len = 30
-    x = torch.randn(num_nodes, seq_len, 11)
+    x = torch.randn(num_nodes, seq_len, 17)
     return GraphData(
         x=x,
         edge_index=builder.edge_index,
