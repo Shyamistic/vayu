@@ -472,14 +472,17 @@ class ClimatePreprocessor:
         if chirps_dir is not None:
             chirps = self._load_chirps(chirps_dir, start_year, end_year)
             if chirps is not None:
-                # Blend: use CHIRPS where available, fall back to IMD
-                # CHIRPS is gauge-calibrated satellite, better for Western Ghats orographic rain
+                # CHIRPS is kept as a separate auxiliary input feature (chirps_rain),
+                # NOT used to replace IMD rainfall target.
+                # Rationale: CHIRPS satellite estimates are systematically biased for
+                # Western Ghats due to orographic cloud trapping (clouds form without
+                # precipitating). Replacing IMD ground-truth with CHIRPS makes
+                # R²_rain permanently negative. Use CHIRPS as an additional predictor.
                 chirps_aligned = chirps.reindex_like(rain_clipped, method="nearest", tolerance=1)
-                rain_merged = xr.where(~np.isnan(chirps_aligned["rainfall"]),
-                                       chirps_aligned["rainfall"],
-                                       rain_clipped["rainfall"])
-                rain_clipped["rainfall"] = rain_merged
-                logger.info("CHIRPS blended into rainfall (priority over IMD)")
+                # Add as separate feature; fill missing with 0 (not replacing IMD)
+                chirps_rain = chirps_aligned["rainfall"].fillna(0.0).rename("chirps_rain")
+                rain_clipped = rain_clipped.assign(chirps_rain=chirps_rain)
+                logger.info("CHIRPS added as auxiliary feature 'chirps_rain' (IMD rainfall preserved as target)")
 
         # 3. QC each variable
         rain_qc = self.quality_control(rain_clipped, "rainfall", climatology_ds)

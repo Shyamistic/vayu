@@ -13,9 +13,10 @@ class ModelConfig:
     # Dynamic (5): rainfall, temp_max, temp_min, insat_lst, insat_sst
     # Temporal (2): day_sin, day_cos
     # Monsoon (2): jjas_flag, monsoon_progress
-    # Wind    (3): uwnd_850, vwnd_850, shum_850  ← NEW (NCEP; 0 when absent)
+    # Wind    (3): uwnd_850, vwnd_850, shum_850  ← NCEP 850 hPa (0 when absent)
+    # CHIRPS  (1): chirps_rain ← auxiliary satellite precip feature (not target)
     # Static  (4): elevation, land_sea_mask, lat_enc, lon_enc
-    gnn_in_features: int = 16
+    gnn_in_features: int = 17
     gnn_hidden_dim: int = 128
     gnn_num_layers: int = 3
     gnn_dropout: float = 0.1

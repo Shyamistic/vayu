@@ -330,11 +330,14 @@ class ClimateGraphBuilder:
         uwnd_850 = _get_var("uwnd_850", default=0.0)
         vwnd_850 = _get_var("vwnd_850", default=0.0)
         shum_850 = _get_var("shum_850", default=0.0)
+        # CHIRPS satellite rainfall — auxiliary predictor, NOT replacing IMD target
+        chirps_rain = _get_var("chirps_rain", default=0.0)
         x = np.stack([
             rainfall, tmax, tmin, lst, sst,
             day_sin, day_cos,
             jjas, monsoon_progress,
             uwnd_850, vwnd_850, shum_850,
+            chirps_rain,
             elev_norm, lsm, lat_norm, lon_norm,
         ], axis=1)  # (num_nodes, 16)
 
