@@ -58,7 +58,7 @@ def model(small_config):
 
 def test_graph_encoder_output_shape():
     """GraphEncoder outputs [num_nodes, hidden_dim]."""
-    num_nodes, in_features, hidden_dim = 100, 16, 64
+    num_nodes, in_features, hidden_dim = 100, 17, 64
     enc = GraphEncoder(in_features=in_features, hidden_dim=hidden_dim, num_layers=2)
     x = torch.randn(num_nodes, in_features)
     edge_index = torch.randint(0, num_nodes, (2, 300))
@@ -69,7 +69,7 @@ def test_graph_encoder_output_shape():
 
 def test_graph_encoder_sequence_input():
     """GraphEncoder handles (num_nodes, seq_len, features) input."""
-    num_nodes, seq_len, in_features, hidden_dim = 50, 10, 16, 32
+    num_nodes, seq_len, in_features, hidden_dim = 50, 10, 17, 32
     enc = GraphEncoder(in_features=in_features, hidden_dim=hidden_dim, num_layers=2)
     x = torch.randn(num_nodes, seq_len, in_features)
     edge_index = torch.randint(0, num_nodes, (2, 150))

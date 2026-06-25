@@ -513,8 +513,10 @@ class VayuTrainer:
 
                 with self._autocast_ctx():
                     preds = self.model(g, mc_dropout=False)
-                    loss_dict = self.loss_fn(preds, target, g.edge_index)
-                    loss_val = loss_dict["total_loss"]
+                # Loss computed in fp32 to prevent overflow in focal/power terms
+                preds_fp32 = {k: v.float() for k, v in preds.items()}
+                loss_dict = self.loss_fn(preds_fp32, target.float(), g.edge_index)
+                loss_val = loss_dict["total_loss"]
 
                 batch_loss = (batch_loss + loss_val) if batch_loss is not None else loss_val
 
