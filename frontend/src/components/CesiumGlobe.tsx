@@ -124,26 +124,27 @@ export default function CesiumGlobe({
       infoBox: true,
       selectionIndicator: false,
       creditContainer: document.createElement('div'), // hide Cesium branding
+      // Explicitly set base imagery to Cesium Ion's default (Bing Maps Aerial)
+      baseLayer: Cesium.ImageryLayer.fromProviderAsync(
+        Cesium.IonImageryProvider.fromAssetId(2) // Asset 2 = Bing Maps Aerial
+      ),
     });
 
     // ── Atmosphere & lighting — ISRO space-to-earth aesthetic ──
-    viewer.scene.globe.enableLighting = true;
-    viewer.scene.globe.atmosphereLightIntensity = 2.0;
-    viewer.scene.globe.atmosphereHueShift = 0.0;
-    viewer.scene.globe.atmosphereSaturationShift = 0.1;
-    viewer.scene.globe.atmosphereBrightnessShift = 0.05;
+    viewer.scene.globe.enableLighting = false; // disable lighting so globe is always visible
     viewer.scene.globe.showGroundAtmosphere = true;
     viewer.scene.globe.tileCacheSize = 200;
     viewer.scene.fog.enabled = true;
-    viewer.scene.fog.density = 0.0002;
+    viewer.scene.fog.density = 0.0001;
     if (viewer.scene.skyAtmosphere) viewer.scene.skyAtmosphere.show = true;
-    viewer.scene.globe.depthTestAgainstTerrain = true;
 
-    // ── Bing Satellite imagery (free via Cesium Ion) ──
-    const bingLayer = viewer.imageryLayers.get(0); // default Ion world imagery
-    bingLayer.brightness = 1.05;
-    bingLayer.contrast = 1.1;
-    bingLayer.saturation = 1.15;
+    // ── Bing Satellite imagery enhancement ──
+    const bingLayer = viewer.imageryLayers.get(0);
+    if (bingLayer) {
+      bingLayer.brightness = 1.05;
+      bingLayer.contrast = 1.1;
+      bingLayer.saturation = 1.15;
+    }
 
     // ── Cinematic intro: start from space, zoom to India ──
     viewer.camera.setView({
@@ -364,7 +365,7 @@ export default function CesiumGlobe({
   }, [scenarioData, showSplitScreen, variable, isReady]);
 
   return (
-    <div ref={containerRef} className="w-full h-full relative">
+    <div ref={containerRef} style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, width: '100%', height: '100%' }}>
 
       {/* ── Loading splash ── */}
       {!isReady && (

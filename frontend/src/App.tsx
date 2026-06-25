@@ -112,10 +112,10 @@ export default function App() {
   const gridCells: GridCell[] = state.activePrediction?.grid_cells ?? [];
 
   return (
-    <div className="relative w-full h-screen overflow-hidden bg-vayu-dark font-sans">
+    <div className="w-full h-screen overflow-hidden bg-vayu-dark font-sans">
 
-      {/* ── Full-screen 3D globe ── */}
-      <div className="absolute inset-0">
+      {/* ── Full-screen 3D globe (fixed behind everything) ── */}
+      <div className="fixed inset-0 w-screen h-screen z-0">
         <CesiumGlobe
           gridCells={gridCells}
           variable={state.selectedVariable}
