@@ -367,10 +367,15 @@ class VayuTrainer:
         # finding sharper minima than reactive ReduceLROnPlateau.
         # ReduceLROnPlateau is kept as fallback when use_cosine_lr=False.
         if use_cosine_lr:
-            scheduler = optim.lr_scheduler.CosineAnnealingLR(
+            # Warmup for 5 epochs then cosine decay — protects zero-init heads
+            warmup_epochs = min(5, cfg.max_epochs // 10)
+            scheduler = optim.lr_scheduler.SequentialLR(
                 optimizer,
-                T_max=cfg.max_epochs,
-                eta_min=1e-6,
+                schedulers=[
+                    optim.lr_scheduler.LinearLR(optimizer, start_factor=0.1, total_iters=warmup_epochs),
+                    optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=cfg.max_epochs - warmup_epochs, eta_min=1e-6),
+                ],
+                milestones=[warmup_epochs],
             )
         else:
             scheduler = optim.lr_scheduler.ReduceLROnPlateau(
@@ -874,6 +879,14 @@ def train_cli() -> None:
             "max_epochs": epochs,
             "batch_size": batch_size,
         }
+
+        # Auto-detect feature count from sequences to handle legacy 11-feat datasets
+        train_sequences_pre, _, source_pre = _load_or_build_sequences(data_dir, ModelConfig(**config_kwargs))
+        if train_sequences_pre:
+            actual_features = train_sequences_pre[0][0].x.shape[-1]
+            config_kwargs["gnn_in_features"] = actual_features
+            logger.info("Auto-detected %d input features from sequences", actual_features)
+            del train_sequences_pre  # free memory
 
         if kaggle_lite:
             # Smallest architecture preset: fits T4 with any sequence count.

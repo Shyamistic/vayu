@@ -19,39 +19,62 @@ import torch.nn.functional as F
 
 
 class SingleVariableHead(nn.Module):
-    """MLP output head for a single climate variable with persistence residual.
+    """Deep MLP output head for a single climate variable with persistence residual.
 
     Architecture:
-        - Concat(temporal_context, last_day_value) → hidden → GELU → delta
+        - Concat(temporal_context, last_day_value, trend_feature) → hidden layers → delta
         - output = last_day_value (broadcast to horizon) + learned_delta
 
     The head learns a CORRECTION on top of persistence, not the absolute value.
+    Three-layer MLP with residual connection allows learning complex non-linear
+    corrections while the zero-initialization ensures safe start from persistence.
     """
 
     def __init__(self, d_model: int = 256, forecast_horizon: int = 7, dropout: float = 0.1):
         super().__init__()
         hidden = d_model // 2
-        # Input: d_model (transformer context) + 1 (last observed value)
-        self.net = nn.Sequential(
-            nn.Linear(d_model + 1, hidden),
-            nn.GELU(),
-            nn.Dropout(p=dropout),
-            nn.Linear(hidden, forecast_horizon),
-        )
-        # Initialize last layer near zero so initial predictions ≈ persistence
-        nn.init.zeros_(self.net[-1].weight)
-        nn.init.zeros_(self.net[-1].bias)
+        # Input: d_model (transformer context) + 1 (last observed value) + 1 (trend)
+        self.proj = nn.Linear(d_model + 2, hidden)
+        self.act1 = nn.GELU()
+        self.drop1 = nn.Dropout(p=dropout)
 
-    def forward(self, ctx: torch.Tensor, last_value: torch.Tensor) -> torch.Tensor:
+        # Second hidden layer with residual
+        self.fc2 = nn.Linear(hidden, hidden)
+        self.act2 = nn.GELU()
+        self.drop2 = nn.Dropout(p=dropout)
+        self.norm = nn.LayerNorm(hidden)
+
+        # Output projection
+        self.out = nn.Linear(hidden, forecast_horizon)
+        # Initialize last layer near zero so initial predictions ≈ persistence
+        nn.init.zeros_(self.out.weight)
+        nn.init.zeros_(self.out.bias)
+
+    def forward(self, ctx: torch.Tensor, last_value: torch.Tensor, trend: torch.Tensor | None = None) -> torch.Tensor:
         """
         Args:
             ctx: [num_nodes, d_model] — temporal context from transformer
             last_value: [num_nodes, 1] — last observed value of this variable
+            trend: [num_nodes, 1] — linear trend over input window (optional)
         Returns:
             [num_nodes, forecast_horizon]
         """
-        x = torch.cat([ctx, last_value], dim=-1)  # (num_nodes, d_model+1)
-        delta = self.net(x)  # (num_nodes, horizon)
+        if trend is None:
+            trend = torch.zeros_like(last_value)
+        x = torch.cat([ctx, last_value, trend], dim=-1)  # (num_nodes, d_model+2)
+
+        # Three-layer MLP with residual
+        h = self.proj(x)
+        h = self.act1(h)
+        h = self.drop1(h)
+
+        residual = h
+        h = self.fc2(h)
+        h = self.act2(h)
+        h = self.drop2(h)
+        h = self.norm(h + residual)  # residual connection + LayerNorm
+
+        delta = self.out(h)  # (num_nodes, horizon)
         # Persistence baseline: repeat last value across horizon
         persistence = last_value.expand(-1, delta.shape[-1])  # (num_nodes, horizon)
         return persistence + delta
@@ -86,6 +109,7 @@ class PredictionHeads(nn.Module):
         self,
         temporal_context: torch.Tensor,
         last_input: torch.Tensor | None = None,
+        full_input: torch.Tensor | None = None,
     ) -> dict[str, torch.Tensor]:
         """Produce multi-step forecasts for all variables.
 
@@ -93,6 +117,8 @@ class PredictionHeads(nn.Module):
             temporal_context: [num_nodes, d_model]
             last_input: [num_nodes, in_features] — last timestep features.
                         If None, uses zero (no persistence shortcut).
+            full_input: [num_nodes, seq_len, in_features] — full input sequence
+                        for computing trend features. If None, no trend passed.
 
         Returns:
             Dict with keys 'rainfall', 'temp_max', 'temp_min'.
@@ -108,7 +134,15 @@ class PredictionHeads(nn.Module):
                     temporal_context.shape[0], 1,
                     device=temporal_context.device, dtype=temporal_context.dtype,
                 )
-            pred = self.heads[var](temporal_context, last_val)
+            # Compute linear trend over the input window for this variable
+            trend = None
+            if full_input is not None and full_input.dim() == 3:
+                # full_input: (num_nodes, seq_len, features)
+                seq = full_input[:, :, ch]  # (num_nodes, seq_len)
+                # Simple trend: (last - first) / seq_len  (normalized slope)
+                trend = (seq[:, -1:] - seq[:, 0:1]) / max(seq.shape[1], 1)
+
+            pred = self.heads[var](temporal_context, last_val, trend)
             # Physical constraint: rainfall cannot be negative
             if var == "rainfall":
                 pred = F.relu(pred)

@@ -104,24 +104,35 @@ class VayuClimateModel(nn.Module):
 
         num_nodes, seq_len, _ = x.shape
 
-        # ── Step 1: Spatial encoding for each timestep ───────────────────────
-        # Process each timestep through GraphEncoder, collect embeddings
-        spatial_embeds = []
-        for t in range(seq_len):
-            x_t = x[:, t, :]  # (num_nodes, features)
-            h_t = self.encoder(x_t, edge_index, edge_attr)  # (num_nodes, hidden_dim)
-            spatial_embeds.append(h_t)
+        # ── Step 1: Spatial encoding — batched across all timesteps ──────────
+        # Instead of 30 sequential GNN passes, batch all timesteps together.
+        # Replicate edge_index for each timestep with node offset.
+        x_flat = x.reshape(num_nodes * seq_len, -1)  # (N*T, features)
 
-        # Stack: (num_nodes, seq_len, hidden_dim)
-        spatial_seq = torch.stack(spatial_embeds, dim=1)
+        # Build batched edge_index: each timestep gets its own graph with offset
+        offsets = torch.arange(seq_len, device=edge_index.device) * num_nodes
+        # edge_index: (2, E) → replicate T times with offsets
+        edge_index_batched = torch.cat([
+            edge_index + off for off in offsets
+        ], dim=1)  # (2, E*T)
+
+        # Replicate edge_attr for each timestep
+        edge_attr_batched = edge_attr.repeat(seq_len, 1)  # (E*T, edge_dim)
+
+        # Single batched GNN pass
+        h_flat = self.encoder(x_flat, edge_index_batched, edge_attr_batched)  # (N*T, hidden_dim)
+
+        # Reshape back to sequence: (num_nodes, seq_len, hidden_dim)
+        spatial_seq = h_flat.reshape(num_nodes, seq_len, -1)
 
         # ── Step 2: Temporal attention ───────────────────────────────────────
         temporal_ctx = self.transformer(spatial_seq)  # (num_nodes, d_model)
 
         # ── Step 3: Prediction heads with persistence skip connection ────────
         # Pass last timestep's raw features so heads can learn residuals
+        # Also pass full input sequence for trend computation
         last_input = x[:, -1, :]  # (num_nodes, in_features) — last day's features
-        predictions = self.heads(temporal_ctx, last_input)  # dict[var → (num_nodes, horizon)]
+        predictions = self.heads(temporal_ctx, last_input, full_input=x)  # dict[var → (num_nodes, horizon)]
 
         return predictions
 

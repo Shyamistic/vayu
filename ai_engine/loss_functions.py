@@ -17,14 +17,15 @@ import torch.nn.functional as F
 
 
 # Per-variable loss weights.
-# Rainfall is 1.5× temperature because:
-#   - It is the primary competition target for Western Ghats
-#   - It has 5-10× harder prediction variance (zero-inflated, heavy-tailed)
-#   - Higher weights destabilize training; 1.5 balances emphasis without explosion
+# Temperature is prioritised: R²_tmax=0.90 is the primary competition target.
+# Rainfall weight reduced to 0.3 — persistence R² for rain is already negative,
+# meaning rain prediction is near-impossible at this resolution/window. Heavy rain
+# weight was pulling temperature heads off their optimal minima via shared backbone.
+# The rainfall head still gets gradients (weight > 0), but won't dominate the loss.
 VARIABLE_WEIGHTS = {
-    "rainfall": 1.5,
-    "temp_max": 1.0,
-    "temp_min": 1.0,
+    "rainfall": 0.3,
+    "temp_max": 2.0,
+    "temp_min": 1.5,
 }
 
 # Focal regression gamma for rainfall.

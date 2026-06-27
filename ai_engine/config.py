@@ -17,15 +17,15 @@ class ModelConfig:
     # CHIRPS  (1): chirps_rain ← auxiliary satellite precip feature (not target)
     # Static  (4): elevation, land_sea_mask, lat_enc, lon_enc
     gnn_in_features: int = 17
-    gnn_hidden_dim: int = 128
+    gnn_hidden_dim: int = 192
     gnn_num_layers: int = 3
-    gnn_dropout: float = 0.1
+    gnn_dropout: float = 0.12
 
     # ── Temporal Transformer ─────────────────────────────────────────────────
-    transformer_d_model: int = 256
+    transformer_d_model: int = 384
     transformer_nhead: int = 8
-    transformer_num_layers: int = 4
-    transformer_dim_feedforward: int = 512
+    transformer_num_layers: int = 5
+    transformer_dim_feedforward: int = 768
     transformer_dropout: float = 0.1
 
     # ── Prediction ───────────────────────────────────────────────────────────
@@ -34,13 +34,13 @@ class ModelConfig:
     num_output_variables: int = 3   # rainfall, tmax, tmin
 
     # ── Training ─────────────────────────────────────────────────────────────
-    learning_rate: float = 1e-4
+    learning_rate: float = 3e-4
     batch_size: int = 16
     max_epochs: int = 100
-    lambda_conservation: float = 0.05   # was 0.1; reduced to prevent suppression of extreme rain events
-    lambda_smoothness: float = 0.05
+    lambda_conservation: float = 0.02   # reduced — conservation was suppressing temp gradients
+    lambda_smoothness: float = 0.02
     mc_dropout_passes: int = 10
-    weight_decay: float = 1e-5
+    weight_decay: float = 1e-4
 
     # ── Pilot Region Graph Dimensions ────────────────────────────────────────
     # lat 8–20°N at 0.25° = 49 grid points; lon 72–78°E at 0.25° = 25 grid points
