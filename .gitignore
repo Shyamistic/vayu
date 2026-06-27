@@ -20,11 +20,23 @@ htmlcov/
 *.pt
 *.pth
 checkpoints/
+
+# ── Data files (large .nc, raw datasets) ─────────────────────────────────────
 data/imd/
 data/mosdac/
 data/processed/
 data/processed_full_india/
+data/processed_western_ghats/
 data/kaggle_bundle_full_india/
+data/kaggle_bundle_western_ghats/
+data/ncep_wind/
+data/ncep_wind_subset/
+data/chirps_subset/
+data/static/
+chirps/
+gebco/
+
+# ── Frontend ──────────────────────────────────────────────────────────────────
 node_modules/
 frontend/dist/
 frontend/.vite/
@@ -32,15 +44,20 @@ frontend/.tsbuild/
 frontend/*.tsbuildinfo
 *.local
 
-# Local Kiro specs and session artifacts
+# ── Local Kiro specs and session artifacts ────────────────────────────────────
 .kiro/
 
-# Local research docs and working notes
+# ── Local research docs and working notes ─────────────────────────────────────
 research/
 
-# Notebook/editor/OS noise
+# ── Notebook/editor/OS noise ──────────────────────────────────────────────────
 .ipynb_checkpoints/
 .vscode/
 .idea/
 Thumbs.db
 .DS_Store
+
+# ── Misc binary/large files ───────────────────────────────────────────────────
+*.nc
+COPILOT_SESSION_CONTEXT.md
+vayu_best*.pt
