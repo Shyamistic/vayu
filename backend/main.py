@@ -426,28 +426,32 @@ def _extract_baseline_metrics(
 
 
 def _mock_grid_cells(n_cells: int = 50) -> list[GridCell]:
-    """Generate plausible mock data when model is untrained."""
+    """Generate plausible mock data matching the Western Ghats pilot region grid."""
     rng = np.random.default_rng(42)
     cells = []
-    lats = np.linspace(PILOT.lat_min, PILOT.lat_max, 7)
-    lons = np.linspace(PILOT.lon_min, PILOT.lon_max, 8)
+    lats = np.arange(PILOT.lat_min + 0.125, PILOT.lat_max, 0.25)
+    lons = np.arange(PILOT.lon_min + 0.125, PILOT.lon_max, 0.25)
     idx = 0
     for lat in lats:
         for lon in lons:
+            # Realistic monsoon-season patterns
+            coast_factor = max(0, (74.5 - lon) / 2.5)
+            base_rain = 8.0 + coast_factor * 25.0
+            rainfall = max(0, float(rng.normal(base_rain, base_rain * 0.3)))
+            base_tmax = 35.0 - coast_factor * 4.0 - (lat - 15) * 0.2
+            temp_max = float(rng.normal(base_tmax, 1.5))
+            temp_min = temp_max - float(rng.uniform(5, 9))
+
             cells.append(GridCell(
-                lat=float(lat), lon=float(lon), node_idx=idx,
-                rainfall=float(rng.uniform(0, 20)),
-                temp_max=float(rng.uniform(28, 38)),
-                temp_min=float(rng.uniform(20, 28)),
-                rainfall_uncertainty=float(rng.uniform(0.5, 3.0)),
-                temp_max_uncertainty=float(rng.uniform(0.2, 1.5)),
-                temp_min_uncertainty=float(rng.uniform(0.2, 1.5)),
+                lat=round(float(lat), 3), lon=round(float(lon), 3), node_idx=idx,
+                rainfall=round(rainfall, 2),
+                temp_max=round(temp_max, 2),
+                temp_min=round(temp_min, 2),
+                rainfall_uncertainty=round(float(rng.uniform(1.5, 6.0)), 2),
+                temp_max_uncertainty=round(float(rng.uniform(0.3, 1.2)), 2),
+                temp_min_uncertainty=round(float(rng.uniform(0.3, 1.0)), 2),
             ))
             idx += 1
-            if idx >= n_cells:
-                break
-        if idx >= n_cells:
-            break
     return cells
 
 

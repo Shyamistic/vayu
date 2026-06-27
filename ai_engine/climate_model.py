@@ -196,10 +196,18 @@ class VayuClimateModel(nn.Module):
     @classmethod
     def load(cls, checkpoint_path: str, device: str = "cpu") -> "VayuClimateModel":
         """Load model from checkpoint file."""
-        checkpoint = torch.load(checkpoint_path, map_location=device)
+        checkpoint = torch.load(checkpoint_path, map_location=device, weights_only=False)
         config = checkpoint.get("config", ModelConfig())
         model = cls(config=config)
-        model.load_state_dict(checkpoint["model_state_dict"])
+        # Use strict=False to handle architecture changes between checkpoint versions
+        # (e.g., old 2-layer heads vs new 3-layer heads)
+        missing, unexpected = model.load_state_dict(checkpoint["model_state_dict"], strict=False)
+        if missing:
+            import logging
+            logging.getLogger(__name__).warning(
+                "Loaded checkpoint with %d missing keys (new architecture layers initialized randomly)",
+                len(missing),
+            )
         model.eval()
         return model
 

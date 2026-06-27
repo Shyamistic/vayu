@@ -131,7 +131,7 @@ export default function WhatIfPanel({ onResult, onReset }: WhatIfPanelProps) {
       : `${magnitude > 0 ? '+' : ''}${magnitude}${selectedScenario.unit}`;
 
   return (
-    <div className="panel p-4 flex flex-col gap-4 w-80">
+    <div className="panel p-4 flex flex-col gap-4 w-full">
       {/* Header */}
       <div className="flex items-center justify-between">
         <h2 className="text-white font-semibold text-sm tracking-wide">

@@ -115,7 +115,7 @@ export type RegionId =
   | 'central_india'
   | 'pilot';
 
-export type ViewMode = 'prediction' | 'historical' | 'scenario' | 'metrics';
+export type ViewMode = 'prediction' | 'historical' | 'scenario' | 'metrics' | 'agriculture' | 'environment';
 
 export interface TimeState {
   selectedDate: Date;

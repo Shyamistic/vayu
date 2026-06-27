@@ -44,11 +44,33 @@ frontend/.tsbuild/
 frontend/*.tsbuildinfo
 *.local
 
-# ── Local Kiro specs and session artifacts ────────────────────────────────────
-.kiro/
+# ── Cloned reference repos (not part of VAYU source — used for inspiration only) ─
+fluid-earth/
+CesiumHeatmap/
+cesium-wind-layer/
+weatherlayers-gl/
+react-globe.gl/
+terriajs/
+GeoJson-Data-of-Indian-States/
+
+# ── Copilot / AI session working documents ────────────────────────────────────
+COPILOT_PROMPT.md
+COPILOT_SESSION_CONTEXT.md
+COPILOT_TERRA_MIGRATION_PROMPT.md
+FRONTEND_REFACTOR_PLAN.md
+FRONTEND_REFACTOR_PROMPT.md
+KAGGLE_EXECUTION_NEXT_STEPS_2026-06-21.md
+TRAINING_TODOS_2026-06-21.md
+
+# ── Large binary / model weights ─────────────────────────────────────────────
+vayu_best*.pt
+*.nc
 
 # ── Local research docs and working notes ─────────────────────────────────────
 research/
+
+# ── Local Kiro specs and session artifacts ────────────────────────────────────
+.kiro/
 
 # ── Notebook/editor/OS noise ──────────────────────────────────────────────────
 .ipynb_checkpoints/
@@ -57,7 +79,3 @@ research/
 Thumbs.db
 .DS_Store
 
-# ── Misc binary/large files ───────────────────────────────────────────────────
-*.nc
-COPILOT_SESSION_CONTEXT.md
-vayu_best*.pt

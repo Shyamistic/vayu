@@ -11,6 +11,9 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
+      // react-plotly.js CJS requires 'plotly.js/dist/plotly'; redirect to the
+      // already-installed plotly.js-dist-min which exports the same object
+      'plotly.js/dist/plotly': 'plotly.js-dist-min',
     },
   },
   server: {

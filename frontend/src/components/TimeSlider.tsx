@@ -91,7 +91,7 @@ export default function TimeSlider({ timeState, onChange }: TimeSliderProps) {
       : format(selectedDate, 'yyyy');
 
   return (
-    <div className="panel px-4 py-3 flex flex-col gap-3 select-none">
+    <div className="panel px-4 py-3 flex flex-col gap-3 select-none animate-slide-in-up">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2 text-white/80">

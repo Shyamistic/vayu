@@ -59,10 +59,10 @@ export default function RegionSelector({ selected, onChange }: RegionSelectorPro
         <button
           key={r.id}
           onClick={() => onChange(r.id)}
-          className={`text-xs px-2.5 py-1 rounded-md border transition-colors whitespace-nowrap ${
+          className={`text-xs px-2.5 py-1 rounded-md border transition-all duration-200 whitespace-nowrap hover:scale-[1.03] active:scale-95 ${
             selected === r.id
-              ? 'bg-blue-500/20 border-blue-400/60 text-blue-300 font-medium'
-              : 'border-white/10 text-white/40 hover:text-white/70 hover:border-white/20'
+              ? 'bg-blue-500/20 border-blue-400/60 text-blue-300 font-medium shadow-[0_0_8px_rgba(59,130,246,0.3)]'
+              : 'border-white/10 text-white/40 hover:text-white/70 hover:border-white/20 hover:bg-white/5'
           }`}
         >
           {r.label}

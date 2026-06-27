@@ -7,35 +7,131 @@
   :root {
     --panel-bg: rgba(10, 15, 30, 0.88);
     --border-subtle: rgba(255, 255, 255, 0.08);
-    --text-primary: rgba(255, 255, 255, 0.95);
+    --text-primary: rgba(255, 255, 255, 0.85);
     --text-secondary: rgba(255, 255, 255, 0.55);
   }
+
+  /* Part B: Dark theme — never pure white text */
+  body {
+    color: rgba(255, 255, 255, 0.85);
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Part B: Custom scrollbar — thin blue on hover */
+  ::-webkit-scrollbar { width: 4px; height: 4px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: transparent; border-radius: 2px; }
+  *:hover::-webkit-scrollbar-thumb { background: rgba(14,165,233,0.35); }
+  * { scrollbar-width: thin; scrollbar-color: transparent transparent; }
+  *:hover { scrollbar-color: rgba(14,165,233,0.3) transparent; }
 }
 
 @layer components {
+  /* Part B: Glassmorphism panels */
   .panel {
-    @apply bg-vayu-panel backdrop-blur-md border border-white/10 rounded-xl;
+    @apply rounded-xl;
+    background: rgba(6, 10, 22, 0.90);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    transition: box-shadow 200ms ease, border-color 200ms ease, transform 200ms ease;
   }
+  .panel:hover {
+    border-color: rgba(255, 255, 255, 0.12);
+    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(14, 165, 233, 0.04);
+  }
+
   .panel-tight {
-    @apply bg-vayu-panel backdrop-blur-md border border-white/10 rounded-lg;
+    @apply rounded-lg;
+    background: rgba(6, 10, 22, 0.92);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    transition: box-shadow 200ms ease, border-color 200ms ease;
   }
+
+  /* Part B: Buttons */
   .btn-primary {
-    @apply bg-vayu-blue hover:bg-sky-400 text-white font-medium px-4 py-2 rounded-lg
-           transition-colors duration-150 focus:outline-none focus:ring-2 focus:ring-vayu-blue/50
-           disabled:opacity-50 disabled:cursor-not-allowed;
+    @apply font-medium px-4 py-2 rounded-lg text-white;
+    background: #0ea5e9;
+    border: 1px solid rgba(14,165,233,0.5);
+    box-shadow: 0 0 12px rgba(14,165,233,0.2);
+    transition: background 150ms, transform 100ms, box-shadow 150ms;
   }
+  .btn-primary:hover {
+    background: #38bdf8;
+    transform: scale(1.03);
+    box-shadow: 0 0 18px rgba(14,165,233,0.35);
+  }
+  .btn-primary:active {
+    transform: scale(0.95);
+  }
+  .btn-primary:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+    transform: none;
+  }
+  .btn-primary:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(14,165,233,0.5);
+  }
+
   .btn-ghost {
-    @apply bg-white/5 hover:bg-white/10 text-white/80 px-3 py-1.5 rounded-md
-           transition-colors duration-150 text-sm;
+    @apply px-3 py-1.5 rounded-md text-sm;
+    background: rgba(255,255,255,0.05);
+    color: rgba(255,255,255,0.8);
+    border: 1px solid rgba(255,255,255,0.08);
+    transition: background 150ms, transform 100ms, border-color 150ms;
   }
+  .btn-ghost:hover {
+    background: rgba(255,255,255,0.10);
+    border-color: rgba(255,255,255,0.15);
+    transform: scale(1.02);
+  }
+  .btn-ghost:active { transform: scale(0.96); }
+  .btn-ghost:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(14,165,233,0.4);
+  }
+
+  /* Part B: Metric cards */
   .metric-card {
-    @apply panel-tight p-3 flex flex-col gap-1;
+    @apply rounded-lg p-3 flex flex-col gap-1;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.07);
+    transition: transform 200ms ease, box-shadow 200ms ease, border-color 200ms ease;
   }
+  .metric-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 16px rgba(0,0,0,0.3);
+    border-color: rgba(14,165,233,0.2);
+  }
+
   .metric-value {
-    @apply text-2xl font-bold text-vayu-accent font-mono;
+    @apply text-2xl font-bold font-mono;
+    color: #22d3ee;
+    font-variant-numeric: tabular-nums;
   }
   .metric-label {
-    @apply text-xs text-white/50 uppercase tracking-wide;
+    @apply text-xs uppercase tracking-wide;
+    color: rgba(255,255,255,0.5);
+  }
+
+  /* Part B: Active element breathing glow */
+  .active-glow {
+    animation: breathingGlow 2s ease-in-out infinite;
+  }
+
+  /* Part B: Skeleton shimmer for loading states */
+  .skeleton {
+    background: linear-gradient(90deg,
+      rgba(255,255,255,0.05) 25%,
+      rgba(255,255,255,0.10) 50%,
+      rgba(255,255,255,0.05) 75%
+    );
+    background-size: 200% 100%;
+    animation: shimmer 1.5s ease-in-out infinite;
+    border-radius: 6px;
   }
 }
 
@@ -63,19 +159,136 @@
   height: 100% !important;
 }
 
-/* The viewer container itself */
-.cesium-viewer {
-  overflow: hidden !important;
-}
-
-/* Fix: Cesium viewer toolbar and bottom bar can push content */
-.cesium-viewer-bottom {
-  display: none !important;
-}
-
-/* Ensure the Cesium info box doesn't overflow */
+.cesium-viewer { overflow: hidden !important; }
+.cesium-viewer-bottom { display: none !important; }
 .cesium-infoBox { max-width: 350px; }
 
-/* Custom scrollbar for panels */
+/* Part B: Slider styling */
+input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+  background: transparent;
+  cursor: pointer;
+}
+input[type="range"]::-webkit-slider-track {
+  height: 4px;
+  border-radius: 2px;
+  background: rgba(255,255,255,0.10);
+}
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #0ea5e9;
+  box-shadow: 0 0 8px rgba(14,165,233,0.5);
+  transition: box-shadow 150ms, transform 100ms;
+  margin-top: -5px;
+}
+input[type="range"]::-webkit-slider-thumb:hover {
+  box-shadow: 0 0 14px rgba(14,165,233,0.7);
+  transform: scale(1.15);
+}
+input[type="range"]::-moz-range-track {
+  height: 4px;
+  border-radius: 2px;
+  background: rgba(255,255,255,0.10);
+}
+input[type="range"]::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: none;
+  background: #0ea5e9;
+  box-shadow: 0 0 8px rgba(14,165,233,0.5);
+}
+input[type="range"]:focus-visible {
+  outline: none;
+}
+
+/* Part B: Date input dark theme */
+input[type="date"] {
+  color-scheme: dark;
+}
+input:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(14,165,233,0.4);
+}
+
+@layer utilities {
+  /* Panel entrance animations */
+  .animate-slide-in-left {
+    animation: slideInLeft 0.3s ease-out;
+  }
+  .animate-slide-in-right {
+    animation: slideInRight 0.3s ease-out;
+  }
+  .animate-slide-in-up {
+    animation: slideInUp 0.35s ease-out;
+  }
+  .animate-fade-in {
+    animation: fadeIn 0.3s ease-out;
+  }
+
+  /* Glow pulse for active elements */
+  .glow-pulse {
+    animation: glowPulse 2s ease-in-out infinite;
+  }
+
+  /* Part B: GPU acceleration hint */
+  .gpu-accelerated {
+    will-change: transform;
+    transform: translateZ(0);
+  }
+
+  /* Part B: Reduced motion support */
+  @media (prefers-reduced-motion: reduce) {
+    .animate-slide-in-left,
+    .animate-slide-in-right,
+    .animate-slide-in-up,
+    .animate-fade-in,
+    .glow-pulse,
+    .active-glow,
+    .skeleton {
+      animation: none !important;
+      transition: none !important;
+    }
+  }
+
+  /* Numeric alignment */
+  .tabular-nums {
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+@keyframes slideInLeft {
+  from { opacity: 0; transform: translateX(-20px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+@keyframes slideInRight {
+  from { opacity: 0; transform: translateX(20px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+@keyframes slideInUp {
+  from { opacity: 0; transform: translateY(18px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes glowPulse {
+  0%, 100% { box-shadow: 0 0 4px currentColor; }
+  50%       { box-shadow: 0 0 14px currentColor; }
+}
+@keyframes breathingGlow {
+  0%, 100% { box-shadow: 0 0 0 rgba(14,165,233,0.0); }
+  50%       { box-shadow: 0 0 16px rgba(14,165,233,0.4); }
+}
+@keyframes shimmer {
+  0%   { background-position: -200% 0; }
+  100% { background-position:  200% 0; }
+}
+/* Custom scrollbar for panels (hide completely, show on hover via JS) */
 .scrollbar-none::-webkit-scrollbar { display: none; }
 .scrollbar-none { -ms-overflow-style: none; scrollbar-width: none; }

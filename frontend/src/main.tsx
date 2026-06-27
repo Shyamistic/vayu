@@ -18,7 +18,5 @@ if (!cesiumToken || cesiumToken.includes('your_token_here')) {
 Cesium.Ion.defaultAccessToken = cesiumToken || '';
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
-  <React.StrictMode>
-    <App />
-  </React.StrictMode>,
+  <App />,
 );
