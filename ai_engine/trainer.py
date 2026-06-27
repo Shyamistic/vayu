@@ -458,6 +458,16 @@ class VayuTrainer:
                 patience_counter = 0
                 self.model.save(str(best_checkpoint), extra={"epoch": epoch, "val_loss": val_loss})
                 logger.info("  ✓ New best checkpoint saved (val_loss=%.4f)", val_loss)
+
+                # Resilience: also copy to /kaggle/working/ root so output survives cancellation.
+                # On Kaggle, files at the root of /kaggle/working/ are preserved even if
+                # the notebook run is cancelled mid-way. Go to Versions → Output tab.
+                kaggle_root = Path("/kaggle/working")
+                if kaggle_root.exists():
+                    import shutil as _shutil
+                    _dst = kaggle_root / "vayu_best.pt"
+                    _shutil.copy2(str(best_checkpoint), str(_dst))
+                    logger.debug("  Resilience copy → %s", _dst)
             else:
                 patience_counter += 1
 
