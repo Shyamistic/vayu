@@ -195,19 +195,68 @@ class VayuClimateModel(nn.Module):
 
     @classmethod
     def load(cls, checkpoint_path: str, device: str = "cpu") -> "VayuClimateModel":
-        """Load model from checkpoint file."""
+        """Load model from checkpoint file.
+
+        Auto-detects the model configuration from weight tensor shapes so that
+        older checkpoints (e.g. vayu_best (3).pt — 2.3M params, hidden=128)
+        load correctly even when no 'config' key is stored.
+        """
+        import logging
+        _log = logging.getLogger(__name__)
+
         checkpoint = torch.load(checkpoint_path, map_location=device, weights_only=False)
-        config = checkpoint.get("config", ModelConfig())
+
+        # ── Try stored config first ────────────────────────────────────────────
+        config = checkpoint.get("config", None)
+
+        # ── Auto-detect config from weight shapes when not stored ──────────────
+        if config is None:
+            sd = checkpoint.get("model_state_dict", {})
+            cfg = ModelConfig()
+
+            # Detect gnn_hidden_dim from encoder input projection
+            enc_w = sd.get("encoder.input_proj.0.weight")
+            if enc_w is not None:
+                cfg.gnn_hidden_dim = enc_w.shape[0]          # rows = output dim
+                cfg.gnn_in_features = enc_w.shape[1]         # cols = input features
+                _log.info("Auto-detected gnn_hidden_dim=%d, gnn_in_features=%d",
+                          cfg.gnn_hidden_dim, cfg.gnn_in_features)
+
+            # Detect transformer d_model from input projection
+            tf_proj = sd.get("transformer.input_proj.weight")
+            if tf_proj is not None:
+                cfg.transformer_d_model = tf_proj.shape[0]
+                _log.info("Auto-detected transformer_d_model=%d", cfg.transformer_d_model)
+
+            # Detect feedforward dim
+            ff_w = sd.get("transformer.transformer.layers.0.linear1.weight")
+            if ff_w is not None:
+                cfg.transformer_dim_feedforward = ff_w.shape[0]
+
+            # Detect num transformer layers
+            num_layers = sum(
+                1 for k in sd
+                if k.startswith("transformer.transformer.layers.") and k.endswith(".norm1.weight")
+            )
+            if num_layers > 0:
+                cfg.transformer_num_layers = num_layers
+                _log.info("Auto-detected transformer_num_layers=%d", num_layers)
+
+            # Detect num GNN layers
+            num_gnn = sum(1 for k in sd if k.startswith("encoder.convs.") and k.endswith(".lin_l.weight"))
+            if num_gnn > 0:
+                cfg.gnn_num_layers = num_gnn
+
+            config = cfg
+            _log.info("Auto-configured model: hidden=%d d_model=%d layers=%d params≈%.1fM",
+                      cfg.gnn_hidden_dim, cfg.transformer_d_model, cfg.transformer_num_layers,
+                      (cfg.gnn_hidden_dim**2 * 3 + cfg.transformer_d_model**2 * 4 * cfg.transformer_num_layers) / 1e6)
+
         model = cls(config=config)
-        # Use strict=False to handle architecture changes between checkpoint versions
-        # (e.g., old 2-layer heads vs new 3-layer heads)
         missing, unexpected = model.load_state_dict(checkpoint["model_state_dict"], strict=False)
         if missing:
-            import logging
-            logging.getLogger(__name__).warning(
-                "Loaded checkpoint with %d missing keys (new architecture layers initialized randomly)",
-                len(missing),
-            )
+            _log = logging.getLogger(__name__)
+            _log.warning("Loaded checkpoint with %d missing keys (architecture mismatch or new layers)", len(missing))
         model.eval()
         return model
 

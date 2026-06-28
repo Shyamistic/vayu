@@ -5,6 +5,7 @@ Endpoints:
   POST /api/scenario       — What-If scenario simulation
   GET  /api/historical     — Historical climate data queries (PostGIS)
   GET  /api/metrics        — Model performance metrics
+  GET  /api/nwp-baseline   — ECMWF/GFS NWP baseline via Open-Meteo (free)
   GET  /api/tiles/{z}/{x}/{y}.png — Raster tiles for map overlays
   GET  /health             — System health status
 """
@@ -12,6 +13,7 @@ Endpoints:
 from __future__ import annotations
 
 import io
+import asyncio
 import json
 import logging
 import os
@@ -34,6 +36,7 @@ from ai_engine.climate_model import VayuClimateModel
 from ai_engine.config import ModelConfig, PilotRegion
 from backend.cache import CacheClient
 from backend.database import DatabaseClient
+from backend.openmeteo_client import OpenMeteoClient, get_openmeteo
 from data_ingestion.graph_builder import ClimateGraphBuilder
 from scenario_engine.engine import ScenarioConfig, ScenarioEngine, ScenarioType
 from scenario_engine.twin_state import ClimateState, StateUpdater, TwinEngine
@@ -109,18 +112,31 @@ async def lifespan(app: FastAPI):
     _db = DatabaseClient(url=os.getenv("DATABASE_URL", "postgresql://vayu:vayu_dev@localhost:5432/vayu_climate"))
     await _db.connect()
 
-    # Model
-    model_path = os.getenv("MODEL_PATH", "./checkpoints/vayu_best.pt")
+    # Model — try multiple candidate paths for flexibility:
+    #   1. $MODEL_PATH env var (Railway / Docker deployment)
+    #   2. ./checkpoints/vayu_best.pt (default local)
+    #   3. ./vayu_best\ (3).pt  (downloaded from Kaggle — best 2.3M model R²_rain=0.200)
+    # VayuClimateModel.load() auto-detects config from weight shapes so older
+    # checkpoints (vayu_best (3).pt = 2.3M hidden=128) load correctly.
+    model_candidates = [
+        os.getenv("MODEL_PATH", ""),
+        "./checkpoints/vayu_best.pt",
+        "./vayu_best (3).pt",          # Jun-22 CLI run: R²_rain=0.200, R²_tmax=0.817
+        "./vayu_best (2).pt",
+        "./vayu_best.pt",
+    ]
     device = "cuda" if torch.cuda.is_available() else "cpu"
+    model_path: str | None = next((p for p in model_candidates if p and Path(p).exists()), None)
 
-    if Path(model_path).exists():
+    if model_path:
         logger.info("Loading model from %s on %s…", model_path, device)
         _model = VayuClimateModel.load(model_path, device=device)
-        logger.info("Model loaded successfully")
+        logger.info("Model loaded: %s params", sum(p.numel() for p in _model.parameters()))
     else:
         logger.warning(
-            "Model checkpoint not found at %s — prediction endpoints will return mock data",
-            model_path,
+            "No model checkpoint found — prediction endpoints will return mock data.\n"
+            "Searched: %s\nCopy vayu_best (3).pt to ./checkpoints/vayu_best.pt to fix.",
+            [p for p in model_candidates if p],
         )
         _model = VayuClimateModel(ModelConfig())
         _model.eval()
@@ -822,6 +838,61 @@ async def health_check():
         uptime_seconds=round(time.time() - _start_time, 1),
         device="cuda" if torch.cuda.is_available() else "cpu",
     )
+
+
+# ── NWP Baseline (Open-Meteo — free, no API key) ──────────────────────────────
+
+@app.get("/api/nwp-baseline", tags=["Metrics"])
+async def nwp_baseline(
+    lat: float = Query(default=12.5, description="Latitude (default: Western Ghats centre)"),
+    lon: float = Query(default=75.5, description="Longitude"),
+    forecast_days: int = Query(default=7, ge=1, le=16),
+    models: str = Query(default="all", description="'ecmwf' | 'all' — which NWP models to fetch"),
+):
+    """Fetch NWP baseline forecasts from Open-Meteo (free, ECMWF IFS + others).
+
+    Used by NWPComparisonPanel to compare VAYU predictions against operational models.
+    All data from open-meteo.com — completely free, no API key required.
+
+    Returns:
+        - ECMWF IFS 7-day daily forecast (precipitation, tmax, tmin, CAPE)
+        - Optional: GFS, ICON, GEM for broader comparison
+    """
+    client = get_openmeteo()
+    if models == "ecmwf":
+        data = await client.get_ecmwf_forecast(lat=lat, lon=lon, forecast_days=forecast_days)
+        return {"ecmwf": data, "source": "open-meteo.com", "free": True}
+    else:
+        ecmwf, multi = await asyncio.gather(
+            client.get_ecmwf_forecast(lat=lat, lon=lon, forecast_days=forecast_days),
+            client.get_multi_model_forecast(lat=lat, lon=lon, forecast_days=forecast_days),
+        )
+        return {
+            "ecmwf": ecmwf,
+            "models": multi,
+            "source": "open-meteo.com",
+            "free": True,
+            "note": "ECMWF IFS, GFS, ICON, GEM — all from Open-Meteo free tier",
+        }
+
+
+@app.get("/api/era5-history", tags=["Data"])
+async def era5_history(
+    lat: float = Query(default=12.5),
+    lon: float = Query(default=75.5),
+    start_date: str = Query(default="2024-01-01", description="yyyy-mm-dd"),
+    end_date: str | None = Query(default=None),
+):
+    """Fetch ERA5 reanalysis historical data via Open-Meteo archive API.
+
+    Free, no API key. Used for:
+    - Aurora bias correction feature engineering
+    - Comparing VAYU predictions against historical reality
+    - Initializing the climate digital twin state
+    """
+    client = get_openmeteo()
+    data = await client.get_era5_history(lat=lat, lon=lon, start=start_date, end=end_date)
+    return data
 
 
 # ── Overload protection ────────────────────────────────────────────────────────
