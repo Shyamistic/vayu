@@ -1,10 +1,10 @@
-import { Component, useCallback, useEffect, useState } from 'react';
+import { Component, useCallback, useEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import {
   CloudRain, Thermometer, Activity,
   BarChart2, Database, Layers,
   SplitSquareHorizontal, Mountain, Leaf, Wind,
-  Radio, Waves, Download, BarChart,
+  Radio, Waves, Download, BarChart, Menu, X,
 } from 'lucide-react';
 import { format, addDays } from 'date-fns';
 import CesiumGlobe from './components/CesiumGlobe';
@@ -121,10 +121,10 @@ export default function App() {
   const [state, setState] = useState<AppState>(INITIAL_STATE);
   const [health, setHealth] = useState<HealthResponse | null>(null);
   const [activeLayer, setActiveLayer] = useState<EarthLayer>('satellite');
-  // GIBS satellite data has a ~2-day publishing delay — use 2 days ago to avoid HTTP 400s
+  // GIBS satellite data has a ~7-day publishing delay — use 10 days ago for guaranteed availability
   const [gibsDate, setGibsDate] = useState<string>(() => {
     const d = new Date();
-    d.setDate(d.getDate() - 2);
+    d.setDate(d.getDate() - 14);
     return d.toISOString().split('T')[0];
   });
 
@@ -135,6 +135,10 @@ export default function App() {
   const [tourStep, setTourStep] = useState<TourCameraStep | null>(null);
   const [colormap, setColormap] = useState<ColormapId | undefined>(undefined);
   const [show3D, setShow3D] = useState(false);
+  const [showHeatmap, setShowHeatmap] = useState(true);
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [showWind, setShowWind] = useState(true);
+  const rightPanelRef = useRef<HTMLDivElement>(null);
 
   const update = useCallback((patch: Partial<AppState> | ((prev: AppState) => Partial<AppState>)) => {
     setState((prev) => ({
@@ -142,6 +146,17 @@ export default function App() {
       ...(typeof patch === 'function' ? patch(prev) : patch),
     }));
   }, []);
+
+  const handleLayerChange = useCallback((layer: EarthLayer) => {
+    setActiveLayer((current) => current === layer ? 'satellite' : layer);
+  }, []);
+
+  // ── Scroll right panel to top on viewMode change ─────────────────────────────
+  useEffect(() => {
+    if (rightPanelRef.current) {
+      rightPanelRef.current.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  }, [state.viewMode]);
 
   // ── Health check ────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -242,7 +257,7 @@ export default function App() {
       <div className="fixed inset-0 z-0">
         <GlobeErrorBoundary>
           <CesiumGlobe
-            gridCells={gridCells}
+            gridCells={showHeatmap && state.viewMode === 'prediction' ? gridCells : []}
             variable={state.selectedVariable}
             region={state.selectedRegion}
             scenarioData={state.showSplitScreen ? state.activeScenario : null}
@@ -255,6 +270,7 @@ export default function App() {
             colormap={colormap}
             show3D={show3D}
             selectedDate={state.timeState.selectedDate}
+            showWind={showWind}
           />
         </GlobeErrorBoundary>
       </div>
@@ -263,12 +279,13 @@ export default function App() {
       <ExtremeAlerts gridCells={gridCells} variable={state.selectedVariable} />
 
       {/* ── Top bar (z-[1000]) ── */}
-      <header className="fixed top-0 left-0 right-0 z-[1000] flex items-center justify-between px-4 py-2 animate-fade-in"
+      <header className="fixed top-0 left-0 right-0 z-[1000] flex items-center justify-between px-4 py-3 animate-fade-in"
         style={{ background: 'rgba(6,10,22,0.92)', borderBottom: '1px solid rgba(255,255,255,0.08)', transform: 'translateZ(0)' }}>
         <div className="flex items-center gap-3">
           <div className="w-7 h-7 rounded-full bg-gradient-to-br from-vayu-blue to-cyan-300 flex items-center justify-center text-xs font-bold text-white">V</div>
           <span className="text-white font-bold text-sm tracking-wide">VAYU</span>
-          <span className="text-white/40 text-xs">Climate Digital Twin</span>
+          <span className="text-white/40 text-xs hidden sm:block">Climate Digital Twin</span>
+          <span className="text-white/20 text-[10px] hidden md:block">ISRO BAH 2026</span>
         </div>
 
         <RegionSelector
@@ -276,35 +293,36 @@ export default function App() {
           onChange={(r: RegionId) => update({ selectedRegion: r })}
         />
 
-        <div className="flex gap-0.5 px-1 py-1 rounded-lg" style={{ background: 'rgba(6,10,22,0.8)', border: '1px solid rgba(255,255,255,0.08)' }}>
-          {VIEW_TABS.map(({ id, label, icon }) => (
-            <button
-              key={id}
-              onClick={() => update({ viewMode: id })}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs transition-colors ${
-                state.viewMode === id ? 'bg-vayu-blue text-white font-medium' : 'text-white/50 hover:text-white/80'
-              }`}
-            >
-              {icon}{label}
-            </button>
-          ))}
-        </div>
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 px-3 py-1.5 rounded-lg" style={{ background: 'rgba(6,10,22,0.8)', border: '1px solid rgba(255,255,255,0.08)' }}>
+            {health ? (
+              <>
+                <span className="text-xs text-green-400">● {health.device.toUpperCase()}</span>
+                <span className="text-xs text-white/30">v{health.model_version}</span>
+              </>
+            ) : (
+              <span className="text-xs text-red-400">● Offline</span>
+            )}
+            <GuidedTour
+              onTourStep={handleTourStep}
+              isActive={showTour}
+              onToggle={() => setShowTour((t) => !t)}
+            />
+          </div>
 
-        <div className="flex items-center gap-3 px-3 py-2 rounded-lg" style={{ background: 'rgba(6,10,22,0.8)', border: '1px solid rgba(255,255,255,0.08)' }}>
-          {health ? (
-            <>
-              <span className="text-xs text-green-400">● {health.device.toUpperCase()}</span>
-              <span className="text-xs text-white/30">v{health.model_version}</span>
-            </>
-          ) : (
-            <span className="text-xs text-red-400">● Offline</span>
-          )}
-          {/* Tour button */}
-          <GuidedTour
-            onTourStep={handleTourStep}
-            isActive={showTour}
-            onToggle={() => setShowTour((t) => !t)}
-          />
+          {/* Hamburger button */}
+          <button
+            onClick={() => setDrawerOpen((d) => !d)}
+            className="flex items-center justify-center w-9 h-9 rounded-lg transition-colors"
+            style={{
+              background: drawerOpen ? 'rgba(14,165,233,0.2)' : 'rgba(255,255,255,0.05)',
+              border: drawerOpen ? '1px solid rgba(14,165,233,0.5)' : '1px solid rgba(255,255,255,0.1)',
+              color: drawerOpen ? '#0ea5e9' : 'rgba(255,255,255,0.6)',
+            }}
+            title="Toggle panels"
+          >
+            {drawerOpen ? <X size={16} /> : <Menu size={16} />}
+          </button>
         </div>
       </header>
 
@@ -313,7 +331,15 @@ export default function App() {
         {VARIABLE_TABS.map(({ id, label, icon, color }) => (
           <button
             key={id}
-            onClick={() => update({ selectedVariable: id })}
+            onClick={() => {
+              if (state.selectedVariable === id) {
+                setShowHeatmap(prev => !prev);
+              } else {
+                update({ selectedVariable: id });
+                setShowHeatmap(true);
+              }
+            }}
+            title={label}
             className="flex flex-col items-center gap-1 px-3 py-2.5 rounded-lg text-xs transition-all active:scale-95"
             style={{
               background: 'rgba(6,10,22,0.92)',
@@ -385,55 +411,131 @@ export default function App() {
             <span className="text-[9px] font-medium">3D</span>
           </button>
         )}
+
+        {/* Wind particle toggle */}
+        <button
+          onClick={() => setShowWind((v) => !v)}
+          className="flex flex-col items-center gap-1 px-3 py-2.5 rounded-lg mt-1 transition-all"
+          style={{
+            background: 'rgba(6,10,22,0.92)',
+            border: showWind ? '1px solid #0ea5e9' : '1px solid rgba(255,255,255,0.08)',
+            color: showWind ? '#0ea5e9' : 'rgba(255,255,255,0.3)',
+            boxShadow: showWind ? '0 0 8px rgba(14,165,233,0.25)' : 'none',
+          }}
+          title="Toggle wind particles"
+        >
+          <Wind size={14} />
+          <span className="text-[9px] font-medium">Wind</span>
+        </button>
       </div>
 
-      {/* ── Right panel (z-[1000]) ── */}
-      <div className="fixed right-3 top-14 bottom-24 z-[1000] overflow-y-auto scrollbar-none flex flex-col gap-3 animate-slide-in-right" style={{ width: 265, transform: 'translateZ(0)' }}>
-        <div className="panel-tight p-3">
-          <LayerControlPanel activeLayer={activeLayer} onLayerChange={setActiveLayer} gibsDate={gibsDate} onDateChange={setGibsDate} />
+      {/* ── Hamburger Drawer (right, z-[1000]) ── */}
+      {drawerOpen && (
+        <div
+          ref={rightPanelRef}
+          className="fixed right-0 top-14 bottom-0 z-[1000] overflow-y-auto scrollbar-none flex flex-col gap-3 p-3 animate-slide-in-right"
+          style={{ width: 300, background: 'rgba(6,10,22,0.96)', borderLeft: '1px solid rgba(255,255,255,0.08)', transform: 'translateZ(0)' }}
+        >
+          {/* View mode navigation */}
+          <div className="panel-tight p-2">
+            <div className="grid grid-cols-3 gap-1">
+              {VIEW_TABS.map(({ id, label, icon }) => (
+                <button
+                  key={id}
+                  onClick={() => update({ viewMode: id })}
+                  className={`flex flex-col items-center gap-1 px-2 py-2 rounded-md text-[10px] transition-colors ${
+                    state.viewMode === id ? 'bg-vayu-blue text-white font-medium' : 'text-white/50 hover:text-white/80'
+                  }`}
+                >
+                  {icon}<span>{label}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* ISRO Data Sources */}
+          <div className="panel-tight p-3">
+            <div className="text-[10px] text-white/50 font-semibold uppercase tracking-wide mb-2 flex items-center gap-1.5">
+              <Database size={11} /> Data Sources
+            </div>
+            <div className="flex flex-col gap-1">
+              {[
+                'IMD Gridded Rainfall (0.25°, 2010–2025)',
+                'IMD Temperature (1.0°, 2010–2025)',
+                'NCEP/NCAR 850 hPa Wind & Humidity',
+                'CHIRPS Satellite Rainfall Validation',
+                'GEBCO Elevation & Bathymetry',
+                'NASA GIBS Earth Observation Layers',
+              ].map((ds) => (
+                <div key={ds} className="text-[10px] text-white/40 flex items-center gap-1.5">
+                  <span className="text-green-400 text-[9px]">✓</span>{ds}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Layer Control */}
+          <div className="panel-tight p-3">
+            <LayerControlPanel activeLayer={activeLayer} onLayerChange={handleLayerChange} gibsDate={gibsDate} onDateChange={setGibsDate} />
+          </div>
+
+          {/* Conditional panels by view mode */}
+          {state.viewMode === 'scenario' && (
+            <WhatIfPanel onResult={handleScenarioResult} onReset={handleScenarioReset} />
+          )}
+          {state.viewMode === 'metrics' && (
+            <div className="flex flex-col gap-3">
+              {/* Model Architecture card */}
+              <div className="panel-tight p-3">
+                <div className="text-[10px] text-white/50 font-semibold uppercase tracking-wide mb-2">Model Architecture</div>
+                <div className="flex flex-col gap-1 text-[10px] text-white/40">
+                  <div>GATv2Conv (4L × 4 heads) — orographic patterns</div>
+                  <div>Transformer (4L, d=256) — 45-day memory</div>
+                  <div>Two-stage rain: BCE occurrence + CRPS amount</div>
+                  <div>5.15M params · T4×2 · 17 features (IMD+NCEP)</div>
+                </div>
+              </div>
+              <MetricsDashboard selectedVariable={state.selectedVariable} onVariableChange={(v) => update({ selectedVariable: v })} />
+              <NWPComparisonPanel variable={state.selectedVariable} region={state.selectedRegion} />
+              <ModelComparisonPanel variable={state.selectedVariable} region={state.selectedRegion} />
+            </div>
+          )}
+          {state.viewMode === 'historical' && <DataProvenancePanel />}
+          {state.viewMode === 'prediction' && (
+            <div className="flex flex-col gap-3">
+              <PredictionSummaryPanel gridCells={gridCells} variable={state.selectedVariable} isLoading={state.isLoading} date={state.timeState.selectedDate} />
+              <TrendSparklines gridCells={gridCells} variable={state.selectedVariable} dateLabel={format(state.timeState.selectedDate, 'dd MMM')} />
+              <ColormapSelector
+                variable={state.selectedVariable}
+                selected={colormap ?? (state.selectedVariable === 'rainfall' ? 'imd_rain' : state.selectedVariable === 'temp_max' ? 'earth_temp' : 'blues')}
+                onChange={setColormap}
+              />
+              <MonsoonTracker selectedDate={state.timeState.selectedDate} meanRainfall={meanRainfall} />
+              <FloodRiskPanel gridCells={gridCells} forecastDay={state.forecastDay ?? 1} />
+              <DroughtSPIPanel gridCells={gridCells} selectedDate={state.timeState.selectedDate} />
+              <ExportTools gridCells={gridCells} variable={state.selectedVariable} selectedDate={state.timeState.selectedDate} region={state.selectedRegion} />
+            </div>
+          )}
+          {state.viewMode === 'agriculture' && (
+            <div className="flex flex-col gap-3">
+              <AgriculturePanel gridCells={gridCells} />
+              <CyclonePanel />
+            </div>
+          )}
+          {state.viewMode === 'environment' && (
+            <div className="flex flex-col gap-3">
+              <AQIPanel />
+              <IoTSensorPanel />
+            </div>
+          )}
         </div>
-        {state.viewMode === 'scenario' && (
-          <WhatIfPanel onResult={handleScenarioResult} onReset={handleScenarioReset} />
-        )}
-        {state.viewMode === 'metrics' && (
-          <div className="flex flex-col gap-3">
-            <MetricsDashboard selectedVariable={state.selectedVariable} onVariableChange={(v) => update({ selectedVariable: v })} />
-            <NWPComparisonPanel variable={state.selectedVariable} region={state.selectedRegion} />
-            <ModelComparisonPanel variable={state.selectedVariable} region={state.selectedRegion} />
-          </div>
-        )}
-        {state.viewMode === 'historical' && <DataProvenancePanel />}
-        {state.viewMode === 'prediction' && (
-          <div className="flex flex-col gap-3">
-            <PredictionSummaryPanel gridCells={gridCells} variable={state.selectedVariable} isLoading={state.isLoading} date={state.timeState.selectedDate} />
-            <TrendSparklines gridCells={gridCells} variable={state.selectedVariable} dateLabel={format(state.timeState.selectedDate, 'dd MMM')} />
-            <ColormapSelector
-              variable={state.selectedVariable}
-              selected={colormap ?? (state.selectedVariable === 'rainfall' ? 'imd_rain' : state.selectedVariable === 'temp_max' ? 'earth_temp' : 'blues')}
-              onChange={setColormap}
-            />
-            <MonsoonTracker selectedDate={state.timeState.selectedDate} meanRainfall={meanRainfall} />
-            <FloodRiskPanel gridCells={gridCells} forecastDay={state.forecastDay ?? 1} />
-            <DroughtSPIPanel gridCells={gridCells} selectedDate={state.timeState.selectedDate} />
-            <ExportTools gridCells={gridCells} variable={state.selectedVariable} selectedDate={state.timeState.selectedDate} region={state.selectedRegion} />
-          </div>
-        )}
-        {state.viewMode === 'agriculture' && (
-          <div className="flex flex-col gap-3">
-            <AgriculturePanel gridCells={gridCells} />
-            <CyclonePanel />
-          </div>
-        )}
-        {state.viewMode === 'environment' && (
-          <div className="flex flex-col gap-3">
-            <AQIPanel />
-            <IoTSensorPanel />
-          </div>
-        )}
-      </div>
+      )}
 
       {/* ── Time slider bottom (z-[1000]) ── */}
-      <div className="fixed bottom-3 left-20 right-[280px] z-[1000] flex flex-col gap-2" style={{ transform: 'translateZ(0)' }}>
+      <div
+        className={`fixed bottom-2 left-16 z-[1000] flex flex-col gap-1.5 transition-all duration-300 ${drawerOpen ? 'right-[312px]' : 'right-4'}`}
+        style={{ transform: 'translateZ(0)' }}
+      >
         {state.viewMode === 'prediction' && (
           <div className="flex items-center gap-3 flex-wrap">
             <ForecastAnimation

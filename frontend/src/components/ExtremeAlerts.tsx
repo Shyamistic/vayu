@@ -29,14 +29,14 @@ const THRESHOLDS = {
     { level: 'warning' as const, min: 64.5, label: 'Heavy Rainfall Warning' },
   ],
   temp_max: [
-    { level: 'extreme' as const, min: 45, label: 'EXTREME HEAT ALERT' },
-    { level: 'very-heavy' as const, min: 42, label: 'Severe Heat Wave' },
-    { level: 'warning' as const, min: 40, label: 'Heat Wave Warning' },
+    { level: 'extreme' as const, min: 42, label: 'EXTREME HEAT ALERT' },
+    { level: 'very-heavy' as const, min: 40, label: 'Severe Heat Wave' },
+    { level: 'warning' as const, min: 37, label: 'Heat Wave Warning' },  // IMD threshold for coastal/hilly areas
   ],
   temp_min: [
-    { level: 'extreme' as const, min: -Infinity, label: 'SEVERE COLD WAVE' },
-    { level: 'very-heavy' as const, min: -Infinity, label: 'Cold Wave Alert' },
-    { level: 'warning' as const, min: 4, label: 'Frost Risk', isBelow: true },
+    { level: 'extreme' as const, min: 4, label: 'SEVERE COLD WAVE', isBelow: true },
+    { level: 'very-heavy' as const, min: 7, label: 'Cold Wave Alert', isBelow: true },
+    { level: 'warning' as const, min: 10, label: 'Frost Risk', isBelow: true },
   ],
 };
 
@@ -87,7 +87,11 @@ export default function ExtremeAlerts({ gridCells, variable }: ExtremeAlertsProp
   const [flash, setFlash] = useState(false);
 
   useEffect(() => {
-    const newAlerts = buildAlerts(gridCells, variable).filter((a) => !dismissed.has(a.id));
+    const newAlerts = buildAlerts(gridCells, variable).filter((a) => {
+      // Suppress false cold wave alerts when temp is actually warm
+      if (a.variable === 'temp_min' && a.value > 15) return false;
+      return true;
+    }).filter((a) => !dismissed.has(a.id));
     setAlerts(newAlerts);
     if (newAlerts.some((a) => a.severity === 'extreme')) {
       // Flash effect for extreme alerts

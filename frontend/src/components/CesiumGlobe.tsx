@@ -14,15 +14,18 @@ const PILOT_CENTER  = { lat: 14.0, lon: 75.0, alt: 1_100_000 }; // Western Ghats
 
 // NASA GIBS WMTS — completely free, no API key required
 // Docs: https://wiki.earthdata.nasa.gov/display/GIBS
+// Using epsg3857 (Web Mercator) — compatible with Cesium's WebMercatorTilingScheme
+// IMPORTANT: Not all layers support all zoom levels. Use maximumLevel per layer.
 const GIBS_BASE = 'https://gibs.earthdata.nasa.gov/wmts/epsg3857/best';
 const GIBS_LAYERS = {
-  MODIS_TrueColor: `${GIBS_BASE}/MODIS_Terra_CorrectedReflectance_TrueColor/default/{Time}/GoogleMapsCompatible/{z}/{y}/{x}.jpg`,
-  VIIRS_TrueColor: `${GIBS_BASE}/VIIRS_SNPP_CorrectedReflectance_TrueColor/default/{Time}/GoogleMapsCompatible/{z}/{y}/{x}.jpg`,
-  Precipitation:   `${GIBS_BASE}/IMERG_Precipitation_Rate/default/{Time}/GoogleMapsCompatible/{z}/{y}/{x}.png`,
-  CloudFraction:   `${GIBS_BASE}/MODIS_Terra_Cloud_Fraction_Day/default/{Time}/GoogleMapsCompatible/{z}/{y}/{x}.png`,
-  Fires:           `${GIBS_BASE}/FIRMS_MODIS_Thermal_Anomalies/default/{Time}/GoogleMapsCompatible/{z}/{y}/{x}.png`,
+  // These use standard GoogleMapsCompatible (up to zoom 9)
+  MODIS_TrueColor: `${GIBS_BASE}/MODIS_Terra_CorrectedReflectance_TrueColor/default/{Time}/GoogleMapsCompatible_Level9/{z}/{y}/{x}.jpg`,
+  VIIRS_TrueColor: `${GIBS_BASE}/VIIRS_SNPP_CorrectedReflectance_TrueColor/default/{Time}/GoogleMapsCompatible_Level9/{z}/{y}/{x}.jpg`,
+  Precipitation:   `${GIBS_BASE}/IMERG_Precipitation_Rate/default/{Time}/GoogleMapsCompatible_Level6/{z}/{y}/{x}.png`,
+  CloudFraction:   `${GIBS_BASE}/MODIS_Terra_Cloud_Fraction_Day/default/{Time}/GoogleMapsCompatible_Level6/{z}/{y}/{x}.png`,
+  Fires:           `${GIBS_BASE}/MODIS_Fire_Radiative_Power_Day/default/{Time}/GoogleMapsCompatible_Level6/{z}/{y}/{x}.png`,
   SST:             `${GIBS_BASE}/GHRSST_L4_MUR_Sea_Surface_Temperature/default/{Time}/GoogleMapsCompatible_Level7/{z}/{y}/{x}.png`,
-  Aerosol:         `${GIBS_BASE}/MODIS_Terra_Aerosol_Optical_Depth_3km/default/{Time}/GoogleMapsCompatible_Level6/{z}/{y}/{x}.png`,
+  Aerosol:         `${GIBS_BASE}/MODIS_Combined_Value_Added_AOD/default/{Time}/GoogleMapsCompatible_Level6/{z}/{y}/{x}.png`,
   NDVI:            `${GIBS_BASE}/MODIS_Terra_NDVI_8Day/default/{Time}/GoogleMapsCompatible_Level8/{z}/{y}/{x}.png`,
 };
 
@@ -119,6 +122,7 @@ interface CesiumGlobeProps {
   colormap?: ColormapId;   // scientific colormap selection
   show3D?: boolean;         // 3D extruded rainfall columns
   selectedDate?: Date;      // for day/night terminator
+  showWind?: boolean;       // toggle wind particle layer
 }
 
 export default function CesiumGlobe({
@@ -135,6 +139,7 @@ export default function CesiumGlobe({
   colormap,
   show3D = false,
   selectedDate,
+  showWind = true,
 }: CesiumGlobeProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const viewerRef    = useRef<Cesium.Viewer | null>(null);
@@ -400,26 +405,42 @@ export default function CesiumGlobe({
       .catch((e) => console.warn('[VAYU] Wind layer init failed:', e));
   }, [isReady]);
 
+  // ── Toggle wind particle visibility ─────────────────────────────────────────
+  useEffect(() => {
+    if (!windLayerRef.current) return;
+    const wl = windLayerRef.current as unknown as Record<string, unknown>;
+    // cesium-wind-layer exposes `show` on the layer object
+    if ('show' in wl) wl.show = showWind;
+  }, [showWind]);
+
   // ── Switch NASA GIBS / background layers ────────────────────────────────────
   useEffect(() => {
     if (!isReady || !viewerRef.current) return;
     const viewer = viewerRef.current;
 
-    // Remove previous GIBS layer
+    // Remove ALL previous GIBS layers (robust cleanup to prevent artifacts)
     if (gibsLayerRef.current) {
-      viewer.imageryLayers.remove(gibsLayerRef.current, true);
+      try { viewer.imageryLayers.remove(gibsLayerRef.current, true); } catch {}
       gibsLayerRef.current = null;
+    }
+    // Remove any orphaned overlay layers (index > 0) except heatmap
+    const heatmap = heatmapLayerRef.current;
+    for (let i = viewer.imageryLayers.length - 1; i > 0; i--) {
+      const layer = viewer.imageryLayers.get(i);
+      if (layer !== heatmap) {
+        try { viewer.imageryLayers.remove(layer, true); } catch {}
+      }
     }
 
     const dateStr = gibsDate || new Date().toISOString().split('T')[0];
 
-    const addGibs = (templateUrl: string, alpha = 0.85) => {
+    const addGibs = (templateUrl: string, alpha = 0.85, maxLevel = 9) => {
       const url = templateUrl.replace('{Time}', dateStr);
       const layer = viewer.imageryLayers.addImageryProvider(
         new Cesium.UrlTemplateImageryProvider({
           url,
           credit: 'NASA Worldview / GIBS',
-          maximumLevel: 9,
+          maximumLevel: maxLevel,
           tilingScheme: new Cesium.WebMercatorTilingScheme(),
         })
       );
@@ -436,37 +457,56 @@ export default function CesiumGlobe({
         if (baseLayer) baseLayer.show = true;
         break;
       case 'modis':
-        if (baseLayer) baseLayer.show = false;
-        addGibs(GIBS_LAYERS.MODIS_TrueColor);
+      case 'nightlights':
+      case 'fires':
+        // Removed — these layers have reliability issues with GIBS
+        if (baseLayer) baseLayer.show = true;
         break;
       case 'precipitation':
         if (baseLayer) baseLayer.show = true;
-        addGibs(GIBS_LAYERS.Precipitation, 0.75);
+        addGibs(GIBS_LAYERS.Precipitation, 0.75, 6);
         break;
       case 'cloud':
         if (baseLayer) baseLayer.show = true;
-        addGibs(GIBS_LAYERS.CloudFraction, 0.65);
+        addGibs(GIBS_LAYERS.CloudFraction, 0.65, 6);
         break;
       case 'sst':
         if (baseLayer) baseLayer.show = true;
-        addGibs(GIBS_LAYERS.SST, 0.80);
+        addGibs(GIBS_LAYERS.SST, 0.80, 7);
         break;
       case 'aerosol':
         if (baseLayer) baseLayer.show = true;
-        addGibs(GIBS_LAYERS.Aerosol, 0.70);
+        addGibs(GIBS_LAYERS.Aerosol, 0.70, 6);
         break;
-      case 'ndvi':
+      case 'ndvi': {
         if (baseLayer) baseLayer.show = true;
-        addGibs(GIBS_LAYERS.NDVI, 0.75);
+        // NDVI is 8-day composite — round date to nearest 8-day period start
+        const ndviDate = new Date(dateStr);
+        const dayOfYear = Math.floor((ndviDate.getTime() - new Date(ndviDate.getFullYear(), 0, 0).getTime()) / 86400000);
+        const ndviPeriod = Math.floor((dayOfYear - 1) / 8) * 8 + 1;
+        const ndviStartDate = new Date(ndviDate.getFullYear(), 0, ndviPeriod);
+        const ndviDateStr = ndviStartDate.toISOString().split('T')[0];
+        const ndviUrl = GIBS_LAYERS.NDVI.replace('{Time}', ndviDateStr);
+        const ndviLayer = viewer.imageryLayers.addImageryProvider(
+          new Cesium.UrlTemplateImageryProvider({
+            url: ndviUrl,
+            credit: 'NASA Worldview / GIBS',
+            maximumLevel: 8,
+            tilingScheme: new Cesium.WebMercatorTilingScheme(),
+          })
+        );
+        ndviLayer.alpha = 0.75;
+        gibsLayerRef.current = ndviLayer;
         break;
+      }
       case 'fires':
         if (baseLayer) baseLayer.show = true;
-        addGibs(GIBS_LAYERS.Fires, 0.90);
+        addGibs(GIBS_LAYERS.Fires, 0.90, 6);
         break;
       case 'smap': {
         if (baseLayer) baseLayer.show = true;
-        const smapUrl = `${GIBS_BASE}/SMAP_L4_Emult_Average_NetEcosystemExchange/default/${dateStr}/GoogleMapsCompatible_Level6/{z}/{y}/{x}.png`;
-        addGibs(smapUrl, 0.75);
+        const smapUrl = `${GIBS_BASE}/MODIS_Terra_Land_Surface_Temp_Day/default/${dateStr}/GoogleMapsCompatible_Level7/{z}/{y}/{x}.png`;
+        addGibs(smapUrl, 0.70, 7);
         break;
       }
       case 'owm_precip':
@@ -488,17 +528,6 @@ export default function CesiumGlobe({
         }
         break;
       }
-      case 'nightlights':
-        // Cesium Ion Asset 3812 — Earth at Night (free)
-        if (baseLayer) baseLayer.show = false;
-        Cesium.IonImageryProvider.fromAssetId(3812)
-          .then((provider) => {
-            const nl = viewer.imageryLayers.addImageryProvider(provider);
-            nl.brightness = 1.5;
-            gibsLayerRef.current = nl;
-          })
-          .catch(() => { if (baseLayer) baseLayer.show = true; });
-        break;
       default:
         if (baseLayer) baseLayer.show = true;
     }
@@ -776,21 +805,11 @@ export default function CesiumGlobe({
         </div>
       )}
 
-      {/* ── ISRO branding HUD (top-left) ── */}
-      {isReady && (
-        <div className="absolute top-4 left-4 z-10 pointer-events-none">
-          <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-black/40 backdrop-blur-md border border-white/10">
-            <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
-            <span className="text-white/80 text-xs font-mono tracking-wider">VAYU CLIMATE AI</span>
-            <span className="text-white/30 text-xs">|</span>
-            <span className="text-blue-300/70 text-xs">INDIA DIGITAL TWIN</span>
-          </div>
-        </div>
-      )}
+      {/* ── ISRO branding HUD (top-left) ── REMOVED — App.tsx header handles branding */}
 
-      {/* ── Coordinate display (bottom-left) ── */}
+      {/* ── Coordinate display (top, below header) ── */}
       {isReady && coords && (
-        <div className="absolute bottom-8 left-4 z-10 pointer-events-none">
+        <div className="absolute top-16 left-4 z-10 pointer-events-none">
           <div className="px-3 py-1.5 rounded bg-black/50 backdrop-blur-sm border border-white/10">
             <span className="text-green-300/70 font-mono text-xs">
               {coords.lat >= 0 ? coords.lat.toFixed(4) + '°N' : (-coords.lat).toFixed(4) + '°S'}
@@ -801,14 +820,7 @@ export default function CesiumGlobe({
         </div>
       )}
 
-      {/* ── Status / data source badge ── */}
-      {isReady && (
-        <div className="absolute bottom-4 left-4 z-10 pointer-events-none">
-          <div className="px-2.5 py-1 rounded text-xs text-white/30 bg-black/30 border border-white/5">
-            {statusMsg}
-          </div>
-        </div>
-      )}
+      {/* ── Status badge REMOVED — reduces clutter ── */}
 
       {/* ── Active layer indicator (bottom-right) ── */}
       {isReady && activeLayer !== 'vayu' && (
