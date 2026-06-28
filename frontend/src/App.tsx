@@ -121,7 +121,12 @@ export default function App() {
   const [state, setState] = useState<AppState>(INITIAL_STATE);
   const [health, setHealth] = useState<HealthResponse | null>(null);
   const [activeLayer, setActiveLayer] = useState<EarthLayer>('satellite');
-  const [gibsDate, setGibsDate] = useState<string>(new Date().toISOString().split('T')[0]);
+  // GIBS satellite data has a ~2-day publishing delay — use 2 days ago to avoid HTTP 400s
+  const [gibsDate, setGibsDate] = useState<string>(() => {
+    const d = new Date();
+    d.setDate(d.getDate() - 2);
+    return d.toISOString().split('T')[0];
+  });
 
   // ── New feature state ─────────────────────────────────────────────────────
   const [terrainExaggeration, setTerrainExaggeration] = useState(1);
