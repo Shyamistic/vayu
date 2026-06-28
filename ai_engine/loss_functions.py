@@ -3,16 +3,20 @@
 L_total = L_prediction + λ1 * L_conservation + λ2 * L_smoothness
 
 - L_prediction:   Weighted loss per variable.
-                  Rainfall: Tweedie(p=1.5) + weighted-CRPS + BCE occurrence
+                  Rainfall: weighted CRPS (= weighted MAE) + BCE occurrence
                   Temperature: MSE
 - L_conservation: Water balance penalty (regional mean predicted ≈ observed)
 - L_smoothness:   Spatial smoothness on temperature only (NOT rainfall).
 
 v2 key changes vs v1:
   - Rainfall weight 0.3 → 1.8 (6× increase, fixes gradient starvation)
-  - Tweedie deviance replaces focal-MSE for rainfall (compound Poisson-gamma)
-  - CRPS (weighted MAE) replaces occurrence-MSE for heavy-rain skill
-  - Smoothness loss ONLY applied to temperature (orographic rain shadows ARE sharp)
+  - Weighted CRPS replaces Tweedie (Tweedie breaks on normalized z-scores)
+  - Smoothness ONLY applied to temperature (orographic rain shadows ARE sharp)
+
+NOTE on Tweedie: Removed because it requires y≥0 but normalized rainfall
+  has negative z-scores for dry days. Clamping to 0 makes dry=average which
+  produces wrong gradients. Evidence: val_loss spike 0.55→202 in v2 Session 1.
+  Weighted CRPS (= weighted MAE) works for any distribution including negatives.
 """
 
 from __future__ import annotations
@@ -64,8 +68,7 @@ class PhysicsInformedLoss(nn.Module):
         super().__init__()
         self.lambda_conservation = lambda_conservation
         self.lambda_smoothness = lambda_smoothness
-        # v2: Tweedie + CRPS for rainfall
-        self._tweedie = TweedieLoss(power=1.5)
+        # v2: weighted CRPS for rainfall (stable on normalized data)
         self._crps    = WeightedCRPSLoss(alpha=3.0, heavy_threshold=20.0)
 
         # ghats_ridge_mask: [num_nodes] bool tensor, True = on ridge → exempt from smoothness
@@ -119,9 +122,10 @@ class PhysicsInformedLoss(nn.Module):
             if valid.sum() == 0:
                 continue
             if var_name == "rainfall":
-                # ── v2 Rainfall loss: Tweedie(50%) + CRPS(50%) + BCE occurrence ──
-                rain_pos = torch.clamp(var_pred[valid], min=0.0)
-                tw_loss  = self._tweedie(rain_pos, var_true[valid])
+                # ── Rainfall loss: weighted CRPS + BCE occurrence ──────────────
+                # NOTE: No Tweedie — it requires y≥0 but normalized z-scores are
+                # negative for dry days, producing unstable gradients.
+                # Weighted CRPS (= weighted MAE) works for any distribution.
                 crps_loss = self._crps(var_pred[valid], var_true[valid])
 
                 # BCE occurrence (wet/dry classification)
@@ -129,7 +133,7 @@ class PhysicsInformedLoss(nn.Module):
                 occ_true   = (var_true[valid] > RAIN_WET_THRESHOLD).float()
                 occ_loss   = F.binary_cross_entropy_with_logits(occ_logits, occ_true, reduction="mean")
 
-                mse = 0.5 * tw_loss + 0.5 * crps_loss + 0.3 * occ_loss
+                mse = 0.7 * crps_loss + 0.3 * occ_loss
             else:
                 mse = F.mse_loss(var_pred[valid], var_true[valid], reduction="mean")
             pred_loss = pred_loss + weight * mse
