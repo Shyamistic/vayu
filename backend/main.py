@@ -141,6 +141,10 @@ async def lifespan(app: FastAPI):
         _model = VayuClimateModel(ModelConfig())
         _model.eval()
 
+    # Reset cached scenario base graph so it rebuilds with the correct feature count
+    global _scenario_base_graph
+    _scenario_base_graph = None
+
     _scenario_engine = ScenarioEngine(_model)
 
     # Twin state bootstrap from neutral baseline. Updated on prediction/scenario calls.
@@ -479,8 +483,23 @@ def _get_scenario_base_graph() -> GraphData:
 
     cfg = ModelConfig()
     builder = ClimateGraphBuilder()
+
+    # Auto-detect actual input feature count from the loaded checkpoint to avoid
+    # shape mismatches when the checkpoint was trained with fewer features than
+    # the current ModelConfig reports (e.g. v1 had 11, data now has 17).
+    n_features = cfg.gnn_in_features
+    if _model is not None:
+        try:
+            sd = _model.state_dict()
+            enc_w = sd.get("encoder.input_proj.0.weight") or sd.get("encoder.0.weight")
+            if enc_w is not None:
+                n_features = int(enc_w.shape[1])
+                logger.info("Scenario base graph: using %d features (auto-detected from checkpoint)", n_features)
+        except Exception:
+            pass
+
     # Shape: [num_nodes, seq_len, features]
-    x = torch.randn(builder.num_nodes, cfg.input_window, cfg.gnn_in_features)
+    x = torch.randn(builder.num_nodes, cfg.input_window, n_features)
     _scenario_base_graph = GraphData(
         x=x,
         edge_index=builder.edge_index,
