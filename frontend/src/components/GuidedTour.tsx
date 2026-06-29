@@ -20,39 +20,51 @@ export interface TourStep {
 export const TOUR_STEPS: TourStep[] = [
   {
     id: 1,
-    title: "India's Climate Digital Twin",
-    description: 'VAYU — an AI-powered system predicting rainfall and temperature across India using a 6.6M parameter transformer trained on 70+ years of IMD data.',
-    lat: 20.5, lon: 78.9, altitude: 6_500_000, pitch: -90, duration: 2.5,
+    title: 'Welcome to VAYU',
+    description: 'India\'s first AI-powered Climate Digital Twin. A 6.6M parameter spatio-temporal transformer trained on 70+ years of IMD gridded data, delivering 7-day rainfall and temperature forecasts at 0.25° resolution across the subcontinent.',
+    lat: 20.5, lon: 78.9, altitude: 6_500_000, pitch: -90, duration: 3.0,
   },
   {
     id: 2,
-    title: 'Western Ghats — Orographic Rainfall',
-    description: 'The Western Ghats act as a barrier to the southwest monsoon, creating extreme rainfall gradients. VAYU captures these effects at 0.25° resolution.',
-    lat: 14.0, lon: 75.0, altitude: 900_000, pitch: -45, duration: 3.0,
+    title: 'Western Ghats: India\'s Rain Factory',
+    description: 'The Western Ghats intercept moisture-laden southwest monsoon winds, triggering intense orographic rainfall along the windward slopes. Some stations here record over 6,000 mm annually — among the highest on Earth. VAYU\'s graph-attention encoder captures this topographic forcing.',
+    lat: 14.0, lon: 75.0, altitude: 900_000, pitch: -45, duration: 3.5,
   },
   {
     id: 3,
-    title: 'AI Rainfall Prediction Overlay',
-    description: 'Each colored cell represents a 28km × 28km grid square. The model predicts rainfall intensity 7 days ahead with uncertainty bounds.',
-    lat: 15.0, lon: 74.5, altitude: 500_000, pitch: -55, duration: 2.0,
+    title: 'Monsoon Dynamics',
+    description: 'As monsoon winds hit the coast, the model resolves windward vs. leeward rainfall gradients. Coastal Mangalore receives 300+ cm/year while Bellary on the lee side gets under 50 cm. VAYU uses GEBCO bathymetry and SRTM elevation to encode these terrain interactions.',
+    lat: 13.5, lon: 75.5, altitude: 500_000, pitch: -40, duration: 3.0,
   },
   {
     id: 4,
-    title: 'Terrain & Rain Shadow Effect',
-    description: 'Switch to the Terrain view to see how the mountain range creates a stark rain shadow. Coastal areas receive 300cm/year; the leeward side receives under 50cm.',
-    lat: 14.5, lon: 76.5, altitude: 400_000, pitch: -35, duration: 2.5,
+    title: 'Real-Time Predictions',
+    description: 'Zooming into the Mumbai–Pune corridor: VAYU generates T+1 to T+7 day forecasts with calibrated uncertainty bounds. Each 28 km × 28 km grid cell shows predicted intensity, enabling city-level flood alerts and water resource planning.',
+    lat: 18.9, lon: 73.5, altitude: 350_000, pitch: -50, duration: 3.0,
   },
   {
     id: 5,
-    title: 'What-If Climate Scenarios',
-    description: 'The scenario engine lets you simulate future climate states: +2°C SST anomaly, monsoon delay, extreme rainfall events — critical for disaster preparedness.',
-    lat: 18.0, lon: 76.0, altitude: 1_200_000, pitch: -60, duration: 2.5,
+    title: 'Climate Risk Assessment',
+    description: 'India\'s southern tip and coastal Tamil Nadu face cyclonic rainfall and drought cycles. The system computes Standardized Precipitation Index (SPI) and flood-risk scores, helping disaster management authorities plan evacuations and relief logistics.',
+    lat: 9.5, lon: 78.5, altitude: 800_000, pitch: -55, duration: 3.0,
   },
   {
     id: 6,
-    title: 'Pan-India Coverage (Pilot)',
-    description: 'VAYU scales from the Western Ghats pilot region to all of India (8–38°N, 68–98°E) with the same model architecture. Full-India training in progress.',
-    lat: 22.0, lon: 80.0, altitude: 4_000_000, pitch: -80, duration: 3.0,
+    title: 'What-If Scenarios',
+    description: 'The scenario engine simulates El Niño/La Niña teleconnections, +1.5°C to +4°C SST anomalies, and monsoon onset delays. Decision-makers can stress-test infrastructure and agriculture against future climate states before they unfold.',
+    lat: 18.0, lon: 76.0, altitude: 2_500_000, pitch: -65, duration: 3.0,
+  },
+  {
+    id: 7,
+    title: 'Agricultural Impact',
+    description: 'Central Karnataka — India\'s millet and sugarcane belt — depends critically on monsoon timing. VAYU\'s crop advisory module correlates predicted rainfall with phenological stages, issuing sowing/harvest window recommendations to farming communities.',
+    lat: 15.3, lon: 76.4, altitude: 600_000, pitch: -45, duration: 3.0,
+  },
+  {
+    id: 8,
+    title: 'Data Sources & Integration',
+    description: 'VAYU fuses IMD 0.25° gridded rainfall (1951–2024), NCEP/NCAR reanalysis winds, CHIRPS satellite precipitation, GEBCO ocean bathymetry, and live Open-Meteo feeds into a unified graph structure. The result: a living digital twin of India\'s climate system.',
+    lat: 22.0, lon: 80.0, altitude: 5_000_000, pitch: -80, duration: 3.5,
   },
 ];
 
@@ -122,7 +134,7 @@ export default function GuidedTour({ onTourStep, isActive, onToggle }: GuidedTou
 
   return (
     <div
-      className="fixed bottom-32 left-1/2 -translate-x-1/2 z-[1004] w-[420px] max-w-[96vw] animate-slide-in-up"
+      className="fixed bottom-[180px] right-4 z-[1004] w-[360px] max-w-[40vw] animate-slide-in-right"
       style={{
         background: 'rgba(6,10,22,0.97)',
         border: '1px solid rgba(14,165,233,0.35)',

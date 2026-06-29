@@ -29,9 +29,9 @@ const THRESHOLDS = {
     { level: 'warning' as const, min: 64.5, label: 'Heavy Rainfall Warning' },
   ],
   temp_max: [
-    { level: 'extreme' as const, min: 42, label: 'EXTREME HEAT ALERT' },
-    { level: 'very-heavy' as const, min: 40, label: 'Severe Heat Wave' },
-    { level: 'warning' as const, min: 37, label: 'Heat Wave Warning' },  // IMD threshold for coastal/hilly areas
+    { level: 'extreme' as const, min: 45, label: 'EXTREME HEAT ALERT' },
+    { level: 'very-heavy' as const, min: 43, label: 'Severe Heat Wave' },
+    { level: 'warning' as const, min: 41, label: 'Heat Wave Warning' },
   ],
   temp_min: [
     { level: 'extreme' as const, min: 4, label: 'SEVERE COLD WAVE', isBelow: true },
@@ -44,35 +44,41 @@ function buildAlerts(gridCells: GridCell[], variable: VariableId): Alert[] {
   if (gridCells.length === 0) return [];
 
   const thresholds = THRESHOLDS[variable];
+  // Count cells per severity level and show ONE summary alert per level
   const alerts: Alert[] = [];
-  const seen = new Set<string>();
 
-  for (const cell of gridCells) {
-    const val = cell[variable] as number;
+  for (const thresh of thresholds) {
+    const triggeredCells = gridCells.filter((cell) => {
+      const val = cell[variable] as number;
+      return (thresh as { isBelow?: boolean }).isBelow ? val < thresh.min : val >= thresh.min;
+    });
 
-    for (const thresh of thresholds) {
-      const triggered =
-        (thresh as { isBelow?: boolean }).isBelow ? val < thresh.min : val >= thresh.min;
-      if (!triggered) continue;
+    if (triggeredCells.length === 0) continue;
 
-      const key = `${thresh.level}-${cell.lat.toFixed(1)}-${cell.lon.toFixed(1)}`;
-      if (seen.has(key)) continue;
-      seen.add(key);
+    // Find the most extreme cell for display
+    const extremeCell = triggeredCells.reduce((best, cell) => {
+      const bestVal = best[variable] as number;
+      const cellVal = cell[variable] as number;
+      return (thresh as { isBelow?: boolean }).isBelow
+        ? (cellVal < bestVal ? cell : best)
+        : (cellVal > bestVal ? cell : best);
+    });
+    const extremeVal = extremeCell[variable] as number;
+    const unit = variable === 'rainfall' ? 'mm/day' : '°C';
 
-      alerts.push({
-        id: key,
-        severity: thresh.level,
-        variable,
-        value: val,
-        lat: cell.lat,
-        lon: cell.lon,
-        message: `${thresh.label}: ${val.toFixed(1)}${variable === 'rainfall' ? ' mm/day' : '°C'} at ${cell.lat.toFixed(2)}°N ${cell.lon.toFixed(2)}°E`,
-      });
-      break; // only most severe threshold per cell
-    }
+    alerts.push({
+      id: `${thresh.level}-summary`,
+      severity: thresh.level,
+      variable,
+      value: extremeVal,
+      lat: extremeCell.lat,
+      lon: extremeCell.lon,
+      message: `${thresh.label}: ${triggeredCells.length} cell${triggeredCells.length > 1 ? 's' : ''} (max ${extremeVal.toFixed(1)}${unit})`,
+    });
+    break; // Only show the most severe level
   }
 
-  return alerts.slice(0, 5); // cap at 5 alerts
+  return alerts.slice(0, 2); // max 2 alerts (one per category if both rain + heat)
 }
 
 const SEVERITY_STYLES: Record<string, { bg: string; border: string; text: string; icon: string }> = {
@@ -109,7 +115,7 @@ export default function ExtremeAlerts({ gridCells, variable }: ExtremeAlertsProp
   if (alerts.length === 0) return null;
 
   return (
-    <div className="fixed top-14 left-1/2 -translate-x-1/2 z-[1002] flex flex-col gap-1.5 w-[480px] max-w-[96vw] animate-slide-in-up pointer-events-auto">
+    <div className="fixed top-[80px] left-1/2 -translate-x-1/2 z-[998] flex flex-col gap-1.5 w-[420px] max-w-[80vw] pointer-events-auto">
       {alerts.map((alert) => {
         const style = SEVERITY_STYLES[alert.severity];
         const isExtreme = alert.severity === 'extreme';

@@ -43,6 +43,7 @@ frontend/.vite/
 frontend/.tsbuild/
 frontend/*.tsbuildinfo
 *.local
+frontend/.env.production
 
 # ── Cloned reference repos (not part of VAYU source — used for inspiration only) ─
 fluid-earth/
@@ -57,8 +58,10 @@ GeoJson-Data-of-Indian-States/
 COPILOT_PROMPT.md
 COPILOT_SESSION_CONTEXT.md
 COPILOT_TERRA_MIGRATION_PROMPT.md
+COPILOT_MAJOR_REFACTOR.md
 FRONTEND_REFACTOR_PLAN.md
 FRONTEND_REFACTOR_PROMPT.md
+FRONTEND_REFACTOR_TASKS.md
 KAGGLE_EXECUTION_NEXT_STEPS_2026-06-21.md
 TRAINING_TODOS_2026-06-21.md
 
@@ -71,6 +74,9 @@ research/
 
 # ── Local Kiro specs and session artifacts ────────────────────────────────────
 .kiro/
+
+# ── Vite temp files ───────────────────────────────────────────────────────────
+*.timestamp-*.mjs
 
 # ── Notebook/editor/OS noise ──────────────────────────────────────────────────
 .ipynb_checkpoints/

@@ -4,7 +4,7 @@ import {
   CloudRain, Thermometer, Activity,
   BarChart2, Database, Layers,
   SplitSquareHorizontal, Mountain, Leaf, Wind,
-  Radio, Waves, Download, BarChart, Menu, X,
+  Radio, Waves, Download, BarChart, Menu, X, Search,
 } from 'lucide-react';
 import { format, addDays } from 'date-fns';
 import CesiumGlobe from './components/CesiumGlobe';
@@ -33,6 +33,11 @@ import FloodRiskPanel from './components/FloodRiskPanel';
 import NWPComparisonPanel from './components/NWPComparisonPanel';
 import ExportTools from './components/ExportTools';
 import IoTSensorPanel from './components/IoTSensorPanel';
+import IndiaClimateStats from './components/IndiaClimateStats';
+import SatelliteDataCard from './components/SatelliteDataCard';
+import ClimateRiskScore from './components/ClimateRiskScore';
+import IMDAlertBanner from './components/IMDAlertBanner';
+import ModelInfoCard from './components/ModelInfoCard';
 import type { ColormapId } from './utils/colorScales';
 import { fetchPrediction, fetchHealth } from './api/client';
 import type {
@@ -78,7 +83,7 @@ class GlobeErrorBoundary extends Component<{ children: ReactNode }, { hasError: 
 // ── Initial state ──────────────────────────────────────────────────────────────
 
 const INITIAL_TIME_STATE: TimeState = {
-  selectedDate: new Date(2024, 5, 1), // 1 June 2024 — active monsoon season
+  selectedDate: new Date(2025, 5, 15), // 15 June 2025 — most recent monsoon season in dataset
   granularity: 'daily',
   isPlaying: false,
   playbackSpeed: 1,
@@ -137,7 +142,9 @@ export default function App() {
   const [show3D, setShow3D] = useState(false);
   const [showHeatmap, setShowHeatmap] = useState(true);
   const [drawerOpen, setDrawerOpen] = useState(false);
-  const [showWind, setShowWind] = useState(true);
+  const [showWind, setShowWind] = useState(false);
+  const [regionFlyTrigger, setRegionFlyTrigger] = useState(0);
+  const [inspectMode, setInspectMode] = useState(false);
   const rightPanelRef = useRef<HTMLDivElement>(null);
 
   const update = useCallback((patch: Partial<AppState> | ((prev: AppState) => Partial<AppState>)) => {
@@ -183,7 +190,7 @@ export default function App() {
 
   // ── Scenario handler ─────────────────────────────────────────────────────────
   const handleScenarioResult = useCallback((result: ScenarioResponse) => {
-    update({ activeScenario: result, showSplitScreen: true, viewMode: 'scenario' });
+    update({ activeScenario: result, showSplitScreen: true });
   }, [update]);
 
   const handleScenarioReset = useCallback(() => {
@@ -193,8 +200,9 @@ export default function App() {
   // ── Keyboard shortcuts (Feature 28) ─────────────────────────────────────────
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      // Don't fire when focused in an input
-      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+      // Don't fire when focused in an input or slider
+      const tag = (e.target as HTMLElement).tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
 
       switch (e.key) {
         case '1': case '2': case '3': case '4': case '5': case '6': case '7':
@@ -254,10 +262,10 @@ export default function App() {
     <div className="w-full h-screen bg-vayu-dark font-sans">
 
       {/* ── Globe (z-0, behind everything) ── */}
-      <div className="fixed inset-0 z-0">
+      <div className="fixed top-0 left-0 right-0 z-0" style={{ bottom: 120 }}>
         <GlobeErrorBoundary>
           <CesiumGlobe
-            gridCells={showHeatmap && state.viewMode === 'prediction' ? gridCells : []}
+            gridCells={showHeatmap && (state.viewMode === 'prediction' || state.viewMode === 'scenario') ? gridCells : []}
             variable={state.selectedVariable}
             region={state.selectedRegion}
             scenarioData={state.showSplitScreen ? state.activeScenario : null}
@@ -266,11 +274,12 @@ export default function App() {
             gibsDate={gibsDate}
             terrainExaggeration={terrainExaggeration}
             tourStep={tourStep}
-            onCellClick={(cell, x, y) => setSelectedCell({ cell, x, y })}
+            onCellClick={inspectMode ? (cell, x, y) => setSelectedCell({ cell, x, y }) : undefined}
             colormap={colormap}
             show3D={show3D}
             selectedDate={state.timeState.selectedDate}
             showWind={showWind}
+            regionFlyTrigger={regionFlyTrigger}
           />
         </GlobeErrorBoundary>
       </div>
@@ -282,15 +291,15 @@ export default function App() {
       <header className="fixed top-0 left-0 right-0 z-[1000] flex items-center justify-between px-4 py-3 animate-fade-in"
         style={{ background: 'rgba(6,10,22,0.92)', borderBottom: '1px solid rgba(255,255,255,0.08)', transform: 'translateZ(0)' }}>
         <div className="flex items-center gap-3">
-          <div className="w-7 h-7 rounded-full bg-gradient-to-br from-vayu-blue to-cyan-300 flex items-center justify-center text-xs font-bold text-white">V</div>
-          <span className="text-white font-bold text-sm tracking-wide">VAYU</span>
+          <div className="w-7 h-7 rounded-full bg-gradient-to-br from-vayu-blue to-cyan-300 flex items-center justify-center text-xs font-bold text-white">☁</div>
+          <span className="text-white font-bold text-sm tracking-wide">MAUSAM</span>
           <span className="text-white/40 text-xs hidden sm:block">Climate Digital Twin</span>
           <span className="text-white/20 text-[10px] hidden md:block">ISRO BAH 2026</span>
         </div>
 
         <RegionSelector
           selected={state.selectedRegion}
-          onChange={(r: RegionId) => update({ selectedRegion: r })}
+          onChange={(r: RegionId) => { update({ selectedRegion: r }); setRegionFlyTrigger(n => n + 1); }}
         />
 
         <div className="flex items-center gap-3">
@@ -303,11 +312,16 @@ export default function App() {
             ) : (
               <span className="text-xs text-red-400">● Offline</span>
             )}
-            <GuidedTour
-              onTourStep={handleTourStep}
-              isActive={showTour}
-              onToggle={() => setShowTour((t) => !t)}
-            />
+            <div title={drawerOpen ? "Close menu to start tour" : "Start guided tour"}>
+              <GuidedTour
+                onTourStep={handleTourStep}
+                isActive={showTour && !drawerOpen}
+                onToggle={() => {
+                  if (drawerOpen) return;
+                  setShowTour((t) => !t);
+                }}
+              />
+            </div>
           </div>
 
           {/* Hamburger button */}
@@ -327,32 +341,41 @@ export default function App() {
       </header>
 
       {/* ── Variable selector left (z-[1000]) ── */}
-      <div className="fixed left-4 top-1/2 z-[1000] flex flex-col gap-2 animate-slide-in-left" style={{ transform: 'translateY(-50%) translateZ(0)' }}>
-        {VARIABLE_TABS.map(({ id, label, icon, color }) => (
+      <div className="fixed left-4 z-[1000] flex flex-col gap-1.5 animate-slide-in-left" style={{ top: 100, bottom: 250, justifyContent: 'flex-start', transform: 'translateZ(0)' }}>
+        {VARIABLE_TABS.map(({ id, label, icon, color }) => {
+          const isActive = state.selectedVariable === id && showHeatmap;
+          return (
           <button
             key={id}
             onClick={() => {
               if (state.selectedVariable === id) {
+                // Same variable: toggle heatmap visibility
                 setShowHeatmap(prev => !prev);
               } else {
+                // Different variable: switch and ensure heatmap is visible
                 update({ selectedVariable: id });
                 setShowHeatmap(true);
+              }
+              // Clear scenario overlay when user explicitly picks a variable
+              if (state.activeScenario) {
+                update({ showSplitScreen: false });
               }
             }}
             title={label}
             className="flex flex-col items-center gap-1 px-3 py-2.5 rounded-lg text-xs transition-all active:scale-95"
             style={{
               background: 'rgba(6,10,22,0.92)',
-              border: state.selectedVariable === id ? `1px solid ${color}` : '1px solid rgba(255,255,255,0.08)',
-              color: state.selectedVariable === id ? '#fff' : 'rgba(255,255,255,0.4)',
-              boxShadow: state.selectedVariable === id ? `0 0 12px ${color}40` : 'none',
+              border: isActive ? `1px solid ${color}` : '1px solid rgba(255,255,255,0.08)',
+              color: isActive ? '#fff' : 'rgba(255,255,255,0.4)',
+              boxShadow: isActive ? `0 0 12px ${color}40` : 'none',
               transform: 'translateZ(0)',
             }}
           >
-            <span style={{ color: state.selectedVariable === id ? color : undefined }}>{icon}</span>
+            <span style={{ color: isActive ? color : undefined }}>{icon}</span>
             <span className="font-medium">{label}</span>
           </button>
-        ))}
+          );
+        })}
         {state.activeScenario && (
           <button
             onClick={() => update((s) => ({ showSplitScreen: !s.showSplitScreen }))}
@@ -427,14 +450,30 @@ export default function App() {
           <Wind size={14} />
           <span className="text-[9px] font-medium">Wind</span>
         </button>
+
+        {/* Inspect mode toggle */}
+        <button
+          onClick={() => setInspectMode((v) => !v)}
+          className="flex flex-col items-center gap-1 px-3 py-2.5 rounded-lg mt-1 transition-all"
+          style={{
+            background: 'rgba(6,10,22,0.92)',
+            border: inspectMode ? '1px solid #a855f7' : '1px solid rgba(255,255,255,0.08)',
+            color: inspectMode ? '#a855f7' : 'rgba(255,255,255,0.3)',
+            boxShadow: inspectMode ? '0 0 8px rgba(168,85,247,0.25)' : 'none',
+          }}
+          title="Inspect cell data (click globe)"
+        >
+          <Search size={14} />
+          <span className="text-[9px] font-medium">Inspect</span>
+        </button>
       </div>
 
       {/* ── Hamburger Drawer (right, z-[1000]) ── */}
       {drawerOpen && (
         <div
           ref={rightPanelRef}
-          className="fixed right-0 top-14 bottom-0 z-[1000] overflow-y-auto scrollbar-none flex flex-col gap-3 p-3 animate-slide-in-right"
-          style={{ width: 300, background: 'rgba(6,10,22,0.96)', borderLeft: '1px solid rgba(255,255,255,0.08)', transform: 'translateZ(0)' }}
+          className="fixed right-0 bottom-0 z-[1000] overflow-y-auto scrollbar-none flex flex-col gap-3 p-3 animate-slide-in-right"
+          style={{ top: 64, width: 380, background: 'rgba(6,10,22,0.96)', borderLeft: '1px solid rgba(255,255,255,0.08)', transform: 'translateZ(0)' }}
         >
           {/* View mode navigation */}
           <div className="panel-tight p-2">
@@ -479,22 +518,15 @@ export default function App() {
             <LayerControlPanel activeLayer={activeLayer} onLayerChange={handleLayerChange} gibsDate={gibsDate} onDateChange={setGibsDate} />
           </div>
 
+          {/* What-If Scenarios — always visible in drawer */}
+          <WhatIfPanel onResult={handleScenarioResult} onReset={handleScenarioReset} />
+
           {/* Conditional panels by view mode */}
-          {state.viewMode === 'scenario' && (
-            <WhatIfPanel onResult={handleScenarioResult} onReset={handleScenarioReset} />
-          )}
           {state.viewMode === 'metrics' && (
             <div className="flex flex-col gap-3">
               {/* Model Architecture card */}
-              <div className="panel-tight p-3">
-                <div className="text-[10px] text-white/50 font-semibold uppercase tracking-wide mb-2">Model Architecture</div>
-                <div className="flex flex-col gap-1 text-[10px] text-white/40">
-                  <div>GATv2Conv (4L × 4 heads) — orographic patterns</div>
-                  <div>Transformer (4L, d=256) — 45-day memory</div>
-                  <div>Two-stage rain: BCE occurrence + CRPS amount</div>
-                  <div>5.15M params · T4×2 · 17 features (IMD+NCEP)</div>
-                </div>
-              </div>
+              <ModelInfoCard />
+              <SatelliteDataCard />
               <MetricsDashboard selectedVariable={state.selectedVariable} onVariableChange={(v) => update({ selectedVariable: v })} />
               <NWPComparisonPanel variable={state.selectedVariable} region={state.selectedRegion} />
               <ModelComparisonPanel variable={state.selectedVariable} region={state.selectedRegion} />
@@ -503,6 +535,9 @@ export default function App() {
           {state.viewMode === 'historical' && <DataProvenancePanel />}
           {state.viewMode === 'prediction' && (
             <div className="flex flex-col gap-3">
+              <IndiaClimateStats gridCells={gridCells} selectedDate={state.timeState.selectedDate} />
+              <IMDAlertBanner gridCells={gridCells} />
+              <ClimateRiskScore gridCells={gridCells} variable={state.selectedVariable} />
               <PredictionSummaryPanel gridCells={gridCells} variable={state.selectedVariable} isLoading={state.isLoading} date={state.timeState.selectedDate} />
               <TrendSparklines gridCells={gridCells} variable={state.selectedVariable} dateLabel={format(state.timeState.selectedDate, 'dd MMM')} />
               <ColormapSelector
@@ -533,11 +568,11 @@ export default function App() {
 
       {/* ── Time slider bottom (z-[1000]) ── */}
       <div
-        className={`fixed bottom-2 left-16 z-[1000] flex flex-col gap-1.5 transition-all duration-300 ${drawerOpen ? 'right-[312px]' : 'right-4'}`}
-        style={{ transform: 'translateZ(0)' }}
+        className={`fixed bottom-2 z-[1000] flex flex-col gap-2 transition-all duration-300 ${drawerOpen ? 'right-[392px]' : 'right-4'}`}
+        style={{ left: 16, transform: 'translateZ(0)' }}
       >
         {state.viewMode === 'prediction' && (
-          <div className="flex items-center gap-3 flex-wrap">
+          <div className="flex items-center gap-2" style={{ marginLeft: 80 }}>
             <ForecastAnimation
               currentDay={state.forecastDay ?? 1}
               onDayChange={(d) => update({ forecastDay: d })}
@@ -562,7 +597,7 @@ export default function App() {
       )}
 
       {/* ── Guided Tour overlay (Feature 29) ── */}
-      {showTour && (
+      {showTour && !drawerOpen && (
         <GuidedTour
           onTourStep={handleTourStep}
           isActive={showTour}
@@ -581,7 +616,7 @@ export default function App() {
         </div>
       )}
       {state.showSplitScreen && state.activeScenario && (
-        <div className="fixed top-16 left-1/2 -translate-x-1/2 z-[1000] flex gap-4">
+        <div className="fixed top-[64px] left-1/2 -translate-x-1/2 z-[999] flex gap-3">
           <div className="panel-tight px-3 py-1 text-xs text-white/60">← Baseline</div>
           <div className="panel-tight px-3 py-1 text-xs text-vayu-accent">Δ {state.activeScenario.scenario_type.replace('_', ' ')} +{state.activeScenario.magnitude}</div>
           <div className="panel-tight px-3 py-1 text-xs text-white/60">Scenario →</div>

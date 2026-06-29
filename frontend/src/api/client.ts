@@ -174,6 +174,14 @@ export function buildTileUrl(
   return `${API_BASE}/api/tiles/{z}/{x}/{y}.png?variable=${variable}${date}`;
 }
 
+// ── Current Weather (Open-Meteo free API) ─────────────────────────────────────
+
+export async function fetchCurrentWeather(lat: number, lon: number) {
+  const res = await fetch(`${API_BASE}/api/current-weather?lat=${lat}&lon=${lon}`);
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return res.json();
+}
+
 // ── Helper: convert GridCell array to lat/lon/value arrays ───────────────────
 
 export function gridCellsToArrays(

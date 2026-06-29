@@ -12,7 +12,7 @@
  *  - OpenWeatherMap live tiles — Feature 12
  *  - NASA SMAP Soil Moisture (NASA GIBS, free) — Feature 16
  */
-import { Layers, Satellite, CloudRain, Cloud, Moon, Activity, Thermometer, TreePine, Wind, Flame, Droplets, Leaf } from 'lucide-react';
+import { Layers, Satellite, CloudRain, Cloud, Activity, Thermometer, TreePine, Wind, Droplets, Leaf } from 'lucide-react';
 import type { EarthLayer } from './CesiumGlobe';
 
 interface LayerOption {
@@ -33,24 +33,6 @@ const LAYER_OPTIONS: LayerOption[] = [
     sublabel: 'Bing/Cesium Ion high-res',
     icon: <Satellite size={13} />,
     color: '#60a5fa',
-    group: 'Base',
-  },
-  {
-    id: 'modis',
-    label: 'MODIS Terra',
-    sublabel: 'NASA daily true-colour',
-    icon: <Satellite size={13} />,
-    color: '#34d399',
-    badge: 'NASA GIBS',
-    group: 'Base',
-  },
-  {
-    id: 'nightlights',
-    label: 'Night Lights',
-    sublabel: 'Earth at Night (2016)',
-    icon: <Moon size={13} />,
-    color: '#fbbf24',
-    badge: 'Ion',
     group: 'Base',
   },
   {
@@ -82,7 +64,7 @@ const LAYER_OPTIONS: LayerOption[] = [
   },
   {
     id: 'sst',
-    label: 'Sea Surface Temp',
+    label: 'Sea Surface T.',
     sublabel: 'GHRSST MUR SST',
     icon: <Thermometer size={13} />,
     color: '#f97316',
@@ -104,15 +86,6 @@ const LAYER_OPTIONS: LayerOption[] = [
     sublabel: 'MODIS NDVI 8-day',
     icon: <TreePine size={13} />,
     color: '#22c55e',
-    badge: 'NASA GIBS',
-    group: 'NASA',
-  },
-  {
-    id: 'fires',
-    label: 'Active Fires',
-    sublabel: 'FIRMS MODIS hotspots',
-    icon: <Flame size={13} />,
-    color: '#ef4444',
     badge: 'NASA GIBS',
     group: 'NASA',
   },
@@ -203,6 +176,7 @@ export default function LayerControlPanel({
                   <button
                     key={opt.id}
                     onClick={() => onLayerChange(opt.id)}
+                    title={opt.label + ': ' + opt.sublabel}
                     className={`
                       relative flex items-start gap-1.5 p-2 rounded-lg border text-left transition-all duration-200 cursor-pointer
                       ${active

@@ -123,6 +123,7 @@ interface CesiumGlobeProps {
   show3D?: boolean;         // 3D extruded rainfall columns
   selectedDate?: Date;      // for day/night terminator
   showWind?: boolean;       // toggle wind particle layer
+  regionFlyTrigger?: number; // increment to force fly-to even same region
 }
 
 export default function CesiumGlobe({
@@ -140,6 +141,7 @@ export default function CesiumGlobe({
   show3D = false,
   selectedDate,
   showWind = true,
+  regionFlyTrigger,
 }: CesiumGlobeProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const viewerRef    = useRef<Cesium.Viewer | null>(null);
@@ -169,6 +171,17 @@ export default function CesiumGlobe({
     const ionToken = import.meta.env.VITE_CESIUM_ION_TOKEN;
     if (ionToken) Cesium.Ion.defaultAccessToken = ionToken;
 
+    // Suppress Cesium DeveloperError rendering crash dialog
+    // (GroundPolylineGeometry throws on degenerate boundary points)
+    const origRenderError = (window as unknown as Record<string, unknown>).onerror;
+    window.onerror = (msg) => {
+      if (typeof msg === 'string' && msg.includes('DeveloperError')) return true;
+      if (origRenderError && typeof origRenderError === 'function') {
+        return (origRenderError as (...args: unknown[]) => unknown)(msg);
+      }
+      return false;
+    };
+
     const viewer = new Cesium.Viewer(containerRef.current, {
       terrain: Cesium.Terrain.fromWorldTerrain({ requestVertexNormals: true }),
       timeline: false,
@@ -184,6 +197,27 @@ export default function CesiumGlobe({
       creditContainer: document.createElement('div'),
     });
 
+    // Suppress Cesium's built-in render error panel
+    // Override the internal error display to prevent the red overlay from appearing
+    try {
+      const widget = viewer.cesiumWidget as unknown as { _showRenderLoopError: boolean; showErrorPanel: (...args: unknown[]) => void };
+      widget.showErrorPanel = () => {};
+      widget._showRenderLoopError = false;
+    } catch { /* ignore if property doesn't exist */ }
+    // When a render error occurs, Cesium stops its render loop (black screen).
+    // Fix: restart the loop automatically.
+    viewer.scene.renderError.addEventListener((_scene: unknown, _error: unknown) => {
+      console.warn('[VAYU] Cesium render error — restarting render loop');
+      try {
+        viewer.useDefaultRenderLoop = false;
+        setTimeout(() => {
+          if (!viewer.isDestroyed()) {
+            viewer.useDefaultRenderLoop = true;
+          }
+        }, 100);
+      } catch {}
+    });
+
     // ── Atmosphere & lighting — ISRO space-to-earth aesthetic ──
     viewer.scene.globe.enableLighting = false; // disable lighting so globe is always visible
     viewer.scene.globe.showGroundAtmosphere = true;
@@ -197,32 +231,39 @@ export default function CesiumGlobe({
     viewer.scene.screenSpaceCameraController.maximumZoomDistance = 50_000_000;
 
     // ── Auto-center globe when zoomed out ──
-    // When far from Earth, pitch the camera toward -90° (straight down at center)
-    // so the globe appears centered in the viewport instead of at the bottom.
+    // When far from Earth, gently pitch the camera toward looking at Earth's center.
+    // IMPORTANT: Never set pitch to exactly -90° (causes Cesium DeveloperError).
     viewer.scene.preRender.addEventListener(() => {
-      const cameraHeight = viewer.camera.positionCartographic.height;
-      // Start adjusting when above 3M meters (roughly continent-view altitude)
-      if (cameraHeight > 3_000_000) {
-        const currentPitch = viewer.camera.pitch;
-        const targetPitch = Cesium.Math.toRadians(-90);
-        // Lerp factor: stronger correction as you zoom out further
-        const t = Math.min(1, (cameraHeight - 3_000_000) / 7_000_000);
-        const lerpFactor = t * 0.03; // gentle correction per frame
-        const newPitch = currentPitch + (targetPitch - currentPitch) * lerpFactor;
-        viewer.camera.setView({
-          orientation: {
-            heading: viewer.camera.heading,
-            pitch: newPitch,
-            roll: viewer.camera.roll,
-          },
-        });
+      try {
+        const cameraHeight = viewer.camera.positionCartographic.height;
+        if (cameraHeight > 4_000_000) {
+          const currentPitch = viewer.camera.pitch;
+          // Target: -85° (safe distance from -90° degenerate state)
+          const targetPitch = Cesium.Math.toRadians(-85);
+          const t = Math.min(1, (cameraHeight - 4_000_000) / 10_000_000);
+          const lerpFactor = t * 0.02;
+          const newPitch = Cesium.Math.clamp(
+            currentPitch + (targetPitch - currentPitch) * lerpFactor,
+            Cesium.Math.toRadians(-88),
+            Cesium.Math.toRadians(-10),
+          );
+          viewer.camera.setView({
+            orientation: {
+              heading: viewer.camera.heading,
+              pitch: newPitch,
+              roll: viewer.camera.roll,
+            },
+          });
+        }
+      } catch {
+        // Silently ignore camera errors during transitions
       }
     });
 
     // ── Cinematic intro: start from space, zoom to India ──
     viewer.camera.setView({
       destination: Cesium.Cartesian3.fromDegrees(INDIA_CENTER.lon, INDIA_CENTER.lat, 8_000_000),
-      orientation: { heading: 0, pitch: Cesium.Math.toRadians(-90), roll: 0 },
+      orientation: { heading: 0, pitch: Cesium.Math.toRadians(-89), roll: 0 },
     });
     setTimeout(() => {
       viewer.camera.flyTo({
@@ -236,24 +277,29 @@ export default function CesiumGlobe({
     // ── Mouse-move coordinate tracker ──
     const handler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
     handler.setInputAction((movement: Cesium.ScreenSpaceEventHandler.MotionEvent) => {
-      const cartesian = viewer.scene.pickPosition(movement.endPosition);
-      if (cartesian) {
-        const carto = Cesium.Cartographic.fromCartesian(cartesian);
-        setCoords({
-          lat: Cesium.Math.toDegrees(carto.latitude),
-          lon: Cesium.Math.toDegrees(carto.longitude),
-        });
+      try {
+        const cartesian = viewer.scene.pickPosition(movement.endPosition);
+        if (cartesian) {
+          const carto = Cesium.Cartographic.fromCartesian(cartesian);
+          setCoords({
+            lat: Cesium.Math.toDegrees(carto.latitude),
+            lon: Cesium.Math.toDegrees(carto.longitude),
+          });
+        }
+      } catch {
+        // pickPosition can throw when depth buffer isn't ready
       }
     }, Cesium.ScreenSpaceEventType.MOUSE_MOVE);
 
     // ── Click handler for grid cell query (Feature 25) ──
     // We store a ref to the latest gridCells so the closure stays current
     handler.setInputAction((click: Cesium.ScreenSpaceEventHandler.PositionedEvent) => {
-      const cartesian = viewer.scene.pickPosition(click.position);
-      if (!cartesian) return;
-      const carto = Cesium.Cartographic.fromCartesian(cartesian);
-      const clickLat = Cesium.Math.toDegrees(carto.latitude);
-      const clickLon = Cesium.Math.toDegrees(carto.longitude);
+      try {
+        const cartesian = viewer.scene.pickPosition(click.position);
+        if (!cartesian) return;
+        const carto = Cesium.Cartographic.fromCartesian(cartesian);
+        const clickLat = Cesium.Math.toDegrees(carto.latitude);
+        const clickLon = Cesium.Math.toDegrees(carto.longitude);
 
       // Find closest grid cell (nearest 0.25° node)
       const snapLat = Math.round(clickLat / 0.25) * 0.25;
@@ -274,6 +320,9 @@ export default function CesiumGlobe({
       if (cell && onCellClickRef.current) {
         onCellClickRef.current(cell, click.position.x, click.position.y);
       }
+      } catch {
+        // pickPosition can throw DeveloperError when depth buffer isn't ready
+      }
     }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
 
     // ── OSM Buildings (free, Cesium Ion asset 96188) ──
@@ -284,54 +333,16 @@ export default function CesiumGlobe({
       })
       .catch(() => setStatusMsg('ISRO Earth View ready'));
 
-    // ── India State Boundaries — fix: use GroundPolylinePrimitive ────────────
-    // GeoJsonDataSource with clampToGround:true silently drops polygon outlines.
-    // Solution: load raw GeoJSON and build GroundPolylinePrimitive per ring.
-    fetch('/india_states.geojson')
-      .then((r) => r.json())
-      .then((geojson: GeoJSON.FeatureCollection) => {
-        if (!viewerRef.current || viewerRef.current.isDestroyed()) return;
-        const primitives = viewerRef.current.scene.primitives;
-        geojson.features.forEach((feature) => {
-          const geom = feature.geometry as GeoJSON.MultiPolygon | GeoJSON.Polygon;
-          const polygons: number[][][][] =
-            geom.type === 'MultiPolygon'
-              ? (geom as GeoJSON.MultiPolygon).coordinates
-              : [(geom as GeoJSON.Polygon).coordinates];
-
-          polygons.forEach((poly) => {
-            poly.forEach((ring) => {
-              if (ring.length < 3) return;
-              const positions = ring.map(([lon, lat]) =>
-                Cesium.Cartesian3.fromDegrees(lon, lat),
-              );
-              try {
-                const instance = new Cesium.GeometryInstance({
-                  geometry: new Cesium.GroundPolylineGeometry({
-                    positions,
-                    width: 1.5,
-                  }),
-                  attributes: {
-                    color: Cesium.ColorGeometryInstanceAttribute.fromColor(
-                      Cesium.Color.fromCssColorString('#22d3ee').withAlpha(0.75),
-                    ),
-                  },
-                });
-                primitives.add(
-                  new Cesium.GroundPolylinePrimitive({
-                    geometryInstances: instance,
-                    appearance: new Cesium.PolylineColorAppearance(),
-                    asynchronous: false,
-                  }),
-                );
-              } catch {
-                // fallback: GroundPolylinePrimitive may not be supported on all devices
-              }
-            });
-          });
-        });
-      })
-      .catch((err) => console.warn('[VAYU] Could not load India boundaries:', err));
+    // ── India State Boundaries — GeoJsonDataSource (stable, no workers) ─────
+    Cesium.GeoJsonDataSource.load('/india_states.geojson', {
+      stroke: Cesium.Color.fromCssColorString('#22d3ee').withAlpha(0.5),
+      strokeWidth: 1,
+      fill: Cesium.Color.TRANSPARENT,
+      clampToGround: false,
+    }).then((ds) => {
+      if (!viewerRef.current || viewerRef.current.isDestroyed()) return;
+      viewerRef.current.dataSources.add(ds);
+    }).catch(() => { /* boundary file may not exist */ });
 
     // ── Data sources for climate overlays ──
     const overlaySource = new Cesium.CustomDataSource('vayu-climate');
@@ -499,10 +510,6 @@ export default function CesiumGlobe({
         gibsLayerRef.current = ndviLayer;
         break;
       }
-      case 'fires':
-        if (baseLayer) baseLayer.show = true;
-        addGibs(GIBS_LAYERS.Fires, 0.90, 6);
-        break;
       case 'smap': {
         if (baseLayer) baseLayer.show = true;
         const smapUrl = `${GIBS_BASE}/MODIS_Terra_Land_Surface_Temp_Day/default/${dateStr}/GoogleMapsCompatible_Level7/{z}/{y}/{x}.png`;
@@ -533,86 +540,109 @@ export default function CesiumGlobe({
     }
   }, [isReady, activeLayer, gibsDate]);
 
-  // ── Update climate heatmap overlay using canvas-based imagery ─────────────
+  // ── Update climate heatmap overlay ──────────────────────────────────────────
+  // Strategy: Use SingleTileImageryProvider (proven working) but NEVER remove
+  // the old layer until the new one is fully loaded and added. This prevents
+  // the render loop from encountering a frame with missing imagery.
+
+  const heatmapTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
-    if (!isReady || !viewerRef.current || gridCells.length === 0) return;
+    if (!isReady || !viewerRef.current) return;
     const viewer = viewerRef.current;
     if (viewer.isDestroyed()) return;
 
-    // Remove previous heatmap layer
-    if (heatmapLayerRef.current) {
-      try { viewer.imageryLayers.remove(heatmapLayerRef.current, true); } catch {}
-      heatmapLayerRef.current = null;
-    }
+    // Debounce — wait for slider to settle
+    if (heatmapTimerRef.current) clearTimeout(heatmapTimerRef.current);
 
-    // Determine grid dimensions from data
-    const lats = [...new Set(gridCells.map(c => c.lat))].sort((a, b) => a - b);
-    const lons = [...new Set(gridCells.map(c => c.lon))].sort((a, b) => a - b);
-    const nLat = lats.length;
-    const nLon = lons.length;
-
-    if (nLat < 2 || nLon < 2) return;
-
-    // Build a lookup for fast cell access
-    const cellMap = new Map<string, typeof gridCells[0]>();
-    for (const cell of gridCells) {
-      cellMap.set(`${cell.lat.toFixed(3)}_${cell.lon.toFixed(3)}`, cell);
-    }
-
-    // Resolve active colormap
-    const activeColormap: ColormapId = colormap ?? (
-      variable === 'rainfall' ? 'imd_rain' :
-      variable === 'temp_max' ? 'earth_temp' : 'blues'
-    );
-
-    // Create canvas and paint heatmap (scale up for smoother appearance)
-    const scale = 8; // each cell = 8x8 pixels for smoother look
-    const canvas = document.createElement('canvas');
-    canvas.width = nLon * scale;
-    canvas.height = nLat * scale;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-    ctx.imageSmoothingEnabled = true;
-    ctx.imageSmoothingQuality = 'high';
-
-    const cfg = VARIABLE_CONFIG[variable];
-
-    for (let latIdx = 0; latIdx < nLat; latIdx++) {
-      for (let lonIdx = 0; lonIdx < nLon; lonIdx++) {
-        const lat = lats[nLat - 1 - latIdx]; // Flip Y (canvas top = north)
-        const lon = lons[lonIdx];
-        const cell = cellMap.get(`${lat.toFixed(3)}_${lon.toFixed(3)}`);
-
-        if (cell) {
-          const val = cell[variable] as number;
-          const t = Math.max(0, Math.min(1, (val - cfg.min) / (cfg.max - cfg.min)));
-          ctx.fillStyle = _heatmapColor(t, variable, activeColormap);
-        } else {
-          ctx.fillStyle = 'rgba(0,0,0,0)';
-        }
-        ctx.fillRect(lonIdx * scale, latIdx * scale, scale, scale);
-      }
-    }
-
-    // Compute bounds (cell centers ± half cell size)
-    const cellSize = 0.25;
-    const west = lons[0] - cellSize / 2;
-    const east = lons[nLon - 1] + cellSize / 2;
-    const south = lats[0] - cellSize / 2;
-    const north = lats[nLat - 1] + cellSize / 2;
-
-    // Use async factory (required in Cesium 1.127+)
-    Cesium.SingleTileImageryProvider.fromUrl(canvas.toDataURL('image/png'), {
-      rectangle: Cesium.Rectangle.fromDegrees(west, south, east, north),
-    }).then((provider) => {
+    heatmapTimerRef.current = setTimeout(() => {
       if (!viewerRef.current || viewerRef.current.isDestroyed()) return;
-      const layer = viewerRef.current.imageryLayers.addImageryProvider(provider);
-      layer.alpha = 0.78;
-      heatmapLayerRef.current = layer;
-    }).catch((err) => {
-      console.warn('[VAYU] Heatmap layer creation failed:', err);
-    });
+      const v = viewerRef.current;
+
+      // No data → just hide existing layer
+      if (gridCells.length === 0) {
+        if (heatmapLayerRef.current) {
+          heatmapLayerRef.current.show = false;
+        }
+        return;
+      }
+
+      // Filter NaN
+      const validCells = gridCells.filter(c => Number.isFinite(c[variable] as number));
+      if (validCells.length === 0) {
+        if (heatmapLayerRef.current) heatmapLayerRef.current.show = false;
+        return;
+      }
+
+      // Grid dims
+      const lats = [...new Set(validCells.map(c => c.lat))].sort((a, b) => a - b);
+      const lons = [...new Set(validCells.map(c => c.lon))].sort((a, b) => a - b);
+      const nLat = lats.length;
+      const nLon = lons.length;
+      if (nLat < 2 || nLon < 2) return;
+
+      const cellMap = new Map<string, typeof gridCells[0]>();
+      for (const cell of validCells) {
+        cellMap.set(`${cell.lat.toFixed(3)}_${cell.lon.toFixed(3)}`, cell);
+      }
+
+      const activeColormap: ColormapId = colormap ?? (
+        variable === 'rainfall' ? 'imd_rain' : variable === 'temp_max' ? 'plasma' : 'viridis'
+      );
+
+      // Paint canvas
+      const scale = 4;
+      const canvas = document.createElement('canvas');
+      canvas.width = nLon * scale;
+      canvas.height = nLat * scale;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return;
+      const cfg = VARIABLE_CONFIG[variable];
+
+      for (let latIdx = 0; latIdx < nLat; latIdx++) {
+        for (let lonIdx = 0; lonIdx < nLon; lonIdx++) {
+          const lat = lats[nLat - 1 - latIdx];
+          const lon = lons[lonIdx];
+          const cell = cellMap.get(`${lat.toFixed(3)}_${lon.toFixed(3)}`);
+          if (cell) {
+            const val = cell[variable] as number;
+            const t = Math.max(0, Math.min(1, (val - cfg.min) / (cfg.max - cfg.min)));
+            ctx.fillStyle = _heatmapColor(t, variable, activeColormap);
+          } else {
+            ctx.fillStyle = 'rgba(0,0,0,0)';
+          }
+          ctx.fillRect(lonIdx * scale, latIdx * scale, scale, scale);
+        }
+      }
+
+      const cellSize = 0.25;
+      const west = lons[0] - cellSize / 2;
+      const east = lons[nLon - 1] + cellSize / 2;
+      const south = lats[0] - cellSize / 2;
+      const north = lats[nLat - 1] + cellSize / 2;
+
+      // Create new layer FIRST, then remove old one only after new is ready
+      const oldLayer = heatmapLayerRef.current;
+
+      Cesium.SingleTileImageryProvider.fromUrl(canvas.toDataURL('image/png'), {
+        rectangle: Cesium.Rectangle.fromDegrees(west, south, east, north),
+      }).then((provider) => {
+        if (!viewerRef.current || viewerRef.current.isDestroyed()) return;
+        // Add new layer
+        const newLayer = viewerRef.current.imageryLayers.addImageryProvider(provider);
+        newLayer.alpha = 0.78;
+        heatmapLayerRef.current = newLayer;
+
+        // NOW remove old layer (new one is already rendering)
+        if (oldLayer) {
+          try { viewerRef.current!.imageryLayers.remove(oldLayer, true); } catch {}
+        }
+      }).catch(() => {});
+    }, 500);
+
+    return () => {
+      if (heatmapTimerRef.current) clearTimeout(heatmapTimerRef.current);
+    };
   }, [gridCells, variable, isReady, colormap]);
 
   // ── Fly to region when region changes ─────────────────────────────────────
@@ -626,7 +656,7 @@ export default function CesiumGlobe({
       duration: 2.5,
       easingFunction: Cesium.EasingFunction.CUBIC_IN_OUT,
     });
-  }, [region, isReady]);
+  }, [region, isReady, regionFlyTrigger]);
 
   // ── Terrain exaggeration (Feature 5) ───────────────────────────────────────
   useEffect(() => {
@@ -697,52 +727,12 @@ export default function CesiumGlobe({
   }, [isReady, show3D, gridCells, variable, colormap]);
 
   // ── Day / Night Terminator Line (Feature 6) ────────────────────────────────
-  useEffect(() => {
-    if (!isReady || !viewerRef.current) return;
-    const viewer = viewerRef.current;
-    if (viewer.isDestroyed()) return;
+  // DISABLED: This effect fires on every selectedDate change (every slider tick)
+  // and creates/removes entities rapidly, causing Cesium render loop crashes.
+  // The terminator polyline can also produce degenerate geometry near equinoxes.
+  // TODO: Re-enable with static terminator that only updates on manual date clicks.
 
-    // Remove previous terminator
-    if (terminatorRef.current) {
-      try { viewer.entities.remove(terminatorRef.current); } catch {}
-      terminatorRef.current = null;
-    }
-
-    const date = selectedDate ?? new Date();
-
-    // Compute solar declination and hour angle
-    const doy = Math.floor((date.getTime() - new Date(date.getFullYear(), 0, 0).getTime()) / 86400000);
-    const declination = -23.45 * Math.cos((360 / 365) * (doy + 10) * Math.PI / 180);
-    const decRad = declination * Math.PI / 180;
-
-    // Sample terminator positions: lat = -arctan(cos(H) / sin(dec)) ... approx
-    const points: Cesium.Cartesian3[] = [];
-    for (let lonDeg = -180; lonDeg <= 180; lonDeg += 2) {
-      const hRad = (lonDeg - 0) * Math.PI / 180; // simplified (UTC noon reference)
-      // Terminator latitude: where solar zenith = 90°
-      // cos(90°) = sin(dec)*sin(lat) + cos(dec)*cos(lat)*cos(H) = 0
-      // => lat = atan(-cos(H)/tan(dec))  [simplified]
-      const latRad = Math.atan2(-Math.cos(hRad), Math.tan(decRad));
-      const latDeg = (latRad * 180) / Math.PI;
-      points.push(Cesium.Cartesian3.fromDegrees(lonDeg, Math.max(-90, Math.min(90, latDeg))));
-    }
-
-    if (points.length < 2) return;
-
-    terminatorRef.current = viewer.entities.add({
-      polyline: {
-        positions: points,
-        width: 2,
-        material: new Cesium.PolylineDashMaterialProperty({
-          color: Cesium.Color.YELLOW.withAlpha(0.55),
-          dashLength: 20,
-          dashPattern: 0xFF00,
-        }),
-        clampToGround: false,
-      },
-    });
-  }, [isReady, selectedDate]);
-
+  // ── Update scenario delta overlay (right half in split-screen) ─────────────
   // ── Update scenario delta overlay (right half in split-screen) ─────────────
   useEffect(() => {
     if (!isReady || !scenarioRef.current) return;
@@ -807,9 +797,9 @@ export default function CesiumGlobe({
 
       {/* ── ISRO branding HUD (top-left) ── REMOVED — App.tsx header handles branding */}
 
-      {/* ── Coordinate display (top, below header) ── */}
+      {/* ── Coordinate display (below header with gap) ── */}
       {isReady && coords && (
-        <div className="absolute top-16 left-4 z-10 pointer-events-none">
+        <div className="absolute top-[85px] left-1/2 -translate-x-1/2 z-10 pointer-events-none">
           <div className="px-3 py-1.5 rounded bg-black/50 backdrop-blur-sm border border-white/10">
             <span className="text-green-300/70 font-mono text-xs">
               {coords.lat >= 0 ? coords.lat.toFixed(4) + '°N' : (-coords.lat).toFixed(4) + '°S'}
@@ -824,7 +814,7 @@ export default function CesiumGlobe({
 
       {/* ── Active layer indicator (bottom-right) ── */}
       {isReady && activeLayer !== 'vayu' && (
-        <div className="absolute bottom-4 right-4 z-10 pointer-events-none animate-slide-in-up">
+        <div className="absolute bottom-28 right-4 z-10 pointer-events-none animate-slide-in-up">
           <div className="px-3 py-1.5 rounded-lg bg-blue-600/20 border border-blue-400/30 backdrop-blur-sm">
             <span className="text-blue-300 text-xs font-medium">
               {activeLayer === 'modis'         ? '🛰 MODIS Terra TrueColor' :
@@ -845,7 +835,7 @@ export default function CesiumGlobe({
 
       {/* ── 3D mode badge ── */}
       {isReady && show3D && (
-        <div className="absolute top-12 left-4 z-10 pointer-events-none animate-slide-in-up">
+        <div className="absolute top-20 left-[140px] z-10 pointer-events-none animate-slide-in-up">
           <div className="px-3 py-1.5 rounded-lg backdrop-blur-sm" style={{ background: 'rgba(249,115,22,0.2)', border: '1px solid rgba(249,115,22,0.4)' }}>
             <span className="text-orange-300 text-xs font-medium">3D Rainfall Columns</span>
           </div>

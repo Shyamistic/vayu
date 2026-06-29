@@ -39,6 +39,8 @@ services:
       DATABASE_URL: postgresql://vayu:vayu_dev@postgres:5432/vayu_climate
       REDIS_URL: redis://redis:6379
       MODEL_PATH: /app/checkpoints/vayu_best.pt
+      MODEL_VERSION: "2.0.0"
+      CORS_ORIGINS: "http://localhost:5173,http://localhost:3000,https://vayu-climate.vercel.app,*"
       LOG_LEVEL: INFO
     volumes:
       - ./checkpoints:/app/checkpoints
