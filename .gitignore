@@ -78,6 +78,10 @@ research/
 # ── Vite temp files ───────────────────────────────────────────────────────────
 *.timestamp-*.mjs
 
+# ── CDK / Deployment artifacts ────────────────────────────────────────────────
+cdk-outputs.json
+cdk.out/
+
 # ── Notebook/editor/OS noise ──────────────────────────────────────────────────
 .ipynb_checkpoints/
 .vscode/

@@ -307,16 +307,19 @@ class VayuBackendStack(Stack):
             ),
             environment={
                 "MODEL_PATH": "/app/checkpoints/vayu_best.pt",
+                "MODEL_S3_URI": f"s3://{model_bucket.bucket_name}/checkpoints/vayu_best.pt",
                 "REDIS_URL": f"redis://{redis.attr_redis_endpoint_address}:6379",
                 "LOG_LEVEL": "INFO",
                 "MAX_CONCURRENT_USERS": "20",
-                "MODEL_VERSION": "1.0.0",
-                "CORS_ORIGINS": "https://vayu-climate.com,https://www.vayu-climate.com",
+                "MODEL_VERSION": "2.0.0",
+                "CORS_ORIGINS": "*",  # CloudFront handles origin enforcement
+                "DB_HOST": db.db_instance_endpoint_address,
+                "DB_PORT": db.db_instance_endpoint_port,
+                "DB_NAME": "vayu_climate",
             },
             secrets={
-                "DATABASE_URL": ecs.Secret.from_secrets_manager(
-                    db_secret, "connectionString"
-                ),
+                "DB_USERNAME": ecs.Secret.from_secrets_manager(db_secret, "username"),
+                "DB_PASSWORD": ecs.Secret.from_secrets_manager(db_secret, "password"),
             },
             health_check=ecs.HealthCheck(
                 command=["CMD-SHELL", "curl -f http://localhost:8000/health || exit 1"],
@@ -375,6 +378,17 @@ class VayuCdnStack(Stack):
         **kwargs,
     ):
         super().__init__(scope, id, **kwargs)
+
+        # ── Deploy frontend assets to S3 (if dist/ exists) ────────────────────
+        import os
+        frontend_dist = os.path.join(os.path.dirname(__file__), "..", "frontend", "dist")
+        if os.path.isdir(frontend_dist):
+            s3_deploy.BucketDeployment(
+                self, "FrontendDeployment",
+                sources=[s3_deploy.Source.asset(frontend_dist)],
+                destination_bucket=frontend_bucket,
+                distribution_paths=["/*"],
+            )
 
         # ── API Cache Policy (no caching for predictions) ─────────────────────
         api_cache_policy = cloudfront.CachePolicy(
