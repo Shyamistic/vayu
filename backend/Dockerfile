@@ -8,20 +8,27 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 COPY pyproject.toml .
-# CPU-only torch keeps image under 2 GB; swap for GPU variant if using GPU instance
-RUN pip install --no-cache-dir \
+# Install PyTorch separately with retries (avoids timeout on large downloads)
+RUN pip install --no-cache-dir --timeout=300 --retries=3 \
     --extra-index-url https://download.pytorch.org/whl/cpu \
-    torch==2.2.2+cpu \
-    torch-geometric \
+    torch==2.2.2+cpu
+
+# Install torch-geometric
+RUN pip install --no-cache-dir torch-geometric
+
+# Install other dependencies in smaller chunks
+RUN pip install --no-cache-dir \
     fastapi uvicorn[standard] pydantic python-dotenv \
     sqlalchemy geoalchemy2 asyncpg psycopg2-binary alembic \
-    redis hiredis \
+    redis hiredis
+
+RUN pip install --no-cache-dir \
     xarray netCDF4 scipy numpy pandas \
-    httpx tenacity tqdm \
-    imdlib \
+    httpx tenacity tqdm imdlib
+
+RUN pip install --no-cache-dir \
     shapely pyproj rasterio \
-    structlog boto3 \
-    Pillow matplotlib
+    structlog boto3 Pillow matplotlib
 
 # ── Stage 2: runtime ──────────────────────────────────────────────────────────
 FROM python:3.11-slim AS runtime

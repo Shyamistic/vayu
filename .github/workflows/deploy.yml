@@ -1,0 +1,93 @@
+name: Deploy VAYU to AWS
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: # Manual trigger
+
+env:
+  AWS_REGION: ap-south-1
+  ECR_REPO: vayu-backend
+
+jobs:
+  deploy-frontend:
+    name: Build & Deploy Frontend
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install cesium-wind-layer
+        run: |
+          cd cesium-wind-layer/packages/cesium-wind-layer
+          npm install
+          npm run build || true  # May already have dist/
+
+      - name: Build frontend
+        working-directory: frontend
+        env:
+          VITE_API_URL: ""
+          VITE_CESIUM_ION_TOKEN: ${{ secrets.CESIUM_ION_TOKEN }}
+          VITE_OPENWEATHERMAP_KEY: ${{ secrets.OPENWEATHERMAP_KEY }}
+        run: |
+          npm install
+          npm run build
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Deploy to S3
+        run: |
+          aws s3 sync frontend/dist/ s3://vayu-frontend-${{ secrets.AWS_ACCOUNT_ID }}/ \
+            --delete \
+            --cache-control "public, max-age=31536000, immutable" \
+            --exclude "index.html"
+          aws s3 cp frontend/dist/index.html s3://vayu-frontend-${{ secrets.AWS_ACCOUNT_ID }}/index.html \
+            --cache-control "public, max-age=0, must-revalidate"
+
+      - name: Invalidate CloudFront
+        run: |
+          DIST_ID=$(aws cloudformation describe-stacks --stack-name VayuFrontend \
+            --query "Stacks[0].Outputs[?OutputKey=='DistributionId'].OutputValue" \
+            --output text 2>/dev/null || echo "")
+          if [ -n "$DIST_ID" ]; then
+            aws cloudfront create-invalidation --distribution-id "$DIST_ID" --paths "/*"
+          fi
+
+  deploy-backend:
+    name: Build & Push Backend Image
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - uses: aws-actions/amazon-ecr-login@v2
+        id: ecr-login
+
+      - name: Build and push Docker image
+        env:
+          ECR_REGISTRY: ${{ steps.ecr-login.outputs.registry }}
+        run: |
+          docker build -t $ECR_REGISTRY/$ECR_REPO:latest -f backend/Dockerfile .
+          docker push $ECR_REGISTRY/$ECR_REPO:latest
+
+      - name: Force ECS deployment
+        run: |
+          aws ecs update-service \
+            --cluster vayu-cluster \
+            --service $(aws ecs list-services --cluster vayu-cluster --query "serviceArns[0]" --output text | xargs basename) \
+            --force-new-deployment \
+            2>/dev/null || echo "ECS service not yet created — deploy backend stack first"

@@ -707,8 +707,8 @@ function KeyboardHint() {
 
   return (
     <div
-      className="fixed bottom-36 left-1/2 -translate-x-1/2 z-[999] panel-tight px-4 py-2 flex items-center gap-3 animate-fade-in pointer-events-none"
-      style={{ opacity: 0.7 }}
+      className="fixed bottom-36 z-[999] panel-tight px-4 py-2 flex items-center gap-3 animate-fade-in pointer-events-none"
+      style={{ opacity: 0.7, left: '38%' }}
     >
       <span className="text-[10px] text-white/40">Shortcuts:</span>
       {[
