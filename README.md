@@ -39,6 +39,8 @@
 
 ## System Architecture
 
+![MAUSAM System Architecture](docs/images/architecture.png)
+
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │                          DATA INGESTION LAYER                               │
@@ -76,7 +78,11 @@
 
 ## Model Performance
 
+![Model Architecture](docs/images/model_architecture.png)
+
 **Best Checkpoint: Epoch 27/37 (early-stopped) — trained on Kaggle T4 GPU in 2.5 hours**
+
+![Training Curve](docs/images/training_curve.png)
 
 | Variable | R² Score | RMSE | Skill vs Persistence | Skill vs Climatology |
 |----------|----------|------|---------------------|---------------------|
@@ -106,6 +112,10 @@
 ---
 
 ## Live Deployment
+
+![MAUSAM Dashboard](docs/images/dashboard.png)
+
+![What-If Scenario Engine](docs/images/whatif_scenario.png)
 
 | Component | URL | Status |
 |-----------|-----|--------|
