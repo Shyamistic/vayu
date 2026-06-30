@@ -83,10 +83,13 @@ cdk-outputs.json
 cdk.context.json
 cdk.out/
 
-# ── Notebook/editor/OS noise ──────────────────────────────────────────────────
+# ── Submission / paper artifacts (private) ────────────────────────────────────
+submission/
 .ipynb_checkpoints/
 .vscode/
 .idea/
 Thumbs.db
 .DS_Store
 
+
+# ── Notebook/editor/OS noise ──────────────────────────────────────────────────
