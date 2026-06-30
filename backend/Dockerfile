@@ -53,7 +53,9 @@ COPY data_ingestion/ data_ingestion/
 COPY backend/entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 
-RUN useradd --create-home --no-log-init appuser && chown -R appuser:appuser /app
+RUN useradd --create-home --no-log-init appuser && \
+    mkdir -p /app/data/processed_western_ghats /app/checkpoints && \
+    chown -R appuser:appuser /app
 USER appuser
 
 EXPOSE 8000

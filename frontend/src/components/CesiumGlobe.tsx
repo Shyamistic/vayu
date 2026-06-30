@@ -295,8 +295,13 @@ export default function CesiumGlobe({
     // We store a ref to the latest gridCells so the closure stays current
     handler.setInputAction((click: Cesium.ScreenSpaceEventHandler.PositionedEvent) => {
       try {
-        const cartesian = viewer.scene.pickPosition(click.position);
-        if (!cartesian) return;
+        // Try pickPosition first (requires depth buffer), fallback to ellipsoid pick
+        let cartesian = viewer.scene.pickPosition(click.position);
+        if (!cartesian) {
+          const ellipsoidPick = viewer.camera.pickEllipsoid(click.position, viewer.scene.globe.ellipsoid);
+          if (!ellipsoidPick) return;
+          cartesian = ellipsoidPick;
+        }
         const carto = Cesium.Cartographic.fromCartesian(cartesian);
         const clickLat = Cesium.Math.toDegrees(carto.latitude);
         const clickLon = Cesium.Math.toDegrees(carto.longitude);
@@ -733,7 +738,6 @@ export default function CesiumGlobe({
   // TODO: Re-enable with static terminator that only updates on manual date clicks.
 
   // ── Update scenario delta overlay (right half in split-screen) ─────────────
-  // ── Update scenario delta overlay (right half in split-screen) ─────────────
   useEffect(() => {
     if (!isReady || !scenarioRef.current) return;
 
@@ -745,11 +749,25 @@ export default function CesiumGlobe({
     const delta = scenarioData.delta[variable];
     if (!delta) return;
 
-    // Get lat/lon from grid cells count
-    const nlat = 49, nlon = 25;
-    const latMin = 8.0, lonMin = 72.0, step = 0.25;
+    // Infer grid dimensions from the baseline gridCells (if available) or use defaults
+    const cells = gridCellsRef.current;
+    let nlat = 49, nlon = 25, latMin = 8.0, lonMin = 72.0, step = 0.25;
 
-    delta.forEach((d, idx) => {
+    if (cells.length > 0) {
+      const lats = [...new Set(cells.map(c => c.lat))].sort((a, b) => a - b);
+      const lons = [...new Set(cells.map(c => c.lon))].sort((a, b) => a - b);
+      nlat = lats.length;
+      nlon = lons.length;
+      latMin = lats[0];
+      lonMin = lons[0];
+      if (lats.length > 1) step = lats[1] - lats[0];
+    }
+
+    // Clamp to actual delta length
+    const maxIdx = Math.min(delta.length, nlat * nlon);
+
+    for (let idx = 0; idx < maxIdx; idx++) {
+      const d = delta[idx];
       const lat_i = Math.floor(idx / nlon);
       const lon_j = idx % nlon;
       const lat = latMin + lat_i * step;
@@ -758,20 +776,21 @@ export default function CesiumGlobe({
       // Diverging colormap: negative = blue, positive = red
       const absD = Math.abs(d);
       const norm = Math.min(absD / 3.0, 1.0);
+      if (norm < 0.05) continue; // skip tiny deltas for performance
       const color = d > 0
-        ? new Cesium.Color(1.0, 0.3, 0.1, 0.7 * norm + 0.1)
-        : new Cesium.Color(0.1, 0.4, 1.0, 0.7 * norm + 0.1);
+        ? new Cesium.Color(1.0, 0.3, 0.1, 0.7 * norm + 0.15)
+        : new Cesium.Color(0.1, 0.4, 1.0, 0.7 * norm + 0.15);
 
       source.entities.add({
         rectangle: {
           coordinates: Cesium.Rectangle.fromDegrees(
-            lon - 0.125, lat - 0.125, lon + 0.125, lat + 0.125,
+            lon - step / 2, lat - step / 2, lon + step / 2, lat + step / 2,
           ),
           material: color,
           height: 0,
         },
       });
-    });
+    }
   }, [scenarioData, showSplitScreen, variable, isReady]);
 
   return (

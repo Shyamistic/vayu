@@ -33,11 +33,11 @@ async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
 let _mockPrediction: PredictionResponse | null = null;
 
 async function _loadMockPrediction(): Promise<PredictionResponse> {
-  if (_mockPrediction) return _mockPrediction;
+  if (_mockPrediction) return JSON.parse(JSON.stringify(_mockPrediction));
   const res = await fetch('/mock_prediction.json');
   if (!res.ok) throw new Error('Mock prediction data not available');
   _mockPrediction = await res.json();
-  return _mockPrediction!;
+  return JSON.parse(JSON.stringify(_mockPrediction!));
 }
 
 export async function fetchPrediction(

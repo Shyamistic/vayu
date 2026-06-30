@@ -262,7 +262,7 @@ export default function App() {
     <div className="w-full h-screen bg-vayu-dark font-sans">
 
       {/* ── Globe (z-0, behind everything) ── */}
-      <div className="fixed top-0 left-0 right-0 z-0" style={{ bottom: 120 }}>
+      <div className="fixed top-0 left-0 right-0 z-0" style={{ bottom: 160 }}>
         <GlobeErrorBoundary>
           <CesiumGlobe
             gridCells={showHeatmap && (state.viewMode === 'prediction' || state.viewMode === 'scenario') ? gridCells : []}
@@ -341,7 +341,7 @@ export default function App() {
       </header>
 
       {/* ── Variable selector left (z-[1000]) ── */}
-      <div className="fixed left-4 z-[1000] flex flex-col gap-1.5 animate-slide-in-left" style={{ top: 100, bottom: 250, justifyContent: 'flex-start', transform: 'translateZ(0)' }}>
+      <div className="fixed left-4 z-[1000] flex flex-col gap-1.5 animate-slide-in-left" style={{ top: 100, bottom: 175, justifyContent: 'flex-start', transform: 'translateZ(0)', overflowY: 'auto' }}>
         {VARIABLE_TABS.map(({ id, label, icon, color }) => {
           const isActive = state.selectedVariable === id && showHeatmap;
           return (
@@ -568,8 +568,8 @@ export default function App() {
 
       {/* ── Time slider bottom (z-[1000]) ── */}
       <div
-        className={`fixed bottom-2 z-[1000] flex flex-col gap-2 transition-all duration-300 ${drawerOpen ? 'right-[392px]' : 'right-4'}`}
-        style={{ left: 16, transform: 'translateZ(0)' }}
+        className={`fixed bottom-0 z-[1000] flex flex-col gap-1 transition-all duration-300 ${drawerOpen ? 'right-[392px]' : 'right-4'}`}
+        style={{ left: 16, transform: 'translateZ(0)', paddingBottom: 8 }}
       >
         {state.viewMode === 'prediction' && (
           <div className="flex items-center gap-2" style={{ marginLeft: 80 }}>
@@ -707,8 +707,8 @@ function KeyboardHint() {
 
   return (
     <div
-      className="fixed bottom-36 z-[999] panel-tight px-4 py-2 flex items-center gap-3 animate-fade-in pointer-events-none"
-      style={{ opacity: 0.7, left: '38%' }}
+      className="fixed z-[999] panel-tight px-4 py-2 flex items-center gap-3 animate-fade-in pointer-events-none"
+      style={{ opacity: 0.7, bottom: 170, left: '38%' }}
     >
       <span className="text-[10px] text-white/40">Shortcuts:</span>
       {[

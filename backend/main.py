@@ -445,21 +445,36 @@ def _extract_baseline_metrics(
     return {"r2": r2, "rmse": rmse, "mae": mae, "skill": 0.0}
 
 
-def _mock_grid_cells(n_cells: int = 50) -> list[GridCell]:
-    """Generate plausible mock data matching the Western Ghats pilot region grid."""
-    rng = np.random.default_rng(42)
+def _mock_grid_cells(n_cells: int = 50, seed_date: date | None = None) -> list[GridCell]:
+    """Generate plausible mock data matching the Western Ghats pilot region grid.
+    
+    Uses date as seed so different dates produce visibly different patterns.
+    """
+    # Use date-based seed so different queries show different patterns
+    if seed_date:
+        seed = seed_date.toordinal()
+    else:
+        seed = 42
+    rng = np.random.default_rng(seed)
     cells = []
     lats = np.arange(PILOT.lat_min + 0.125, PILOT.lat_max, 0.25)
     lons = np.arange(PILOT.lon_min + 0.125, PILOT.lon_max, 0.25)
     idx = 0
+    
+    # Seasonal modulation based on month (if date available)
+    month = seed_date.month if seed_date else 7
+    # Monsoon factor: peaks Jun-Sep, low Dec-Feb
+    monsoon_months = {1: 0.1, 2: 0.1, 3: 0.2, 4: 0.3, 5: 0.5, 6: 0.9, 7: 1.0, 8: 0.95, 9: 0.8, 10: 0.4, 11: 0.2, 12: 0.1}
+    monsoon_factor = monsoon_months.get(month, 0.5)
+    
     for lat in lats:
         for lon in lons:
-            # Realistic monsoon-season patterns
+            # Realistic monsoon-season patterns with seasonal variation
             coast_factor = max(0, (74.5 - lon) / 2.5)
-            base_rain = 8.0 + coast_factor * 25.0
-            rainfall = max(0, float(rng.normal(base_rain, base_rain * 0.3)))
-            base_tmax = 35.0 - coast_factor * 4.0 - (lat - 15) * 0.2
-            temp_max = float(rng.normal(base_tmax, 1.5))
+            base_rain = (8.0 + coast_factor * 25.0) * monsoon_factor
+            rainfall = max(0, float(rng.normal(base_rain, base_rain * 0.4 + 1.0)))
+            base_tmax = 35.0 - coast_factor * 4.0 - (lat - 15) * 0.2 - monsoon_factor * 3.0
+            temp_max = float(rng.normal(base_tmax, 1.8))
             temp_min = temp_max - float(rng.uniform(5, 9))
 
             cells.append(GridCell(
@@ -677,7 +692,7 @@ async def predict(
 
     # Fall back to mock if real inference unavailable
     if grid_cells is None:
-        grid_cells = _mock_grid_cells(50)
+        grid_cells = _mock_grid_cells(50, seed_date=target_date)
         data_source = "mock"
 
     _last_prediction_ts = datetime.now(UTC).isoformat()
