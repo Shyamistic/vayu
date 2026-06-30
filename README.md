@@ -11,7 +11,7 @@
 <p align="center">
   <a href="http://vayu-frontend-275688773412.s3-website.ap-south-1.amazonaws.com">🌐 Live Dashboard</a> •
   <a href="http://VayuBa-Servi-BQWXLMKK2Pfg-1942012735.ap-south-1.elb.amazonaws.com/docs">📚 API Docs</a> •
-  <a href="https://www.kaggle.com/code/shyam31415/notebookedf6826466">🔬 Training Notebook</a> •
+  <a href="https://www.kaggle.com/code/shyam31415/mausam-westernghats-1-0">🔬 Training Notebook</a> •
   <a href="https://github.com/Shyamistic/vayu">💻 Source Code</a>
 </p>
 
@@ -119,7 +119,7 @@
 
 | Resource | Link |
 |----------|------|
-| Training Notebook | [notebookedf6826466](https://www.kaggle.com/code/shyam31415/notebookedf6826466) |
+| Training Notebook | [mausam-westernghats-1-0](https://www.kaggle.com/code/shyam31415/mausam-westernghats-1-0) |
 | Western Ghats Dataset | [vayu-western-ghats-processed-v1](https://www.kaggle.com/datasets/shyam31415/vayu-western-ghats-processed-v1) |
 | Ancillary Data (NCEP/CHIRPS/DEM) | [vayu-ancillary-wg-v1](https://www.kaggle.com/datasets/shyam31415/vayu-ancillary-wg-v1) |
 | Full India Bundle | [vayu-full-india-bundle-2010-2025](https://www.kaggle.com/datasets/shyam31415/vayu-full-india-bundle-2010-2025) |
