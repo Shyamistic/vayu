@@ -80,6 +80,7 @@ research/
 
 # ── CDK / Deployment artifacts ────────────────────────────────────────────────
 cdk-outputs.json
+cdk.context.json
 cdk.out/
 
 # ── Notebook/editor/OS noise ──────────────────────────────────────────────────
