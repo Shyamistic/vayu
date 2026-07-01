@@ -23,7 +23,7 @@
   <img src="https://img.shields.io/badge/AWS-ECS+CloudFront-FF9900?style=flat-square&logo=amazonaws"/>
   <img src="https://img.shields.io/badge/R²_Tmax-0.817-brightgreen?style=flat-square"/>
   <img src="https://img.shields.io/badge/R²_Rain-0.200-blue?style=flat-square"/>
-  <img src="https://img.shields.io/badge/Params-2.35M-purple?style=flat-square"/>
+  <img src="https://img.shields.io/badge/Params-2.3M-purple?style=flat-square"/>
 </p>
 
 ---
@@ -55,7 +55,7 @@
 └───────────────────────────────────┬─────────────────────────────────────────┘
                                     ▼
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│              VayuClimateModel (2.35M parameters)                            │
+│              VayuClimateModel (2.3M parameters)                            │
 │  GraphSAGE (3L, h=128) → Transformer (4L, 8-head, d=256) → Pred Heads     │
 │  Physics Loss: MSE + Water Balance + Spatial Smoothness                     │
 │  Uncertainty: Monte Carlo Dropout (10 passes)                               │
@@ -70,7 +70,7 @@
 ┌──────────────────────────────┐  ┌───────────────────────────────────────────┐
 │   FastAPI Backend (ECS)      │  │   CesiumJS 3D Frontend (CloudFront)       │
 │   RDS PostgreSQL + Redis     │  │   NASA GIBS + Timeline + What-If          │
-│   Real-time inference <3s    │  │   30+ interactive components              │
+│   Cached inference 0.4s    │  │   30+ interactive components              │
 └──────────────────────────────┘  └───────────────────────────────────────────┘
 ```
 
@@ -141,7 +141,7 @@
 **Western Ghats — Maharashtra, Karnataka, Kerala, Goa**
 - Latitude: 8°N – 20°N | Longitude: 72°E – 78°E
 - Resolution: 0.25° (~25 km)
-- Graph: **1,225+ nodes** with 8-connectivity edges
+- Graph: **1,311 nodes** with 8-connectivity edges
 - Rationale: Extreme orographic gradient (coast 3000mm → leeward 600mm), monsoon variability, 280M population
 
 ---
@@ -158,7 +158,7 @@
 | What-If Engine | **4 scenario types** + split-screen | Not implemented |
 | Deployment | **Live AWS URL** | Jupyter notebook |
 | Data Fusion | **6 heterogeneous sources** | Single dataset |
-| Parameters | **2.35M** (1/16,000th of GraphCast) | 100M+ |
+| Parameters | **2.3M** (1/16,000th of GraphCast) | 100M+ |
 | Training | **2.5 hours** (free Kaggle T4) | 100s GPU-hours |
 
 ---
@@ -184,7 +184,7 @@ cdk deploy --all --app "python infra/app.py"
 
 ```
 vayu/
-├── ai_engine/           # VayuClimateModel (GraphSAGE + Transformer, 2.35M params)
+├── ai_engine/           # VayuClimateModel (GraphSAGE + Transformer, 2.3M params)
 ├── backend/             # FastAPI production API (predict, scenario, metrics, tiles)
 ├── frontend/            # React + CesiumJS 3D dashboard (30+ components)
 ├── data_ingestion/      # IMD/MOSDAC/NCEP/CHIRPS download + preprocessing pipeline
@@ -217,3 +217,4 @@ MIT License — Built for ISRO's Bharatiya Antariksh Hackathon 2026 (PS-5)
   <strong>Built with 🇮🇳 for India's climate resilience</strong><br/>
   <em>Shyam Sharma (IIT Patna) • Agnibha Paul (JIMS) • Nikhil Agrawal (IIT Patna)</em>
 </p>
+
