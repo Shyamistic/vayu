@@ -4,7 +4,7 @@
 </h1>
 
 <p align="center">
-  <em>India's First AI-Powered Climate Digital Twin</em><br/>
+  <em>A Regional AI-Powered Climate Digital Twin for India</em><br/>
   Graph Neural Network + Temporal Transformer | Physics-Informed | Real-Time 3D Visualization
 </p>
 
