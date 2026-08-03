@@ -3,20 +3,48 @@
 L_total = L_prediction + λ1 * L_conservation + λ2 * L_smoothness
 
 - L_prediction:   Weighted loss per variable.
-                  Rainfall: weighted CRPS (= weighted MAE) + BCE occurrence
+                  Rainfall: weighted MSE (heavy-tail emphasis, z-score scale)
                   Temperature: MSE
-- L_conservation: Water balance penalty (regional mean predicted ≈ observed)
+- L_conservation: Water balance penalty (regional mean predicted ≈ observed).
+                  DEFAULT OFF — see "v3" note below.
 - L_smoothness:   Spatial smoothness on temperature only (NOT rainfall).
+                  DEFAULT OFF — see "v3" note below.
 
-v2 key changes vs v1:
-  - Rainfall weight 0.3 → 1.8 (6× increase, fixes gradient starvation)
-  - Weighted CRPS replaces Tweedie (Tweedie breaks on normalized z-scores)
-  - Smoothness ONLY applied to temperature (orographic rain shadows ARE sharp)
+v3 key changes vs v2 — all four fix a measured R²_rain ≈ 0.000 collapse
+(WG/NE runs 2026-08-03 plateaued at R²_rain 0.001, R²_tmax ≈ persistence):
 
-NOTE on Tweedie: Removed because it requires y≥0 but normalized rainfall
-  has negative z-scores for dry days. Clamping to 0 makes dry=average which
+  1. Rainfall loss: weighted MAE ("CRPS") → weighted **MSE**.
+     Absolute error is minimized by the conditional MEDIAN. Rainfall is
+     zero-inflated and right-skewed, so its conditional median sits at/near
+     the dry value; minimizing MAE therefore drives the rain field to a
+     near-constant dry value. R² is a squared-error score, which rewards the
+     conditional MEAN, so MAE training and R² reporting were pulling in
+     opposite directions. Measured on real WG validation data: a constant
+     prediction scores R² = -0.003, which is exactly where training landed.
+     Ref: L1 → conditional median, L2 → conditional mean (Hastie et al.,
+     Elements of Statistical Learning, eq. 2.11).
+
+  2. heavy_threshold 20.0 → 2.0. Targets are z-scores, not mm/day. With a
+     threshold of 20 the emphasis weight was 1 + 3·(y/20)² ≈ 1.002 for a
+     typical y, i.e. the heavy-rain weighting was inert. Measured rainfall
+     z-range on real WG data: [-0.65, +8.61], std 0.84 → 2.0 marks genuine
+     heavy rain.
+
+  3. BCE occurrence term default OFF. It derived its logits from the
+     regression output as (pred - 0.1)·10, conflating the regression scale
+     with a classification decision, and 0.1 in z-space is not the wet/dry
+     boundary (that boundary is per-cell and mostly negative).
+
+  4. Conservation and smoothness default λ = 0.0. Conservation was
+     |mean(pred) - mean(true)| over the whole batch, which is minimized by
+     predicting the mean — it actively rewarded the collapse in (1).
+     Smoothness penalizes adjacent-node temperature differences, but real
+     temperature gradients over the Ghats/NE terrain are large and physical,
+     so it suppressed the spatial variance that R²_tmax measures.
+
+NOTE on Tweedie: kept but unused. It requires y≥0 but normalized rainfall has
+  negative z-scores for dry days. Clamping to 0 makes dry=average which
   produces wrong gradients. Evidence: val_loss spike 0.55→202 in v2 Session 1.
-  Weighted CRPS (= weighted MAE) works for any distribution including negatives.
 """
 
 from __future__ import annotations
@@ -40,8 +68,16 @@ VARIABLE_WEIGHTS = {
 # Higher gamma was causing gradient explosions under AMP; keeping at 1.0 for stability.
 RAIN_FOCAL_GAMMA = 1.0
 
-# Normalized threshold separating "dry" vs "wet" days (≈1 mm/day after z-score).
+# Normalized threshold separating "dry" vs "wet" days.
+# NOTE: only used by the optional (default-off) occurrence term. In z-score
+# space the true wet/dry boundary is per-cell and typically negative, so this
+# is a coarse approximation — see v3 note (3) in the module docstring.
 RAIN_WET_THRESHOLD = 0.1
+
+# Heavy-rain emphasis threshold, in normalized z-score units (NOT mm/day).
+# Real WG rainfall z-scores span [-0.65, +8.61] with std 0.84, so z ≥ 2
+# corresponds to genuinely heavy rain.
+RAIN_HEAVY_Z_THRESHOLD = 2.0
 
 # Variable order in the target tensor (dim=2)
 VARIABLE_ORDER = ["rainfall", "temp_max", "temp_min"]
@@ -61,14 +97,20 @@ class PhysicsInformedLoss(nn.Module):
 
     def __init__(
         self,
-        lambda_conservation: float = 0.1,
-        lambda_smoothness: float = 0.05,
+        lambda_conservation: float = 0.0,
+        lambda_smoothness: float = 0.0,
         ghats_ridge_mask: torch.Tensor | None = None,
         variable_weights: dict[str, float] | None = None,
+        rain_occurrence_weight: float = 0.0,
+        rain_heavy_alpha: float = 3.0,
+        rain_heavy_threshold: float = RAIN_HEAVY_Z_THRESHOLD,
     ):
         super().__init__()
         self.lambda_conservation = lambda_conservation
         self.lambda_smoothness = lambda_smoothness
+        # Weight of the optional wet/dry occurrence (BCE) term. Default 0.0 —
+        # see v3 note (3) in the module docstring.
+        self.rain_occurrence_weight = float(rain_occurrence_weight)
         # Per-region variable-priority override. Defaults to the global v2
         # rebalanced weights; callers (e.g. trainer.py's --rain-weight /
         # --tmax-weight / --tmin-weight CLI flags) may override per region
@@ -76,8 +118,14 @@ class PhysicsInformedLoss(nn.Module):
         # extremes) per the literature cited in loss_functions.py's module
         # docstring and research/VAYU_STATE_OF_ART_IMPROVEMENTS.md.
         self.variable_weights = dict(variable_weights) if variable_weights else dict(VARIABLE_WEIGHTS)
-        # v2: weighted CRPS for rainfall (stable on normalized data)
-        self._crps    = WeightedCRPSLoss(alpha=3.0, heavy_threshold=20.0)
+        # v3: weighted MSE for rainfall. Squared error targets the conditional
+        # mean, which is what R² rewards; the previous weighted-MAE objective
+        # targeted the conditional median and collapsed to a constant field.
+        self._rain_loss = WeightedMSELoss(
+            alpha=rain_heavy_alpha, heavy_threshold=rain_heavy_threshold
+        )
+        # Retained for backward compatibility / ablation only.
+        self._crps = WeightedCRPSLoss(alpha=rain_heavy_alpha, heavy_threshold=rain_heavy_threshold)
 
         # ghats_ridge_mask: [num_nodes] bool tensor, True = on ridge → exempt from smoothness
         if ghats_ridge_mask is not None:
@@ -130,18 +178,20 @@ class PhysicsInformedLoss(nn.Module):
             if valid.sum() == 0:
                 continue
             if var_name == "rainfall":
-                # ── Rainfall loss: weighted CRPS + BCE occurrence ──────────────
-                # NOTE: No Tweedie — it requires y≥0 but normalized z-scores are
-                # negative for dry days, producing unstable gradients.
-                # Weighted CRPS (= weighted MAE) works for any distribution.
-                crps_loss = self._crps(var_pred[valid], var_true[valid])
+                # ── Rainfall loss: weighted MSE with heavy-tail emphasis ───────
+                # Squared error (not absolute error) so the head estimates the
+                # conditional MEAN — the quantity R² scores. See v3 note (1).
+                mse = self._rain_loss(var_pred[valid], var_true[valid])
 
-                # BCE occurrence (wet/dry classification)
-                occ_logits = (var_pred[valid] - RAIN_WET_THRESHOLD) * 10.0
-                occ_true   = (var_true[valid] > RAIN_WET_THRESHOLD).float()
-                occ_loss   = F.binary_cross_entropy_with_logits(occ_logits, occ_true, reduction="mean")
-
-                mse = 0.7 * crps_loss + 0.3 * occ_loss
+                if self.rain_occurrence_weight > 0.0:
+                    # Optional wet/dry occurrence term (default off).
+                    occ_logits = (var_pred[valid] - RAIN_WET_THRESHOLD) * 10.0
+                    occ_true = (var_true[valid] > RAIN_WET_THRESHOLD).float()
+                    occ_loss = F.binary_cross_entropy_with_logits(
+                        occ_logits, occ_true, reduction="mean"
+                    )
+                    w_occ = self.rain_occurrence_weight
+                    mse = (1.0 - w_occ) * mse + w_occ * occ_loss
             else:
                 mse = F.mse_loss(var_pred[valid], var_true[valid], reduction="mean")
             pred_loss = pred_loss + weight * mse
@@ -238,8 +288,44 @@ class TweedieLoss(nn.Module):
         return deviance[valid].mean() if valid.sum() > 0 else torch.tensor(0.0, device=pred.device)
 
 
+class WeightedMSELoss(nn.Module):
+    """Weighted squared error with heavy-rain emphasis, on z-score targets.
+
+        w(y) = 1 + alpha * clamp(y / heavy_threshold, 0, 1)^2
+        loss = mean( w(y) * (pred - y)^2 )
+
+    Squared error is used deliberately: it is minimized by the conditional
+    mean, which is the quantity R² scores. The previous weighted-MAE objective
+    is minimized by the conditional median, which for zero-inflated rainfall
+    sits at the dry value and collapses predictions to a constant field
+    (measured R² ≈ 0.000 on real Western Ghats / North-East runs).
+
+    ``heavy_threshold`` is in normalized z-score units, not mm/day.
+
+    Reference: L1 → conditional median vs L2 → conditional mean, Hastie,
+    Tibshirani & Friedman, Elements of Statistical Learning, eq. 2.11.
+    """
+
+    def __init__(self, alpha: float = 3.0, heavy_threshold: float = RAIN_HEAVY_Z_THRESHOLD):
+        super().__init__()
+        self.alpha = alpha
+        self.heavy_threshold = heavy_threshold
+
+    def forward(self, pred: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
+        valid = ~torch.isnan(target)
+        if valid.sum() == 0:
+            return torch.tensor(0.0, device=pred.device)
+        p, y = pred[valid], target[valid]
+        weight = 1.0 + self.alpha * torch.clamp(y / self.heavy_threshold, 0, 1).pow(2)
+        return (weight * (p - y) ** 2).mean()
+
+
 class WeightedCRPSLoss(nn.Module):
     """Weighted CRPS (deterministic = weighted MAE) with heavy-rain emphasis.
+
+    RETAINED FOR ABLATION ONLY — not used by PhysicsInformedLoss by default.
+    Minimizing absolute error estimates the conditional median, which collapses
+    zero-inflated rainfall to a near-constant dry field. Use WeightedMSELoss.
 
     w(y) = 1 + alpha * clamp(y/threshold, 0, 1)^2
     Proper scoring rule → encourages calibrated probabilistic forecasts.

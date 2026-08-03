@@ -30,9 +30,28 @@ class SingleVariableHead(nn.Module):
     corrections while the zero-initialization ensures safe start from persistence.
     """
 
-    def __init__(self, d_model: int = 256, forecast_horizon: int = 7, dropout: float = 0.1):
+    def __init__(
+        self,
+        d_model: int = 256,
+        forecast_horizon: int = 7,
+        dropout: float = 0.1,
+        persistence_init: float = 1.0,
+        climatology_init: float = 0.0,
+    ):
         super().__init__()
         hidden = d_model // 2
+        # Learned baseline blend: baseline = w_p * persistence + w_c * climatology.
+        # Measured on real WG 2022 validation data (normalized space):
+        #   variable | persistence | day-of-year climatology | 50/50 blend
+        #   rainfall |      -0.303 |                  +0.215 |      +0.153
+        #   tmax     |      +0.722 |                  +0.739 |      +0.796
+        #   tmin     |      +0.721 |                  +0.776 |      +0.804
+        # Anchoring rainfall to persistence alone starts the head at R² = -0.30
+        # and forces it to learn to cancel its own skip connection; anchoring on
+        # climatology starts it above the 0.20 target instead. Both weights are
+        # learnable so the model can re-balance per region.
+        self.w_persistence = nn.Parameter(torch.tensor(float(persistence_init)))
+        self.w_climatology = nn.Parameter(torch.tensor(float(climatology_init)))
         # Input: d_model (transformer context) + 1 (last observed value) + 1 (trend)
         self.proj = nn.Linear(d_model + 2, hidden)
         self.act1 = nn.GELU()
@@ -50,12 +69,22 @@ class SingleVariableHead(nn.Module):
         nn.init.zeros_(self.out.weight)
         nn.init.zeros_(self.out.bias)
 
-    def forward(self, ctx: torch.Tensor, last_value: torch.Tensor, trend: torch.Tensor | None = None) -> torch.Tensor:
+    def forward(
+        self,
+        ctx: torch.Tensor,
+        last_value: torch.Tensor,
+        trend: torch.Tensor | None = None,
+        clim_future: torch.Tensor | None = None,
+    ) -> torch.Tensor:
         """
         Args:
             ctx: [num_nodes, d_model] — temporal context from transformer
             last_value: [num_nodes, 1] — last observed value of this variable
             trend: [num_nodes, 1] — linear trend over input window (optional)
+            clim_future: [num_nodes, forecast_horizon] — day-of-year climatology
+                for the target days, fitted on TRAINING YEARS ONLY. Known ahead
+                of time (it is a function of calendar date), so using it is not
+                leakage. When None the head falls back to pure persistence.
         Returns:
             [num_nodes, forecast_horizon]
         """
@@ -77,7 +106,15 @@ class SingleVariableHead(nn.Module):
         delta = self.out(h)  # (num_nodes, horizon)
         # Persistence baseline: repeat last value across horizon
         persistence = last_value.expand(-1, delta.shape[-1])  # (num_nodes, horizon)
-        return persistence + delta
+
+        if clim_future is None:
+            baseline = persistence
+        else:
+            baseline = (
+                self.w_persistence * persistence
+                + self.w_climatology * clim_future.to(delta.dtype)
+            )
+        return baseline + delta
 
 
 class PredictionHeads(nn.Module):
@@ -85,23 +122,53 @@ class PredictionHeads(nn.Module):
 
     Each head uses a persistence skip connection — the model learns
     corrections on top of the last observed value, not absolute predictions.
-    Rainfall output is clamped to non-negative (physical constraint).
+
+    v3: the rainfall ReLU clamp is OFF by default (``clamp_rain_nonnegative``).
+    Targets are per-cell z-scores, in which dry days are NEGATIVE (measured on
+    real Western Ghats data: 45.4% of rainfall targets are < 0, range
+    [-0.65, +8.61]). Forcing the output to be non-negative therefore made the
+    dry half of the distribution unrepresentable and pinned predictions at
+    exactly 0 — the normalized mean — which scores R² ≈ 0. An oracle whose
+    output passes through ReLU caps at R² = 0.905 on that same data, so the
+    clamp is a real ceiling, and combined with the old median-seeking loss it
+    produced the observed R²_rain ≈ 0.000.
+
+    Set ``clamp_rain_nonnegative=True`` only when the head emits rainfall in
+    PHYSICAL units (mm/day), where non-negativity is the correct constraint.
     """
 
     VARIABLES = ["rainfall", "temp_max", "temp_min"]
     # Channel indices in the input feature tensor for each target variable
     VARIABLE_CHANNELS = {"rainfall": 0, "temp_max": 1, "temp_min": 2}
 
+    # Initial baseline blend per variable, from measured 2022 WG validation skill
+    # (see SingleVariableHead docstring). Rainfall starts on climatology only
+    # because persistence scores R² = -0.30 for it; temperatures start on the
+    # 50/50 blend that measured +0.796 (tmax) and +0.804 (tmin).
+    BASELINE_INIT = {
+        "rainfall": (0.0, 1.0),
+        "temp_max": (0.5, 0.5),
+        "temp_min": (0.5, 0.5),
+    }
+
     def __init__(
         self,
         d_model: int = 256,
         forecast_horizon: int = 7,
         dropout: float = 0.1,
+        clamp_rain_nonnegative: bool = False,
     ):
         super().__init__()
         self.forecast_horizon = forecast_horizon
+        self.clamp_rain_nonnegative = bool(clamp_rain_nonnegative)
         self.heads = nn.ModuleDict({
-            var: SingleVariableHead(d_model, forecast_horizon, dropout)
+            var: SingleVariableHead(
+                d_model,
+                forecast_horizon,
+                dropout,
+                persistence_init=self.BASELINE_INIT[var][0],
+                climatology_init=self.BASELINE_INIT[var][1],
+            )
             for var in self.VARIABLES
         })
 
@@ -110,6 +177,7 @@ class PredictionHeads(nn.Module):
         temporal_context: torch.Tensor,
         last_input: torch.Tensor | None = None,
         full_input: torch.Tensor | None = None,
+        clim_future: torch.Tensor | None = None,
     ) -> dict[str, torch.Tensor]:
         """Produce multi-step forecasts for all variables.
 
@@ -142,9 +210,16 @@ class PredictionHeads(nn.Module):
                 # Simple trend: (last - first) / seq_len  (normalized slope)
                 trend = (seq[:, -1:] - seq[:, 0:1]) / max(seq.shape[1], 1)
 
-            pred = self.heads[var](temporal_context, last_val, trend)
-            # Physical constraint: rainfall cannot be negative
-            if var == "rainfall":
+            # clim_future: (num_nodes, horizon, 3) → this variable's slice
+            var_clim = None
+            if clim_future is not None:
+                var_clim = clim_future[..., ch] if clim_future.dim() == 3 else clim_future
+
+            pred = self.heads[var](temporal_context, last_val, trend, clim_future=var_clim)
+            # Non-negativity applies to PHYSICAL rainfall only. On normalized
+            # z-score targets dry days are negative, so clamping here destroys
+            # 45% of the distribution — see class docstring.
+            if var == "rainfall" and self.clamp_rain_nonnegative:
                 pred = F.relu(pred)
             results[var] = pred
         return results

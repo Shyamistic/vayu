@@ -140,6 +140,8 @@ def _run_smoke_forward(
         edge_index=graph.edge_index.to(device),
         edge_attr=graph.edge_attr.to(device),
     )
+    if getattr(graph, "clim_future", None) is not None:
+        g.clim_future = graph.clim_future.to(device)
     t = target.to(device)
 
     model.eval()
@@ -203,6 +205,10 @@ def _collate_sequences(
         batched_graph.pos = graphs[0].pos
     if hasattr(graphs[0], "static_features"):
         batched_graph.static_features = graphs[0].static_features
+    # Day-of-year climatology baseline varies per window, so it must be stacked
+    # like x rather than shared like the topology.
+    if getattr(graphs[0], "clim_future", None) is not None:
+        batched_graph.clim_future = torch.stack([g.clim_future for g in graphs], dim=0)
     return batched_graph, t_batch
 
 
@@ -525,6 +531,9 @@ class VayuTrainer:
                     edge_index=graph_batch.edge_index.to(self.device),
                     edge_attr=graph_batch.edge_attr.to(self.device),
                 )
+                _cf = getattr(graph_batch, "clim_future", None)
+                if _cf is not None:
+                    g.clim_future = _cf[b].to(self.device)
                 target = targets[b].to(self.device)  # (horizon, num_nodes, 3)
 
                 with self._autocast_ctx():
@@ -593,6 +602,9 @@ class VayuTrainer:
                 )
                 if hasattr(graph_batch, "pos") and graph_batch.pos is not None:
                     g.pos = graph_batch.pos
+                _cf = getattr(graph_batch, "clim_future", None)
+                if _cf is not None:
+                    g.clim_future = _cf[b].to(self.device)
                 target = targets[b].to(self.device)
                 with self._autocast_ctx():
                     preds = self.model(g)
@@ -715,6 +727,9 @@ class VayuTrainer:
             )
             if hasattr(graph_batch, "pos") and graph_batch.pos is not None:
                 g.pos = graph_batch.pos
+            _cf = getattr(graph_batch, "clim_future", None)
+            if _cf is not None:
+                g.clim_future = _cf[0].to(self.device)
             target = targets[0].to(self.device)
             with self._autocast_ctx():
                 preds = self.model(g)
@@ -881,6 +896,50 @@ def train_cli() -> None:
                  "See research/ARCHITECTURE_VALIDATION.md. Requires nlat/nlon to be "
                  "auto-detected from the normalized dataset's grid shape.",
         ),
+        normalized_file: str | None = typer.Option(
+            None,
+            help="Path to normalized_YYYY-YYYY.nc. With --all-windows this generates "
+                 "sliding windows lazily instead of loading the capped *_sequences.pt, "
+                 "unlocking every window at stride 1 (~4,350 train vs 512) for ~520MB RAM.",
+        ),
+        elevation_file: str | None = typer.Option(
+            None, help="Real grid-aligned DEM NetCDF (required with --all-windows)"
+        ),
+        lsm_file: str | None = typer.Option(
+            None, help="Real grid-aligned land/sea-mask NetCDF (required with --all-windows)"
+        ),
+        all_windows: bool = typer.Option(
+            False,
+            "--all-windows/--prebuilt-sequences",
+            help="Generate sliding windows lazily from --normalized-file. The pre-built "
+                 "bundles are capped at 512 train windows, which measurably underfits "
+                 "(R2_tmax stalled at ~persistence). Requires --normalized-file.",
+        ),
+        train_stride: int = typer.Option(1, help="Window stride for the train split (--all-windows)"),
+        eval_stride: int = typer.Option(1, help="Window stride for val/test splits (--all-windows)"),
+        train_start_year: int = typer.Option(2010, help="First training year (--all-windows)"),
+        train_end_year: int = typer.Option(2021, help="Last training year (--all-windows)"),
+        val_start_year: int = typer.Option(2022, help="First validation year (--all-windows)"),
+        val_end_year: int = typer.Option(2022, help="Last validation year (--all-windows)"),
+        test_start_year: int = typer.Option(2023, help="First test year (--all-windows)"),
+        test_end_year: int = typer.Option(2025, help="Last test year (--all-windows)"),
+        baseline_max_sequences: int = typer.Option(
+            256,
+            help="Subsample cap for the classical baseline suite. Random Forest/XGBoost "
+                 "on every stride-1 window would be millions of rows; the baselines only "
+                 "need a representative sample to stay comparable.",
+        ),
+        rain_occurrence_weight: float = typer.Option(
+            0.0,
+            help="Weight of the optional rainfall wet/dry BCE term (0 = off, default). "
+                 "Its logits are derived from the regression output, which conflates "
+                 "scales; see v3 notes in ai_engine/loss_functions.py.",
+        ),
+        rain_heavy_threshold: float = typer.Option(
+            2.0,
+            help="Heavy-rain emphasis threshold in NORMALIZED z-score units (not mm/day). "
+                 "The v2 default of 20.0 made the emphasis inert on z-scored targets.",
+        ),
     ):
         """Train VayuClimateModel on preprocessed IMD data."""
         import logging
@@ -939,13 +998,42 @@ def train_cli() -> None:
             "batch_size": batch_size,
         }
 
+        if all_windows and not normalized_file:
+            raise typer.BadParameter("--all-windows requires --normalized-file")
+
+        # ── Build the lazy sliding-window splits up front when requested ──────
+        windowed_splits = None
+        if all_windows:
+            from .windowed_dataset import build_windowed_splits
+
+            logger.info(
+                "Lazy window mode: generating splits from %s (train stride=%d)",
+                normalized_file, train_stride,
+            )
+            w_train, w_val, w_test, _dense = build_windowed_splits(
+                normalized_file,
+                elevation_file=elevation_file,
+                lsm_file=lsm_file,
+                train_years=(train_start_year, train_end_year),
+                val_years=(val_start_year, val_end_year),
+                test_years=(test_start_year, test_end_year),
+                train_stride=train_stride,
+                eval_stride=eval_stride,
+            )
+            windowed_splits = (w_train, w_val, w_test)
+
         # Auto-detect feature count from sequences to handle legacy 11-feat datasets
-        train_sequences_pre, _, source_pre = _load_or_build_sequences(data_dir, ModelConfig(**config_kwargs))
-        if train_sequences_pre:
-            actual_features = train_sequences_pre[0][0].x.shape[-1]
+        if windowed_splits is not None:
+            actual_features = windowed_splits[0][0][0].x.shape[-1]
             config_kwargs["gnn_in_features"] = actual_features
-            logger.info("Auto-detected %d input features from sequences", actual_features)
-            del train_sequences_pre  # free memory
+            logger.info("Auto-detected %d input features from windows", actual_features)
+        else:
+            train_sequences_pre, _, source_pre = _load_or_build_sequences(data_dir, ModelConfig(**config_kwargs))
+            if train_sequences_pre:
+                actual_features = train_sequences_pre[0][0].x.shape[-1]
+                config_kwargs["gnn_in_features"] = actual_features
+                logger.info("Auto-detected %d input features from sequences", actual_features)
+                del train_sequences_pre  # free memory
 
         if kaggle_lite:
             # Smallest architecture preset: fits T4 with any sequence count.
@@ -1033,6 +1121,8 @@ def train_cli() -> None:
             lambda_conservation=config.lambda_conservation,
             lambda_smoothness=config.lambda_smoothness,
             variable_weights=variable_weights,
+            rain_occurrence_weight=rain_occurrence_weight,
+            rain_heavy_threshold=rain_heavy_threshold,
         )
         norm_params = _load_norm_params_file(norm_params_file)
         trainer = VayuTrainer(
@@ -1045,7 +1135,12 @@ def train_cli() -> None:
             grad_accum_steps=grad_accum_steps,
         )
 
-        train_sequences, val_sequences, source = _load_or_build_sequences(data_dir, config)
+        if windowed_splits is not None:
+            train_sequences, val_sequences, test_sequences_lazy = windowed_splits
+            source = f"lazy windows (stride train={train_stride} eval={eval_stride})"
+        else:
+            train_sequences, val_sequences, source = _load_or_build_sequences(data_dir, config)
+            test_sequences_lazy = None
         logger.info(
             "Loaded %d train and %d val sequences (%s)",
             len(train_sequences),
@@ -1080,7 +1175,22 @@ def train_cli() -> None:
 
         if run_baselines:
             logger.info("Running classical baseline suite...")
-            baseline_report = run_baseline_suite(train_sequences, val_sequences)
+
+            def _subsample(seqs, cap: int) -> list:
+                """Evenly subsample so RF/XGBoost stay tractable at stride 1."""
+                n = len(seqs)
+                if cap <= 0 or n <= cap:
+                    return [seqs[i] for i in range(n)]
+                idx = np.linspace(0, n - 1, cap).astype(int)
+                return [seqs[int(i)] for i in idx]
+
+            bl_train = _subsample(train_sequences, baseline_max_sequences)
+            bl_val = _subsample(val_sequences, baseline_max_sequences)
+            logger.info(
+                "Baseline suite using %d train / %d val sequences (cap=%d)",
+                len(bl_train), len(bl_val), baseline_max_sequences,
+            )
+            baseline_report = run_baseline_suite(bl_train, bl_val)
             out_path = Path(checkpoint_dir) / baseline_report_file
             out_path.parent.mkdir(parents=True, exist_ok=True)
             out_path.write_text(json.dumps(_json_safe(baseline_report), indent=2), encoding="utf-8")
@@ -1102,9 +1212,18 @@ def train_cli() -> None:
         )
 
         test_path = Path(data_dir) / "test_sequences.pt"
-        if test_path.exists():
+        test_sequences = None
+        if test_sequences_lazy is not None:
+            logger.info(
+                "Evaluating held-out test set: %d lazy windows (%d-%d)",
+                len(test_sequences_lazy), test_start_year, test_end_year,
+            )
+            test_sequences = test_sequences_lazy
+        elif test_path.exists():
             logger.info("Evaluating held-out test set: %s", test_path)
             test_sequences = torch.load(test_path, map_location="cpu", weights_only=False)
+
+        if test_sequences is not None:
             best_checkpoint = Path(checkpoint_dir) / "vayu_best.pt"
             if best_checkpoint.exists():
                 trainer.model = VayuClimateModel.load(str(best_checkpoint), device=trainer.device)
