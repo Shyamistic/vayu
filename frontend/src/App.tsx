@@ -1,21 +1,22 @@
-import { Component, useCallback, useEffect, useRef, useState } from 'react';
+import { Component, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import {
   CloudRain, Thermometer, Activity,
-  BarChart2, Database, Layers,
+  BarChart2, Database, Layers, BookOpen,
   SplitSquareHorizontal, Mountain, Leaf, Wind,
-  Radio, Waves, Download, BarChart, Menu, X, Search,
+  Radio, Waves, Download, BarChart, Menu, X, Search, Eye,
 } from 'lucide-react';
 import { format, addDays } from 'date-fns';
-import CesiumGlobe from './components/CesiumGlobe';
+import CesiumGlobe from './components/AsyncCesiumGlobe';
 import TimeSlider from './components/TimeSlider';
 import WhatIfPanel from './components/WhatIfPanel';
-import MetricsDashboard from './components/MetricsDashboard';
+import MetricsDashboard from './components/AsyncMetricsDashboard';
 import ModelComparisonPanel from './components/ModelComparisonPanel';
 import RegionSelector from './components/RegionSelector';
 import DataProvenancePanel from './components/DataProvenancePanel';
 import ColorLegend from './components/ColorLegend';
 import LayerControlPanel from './components/LayerControlPanel';
+import LanguageToggle from './components/LanguageToggle';
 import type { EarthLayer, TourCameraStep } from './components/CesiumGlobe';
 
 import ExtremeAlerts from './components/ExtremeAlerts';
@@ -33,13 +34,19 @@ import FloodRiskPanel from './components/FloodRiskPanel';
 import NWPComparisonPanel from './components/NWPComparisonPanel';
 import ExportTools from './components/ExportTools';
 import IoTSensorPanel from './components/IoTSensorPanel';
+import SivasagarFloodCaseStudy from './features/case-studies/SivasagarFloodCaseStudy';
 import IndiaClimateStats from './components/IndiaClimateStats';
 import SatelliteDataCard from './components/SatelliteDataCard';
 import ClimateRiskScore from './components/ClimateRiskScore';
 import IMDAlertBanner from './components/IMDAlertBanner';
 import ModelInfoCard from './components/ModelInfoCard';
+import { CinematicIntro } from './design-system/CinematicIntro';
+import OfflineModeBadge from './features/platform/OfflineModeBadge';
+import HistoricalFloodValidation from './features/model/HistoricalFloodValidation';
 import type { ColormapId } from './utils/colorScales';
 import { fetchPrediction, fetchHealth } from './api/client';
+import { getTimelineSwipeDirection } from './features/platform/mobileGestures';
+import { getGlobeViewportInsets } from './features/globe/viewportSafeArea';
 import type {
   AppState, GridCell, HealthResponse, RegionId, ScenarioResponse,
   TimeState, VariableId, ViewMode,
@@ -116,6 +123,7 @@ const VIEW_TABS: { id: ViewMode; label: string; icon: React.ReactNode }[] = [
   { id: 'scenario',   label: 'What-If', icon: <Layers size={14} /> },
   { id: 'metrics',    label: 'Metrics', icon: <BarChart2 size={14} /> },
   { id: 'historical', label: 'History', icon: <Database size={14} /> },
+  { id: 'case-study', label: 'Cases', icon: <BookOpen size={14} /> },
   { id: 'agriculture', label: 'Crops', icon: <Leaf size={14} /> },
   { id: 'environment', label: 'Env',   icon: <Wind size={14} /> },
 ];
@@ -142,10 +150,57 @@ export default function App() {
   const [show3D, setShow3D] = useState(false);
   const [showHeatmap, setShowHeatmap] = useState(true);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  // Focus mode: click empty globe background to hide all chrome; click again
+  // (or press Esc, or Cesium's LEFT_CLICK on empty sky) to restore it.
+  const [focusMode, setFocusMode] = useState(false);
   const [showWind, setShowWind] = useState(false);
   const [regionFlyTrigger, setRegionFlyTrigger] = useState(0);
   const [inspectMode, setInspectMode] = useState(false);
+  const [isDesktopViewport, setIsDesktopViewport] = useState(() =>
+    typeof window !== 'undefined' && window.matchMedia('(min-width: 768px)').matches,
+  );
+  const [chromeHeights, setChromeHeights] = useState({ header: 56, timeline: 160, mobileDrawer: 0 });
+  const headerRef = useRef<HTMLElement>(null);
   const rightPanelRef = useRef<HTMLDivElement>(null);
+  const timelineRef = useRef<HTMLDivElement>(null);
+  const timelineSwipeStartRef = useRef<{ x: number; y: number } | null>(null);
+
+  // Cesium frames camera flights within its canvas. Measure persistent chrome
+  // and shrink that canvas to the unobstructed visual viewport so the globe is
+  // centered between header and timeline rather than behind either control.
+  useLayoutEffect(() => {
+    const media = window.matchMedia('(min-width: 768px)');
+    const measure = () => {
+      const next = {
+        header: Math.ceil(headerRef.current?.getBoundingClientRect().height ?? 56),
+        timeline: Math.ceil(timelineRef.current?.getBoundingClientRect().height ?? 160),
+        mobileDrawer: !media.matches && drawerOpen
+          ? Math.ceil(rightPanelRef.current?.getBoundingClientRect().height ?? 0)
+          : 0,
+      };
+      setChromeHeights((current) =>
+        current.header === next.header && current.timeline === next.timeline && current.mobileDrawer === next.mobileDrawer
+          ? current
+          : next,
+      );
+    };
+    const updateViewportKind = () => {
+      setIsDesktopViewport(media.matches);
+      measure();
+    };
+    const observer = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(measure);
+    if (headerRef.current) observer?.observe(headerRef.current);
+    if (timelineRef.current) observer?.observe(timelineRef.current);
+    if (rightPanelRef.current) observer?.observe(rightPanelRef.current);
+    updateViewportKind();
+    window.addEventListener('resize', measure);
+    media.addEventListener('change', updateViewportKind);
+    return () => {
+      observer?.disconnect();
+      window.removeEventListener('resize', measure);
+      media.removeEventListener('change', updateViewportKind);
+    };
+  }, [drawerOpen]);
 
   const update = useCallback((patch: Partial<AppState> | ((prev: AppState) => Partial<AppState>)) => {
     setState((prev) => ({
@@ -238,6 +293,7 @@ export default function App() {
         case 'Escape':
           setSelectedCell(null);
           setShowTour(false);
+          setFocusMode(false);
           break;
       }
     };
@@ -251,18 +307,60 @@ export default function App() {
     setTourStep({ lat: step.lat, lon: step.lon, altitude: step.altitude, pitch: step.pitch, duration: step.duration });
   }, []);
 
+  const handleTimelineTouchStart = useCallback((event: React.TouchEvent<HTMLDivElement>) => {
+    const touch = event.touches[0];
+    if (event.touches.length === 1 && touch) {
+      timelineSwipeStartRef.current = { x: touch.clientX, y: touch.clientY };
+    }
+  }, []);
+
+  const handleTimelineTouchEnd = useCallback((event: React.TouchEvent<HTMLDivElement>) => {
+    const start = timelineSwipeStartRef.current;
+    const touch = event.changedTouches[0];
+    timelineSwipeStartRef.current = null;
+    if (!start || !touch) return;
+
+    const direction = getTimelineSwipeDirection(start.x, touch.clientX, start.y, touch.clientY);
+    if (direction) {
+      update((current) => ({
+        timeState: { ...current.timeState, selectedDate: addDays(current.timeState.selectedDate, direction) },
+      }));
+    }
+  }, [update]);
+
   // ── Render ────────────────────────────────────────────────────────────────────
 
   const gridCells: GridCell[] = state.activePrediction?.grid_cells ?? [];
   const meanRainfall = gridCells.length > 0
     ? gridCells.reduce((a, c) => a + c.rainfall, 0) / gridCells.length
     : 0;
+  const globeViewport = getGlobeViewportInsets({
+    headerHeight: chromeHeights.header,
+    bottomChromeHeight: chromeHeights.timeline,
+    mobileDrawerHeight: chromeHeights.mobileDrawer,
+    drawerOpen,
+    isDesktop: isDesktopViewport,
+    focusMode,
+  });
+  const globeViewportKey = `${globeViewport.top}:${globeViewport.bottom}:${globeViewport.right}`;
 
   return (
     <div className="w-full h-screen bg-vayu-dark font-sans">
 
-      {/* ── Globe (z-0, behind everything) ── */}
-      <div className="fixed top-0 left-0 right-0 z-0" style={{ bottom: 160 }}>
+      {/* ── Cinematic intro sequence (Req 5.3) ── */}
+      <CinematicIntro />
+
+      {/* ── Globe: canvas is constrained to the visual safe area, never behind persistent chrome. ── */}
+      <div
+        className="fixed z-0 transition-[top,right,bottom] duration-300"
+        style={{
+          top: globeViewport.top,
+          right: globeViewport.right,
+          bottom: globeViewport.bottom,
+          left: 0,
+        }}
+        data-testid="globe-viewport"
+      >
         <GlobeErrorBoundary>
           <CesiumGlobe
             gridCells={showHeatmap && (state.viewMode === 'prediction' || state.viewMode === 'scenario') ? gridCells : []}
@@ -275,11 +373,14 @@ export default function App() {
             terrainExaggeration={terrainExaggeration}
             tourStep={tourStep}
             onCellClick={inspectMode ? (cell, x, y) => setSelectedCell({ cell, x, y }) : undefined}
+            onLongPress={(cell, x, y) => setSelectedCell({ cell, x, y })}
+            onBackgroundClick={() => setFocusMode((f) => !f)}
             colormap={colormap}
             show3D={show3D}
             selectedDate={state.timeState.selectedDate}
             showWind={showWind}
             regionFlyTrigger={regionFlyTrigger}
+            viewportKey={globeViewportKey}
           />
         </GlobeErrorBoundary>
       </div>
@@ -287,23 +388,28 @@ export default function App() {
       {/* ── Extreme event alerts (Feature 21) ── */}
       <ExtremeAlerts gridCells={gridCells} variable={state.selectedVariable} />
 
-      {/* ── Top bar (z-[1000]) ── */}
-      <header className="fixed top-0 left-0 right-0 z-[1000] flex items-center justify-between px-4 py-3 animate-fade-in"
-        style={{ background: 'rgba(6,10,22,0.92)', borderBottom: '1px solid rgba(255,255,255,0.08)', transform: 'translateZ(0)' }}>
+      {/* ── Top header bar (z-[1000], floating overlay — Req 29.2) ── */}
+      <header
+        ref={headerRef}
+        className={`fixed top-0 left-0 right-0 z-[1000] flex items-center justify-between px-3 md:px-4 py-2 md:py-3 animate-fade-in transition-opacity duration-300 ${focusMode ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}
+        style={{ background: 'rgba(6,10,22,0.92)', borderBottom: '1px solid rgba(255,255,255,0.08)', transform: 'translateZ(0)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)' }}>
         <div className="flex items-center gap-3">
           <div className="w-7 h-7 rounded-full bg-gradient-to-br from-vayu-blue to-cyan-300 flex items-center justify-center text-xs font-bold text-white">☁</div>
           <span className="text-white font-bold text-sm tracking-wide">MAUSAM</span>
+          <OfflineModeBadge />
           <span className="text-white/40 text-xs hidden sm:block">Climate Digital Twin</span>
           <span className="text-white/20 text-[10px] hidden md:block">ISRO BAH 2026</span>
         </div>
 
-        <RegionSelector
-          selected={state.selectedRegion}
-          onChange={(r: RegionId) => { update({ selectedRegion: r }); setRegionFlyTrigger(n => n + 1); }}
-        />
+        <div className="hidden md:block">
+          <RegionSelector
+            selected={state.selectedRegion}
+            onChange={(r: RegionId) => { update({ selectedRegion: r }); setRegionFlyTrigger(n => n + 1); }}
+          />
+        </div>
 
         <div className="flex items-center gap-3">
-          <div className="flex items-center gap-3 px-3 py-1.5 rounded-lg" style={{ background: 'rgba(6,10,22,0.8)', border: '1px solid rgba(255,255,255,0.08)' }}>
+          <div className="hidden md:flex items-center gap-3 px-3 py-1.5 rounded-lg" style={{ background: 'rgba(6,10,22,0.8)', border: '1px solid rgba(255,255,255,0.08)' }}>
             {health ? (
               <>
                 <span className="text-xs text-green-400">● {health.device.toUpperCase()}</span>
@@ -324,6 +430,9 @@ export default function App() {
             </div>
           </div>
 
+          {/* Language toggle */}
+          <div className="hidden md:block"><LanguageToggle /></div>
+
           {/* Hamburger button */}
           <button
             onClick={() => setDrawerOpen((d) => !d)}
@@ -340,8 +449,9 @@ export default function App() {
         </div>
       </header>
 
-      {/* ── Variable selector left (z-[1000]) ── */}
-      <div className="fixed left-4 z-[1000] flex flex-col gap-1.5 animate-slide-in-left" style={{ top: 100, bottom: 175, justifyContent: 'flex-start', transform: 'translateZ(0)', overflowY: 'auto' }}>
+      {/* ── Variable selector left toolbar (z-[1000], floating — Req 29.2) ── */}
+      <div className={`fixed left-3 z-[1000] hidden md:flex flex-col gap-1.5 animate-slide-in-left transition-opacity duration-300 ${focusMode ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}
+        style={{ top: 72, bottom: 64, justifyContent: 'flex-start', transform: 'translateZ(0)', overflowY: 'auto' }}>
         {VARIABLE_TABS.map(({ id, label, icon, color }) => {
           const isActive = state.selectedVariable === id && showHeatmap;
           return (
@@ -468,13 +578,78 @@ export default function App() {
         </button>
       </div>
 
-      {/* ── Hamburger Drawer (right, z-[1000]) ── */}
-      {drawerOpen && (
-        <div
-          ref={rightPanelRef}
-          className="fixed right-0 bottom-0 z-[1000] overflow-y-auto scrollbar-none flex flex-col gap-3 p-3 animate-slide-in-right"
-          style={{ top: 64, width: 380, background: 'rgba(6,10,22,0.96)', borderLeft: '1px solid rgba(255,255,255,0.08)', transform: 'translateZ(0)' }}
+      {/* ── Mobile floating controls — intentionally limited to data, inspect, and menu ── */}
+      <div className={`fixed left-3 top-[68px] z-[1000] flex flex-col gap-2 md:hidden transition-opacity duration-300 ${focusMode ? 'opacity-0 pointer-events-none' : 'opacity-100'}`} data-testid="mobile-floating-controls">
+        <button
+          type="button"
+          onClick={() => setDrawerOpen(true)}
+          className="flex h-10 w-10 items-center justify-center rounded-full border text-cyan-200 shadow-lg"
+          style={{ background: 'rgba(6,10,22,0.9)', borderColor: 'rgba(34,211,238,0.45)' }}
+          aria-label="Open climate data sheet"
+          title="Data sheet"
         >
+          <Layers size={18} />
+        </button>
+        <button
+          type="button"
+          onClick={() => setInspectMode((enabled) => !enabled)}
+          className="flex h-10 w-10 items-center justify-center rounded-full border shadow-lg"
+          style={{ background: 'rgba(6,10,22,0.9)', borderColor: inspectMode ? '#a855f7' : 'rgba(255,255,255,0.2)', color: inspectMode ? '#d8b4fe' : 'rgba(255,255,255,0.75)' }}
+          aria-pressed={inspectMode}
+          aria-label="Toggle inspect mode; long press any location to inspect"
+          title="Inspect; long press on the globe"
+        >
+          <Search size={18} />
+        </button>
+        <button
+          type="button"
+          onClick={() => setDrawerOpen((open) => !open)}
+          className="flex h-10 w-10 items-center justify-center rounded-full border text-white/80 shadow-lg"
+          style={{ background: 'rgba(6,10,22,0.9)', borderColor: 'rgba(255,255,255,0.2)' }}
+          aria-expanded={drawerOpen}
+          aria-label="Toggle climate data sheet"
+          title="Menu"
+        >
+          {drawerOpen ? <X size={18} /> : <Menu size={18} />}
+        </button>
+      </div>
+
+      {/* ── Right Drawer (z-[1000], 300ms ease-out slide, no layout shift — Req 29.2, 29.4, 29.5) ── */}
+      {/* Desktop: slides from right. Tablet: narrower. Mobile: bottom sheet */}
+      <div
+        ref={rightPanelRef}
+        className="fixed z-[1000] overflow-y-auto scrollbar-none flex flex-col gap-3 p-3 will-change-transform
+          right-0 bottom-0 md:top-[56px]
+          w-full md:w-[380px]
+          h-[30dvh] max-h-[30dvh] md:h-auto md:max-h-none
+          rounded-t-2xl md:rounded-t-none"
+        style={{
+          background: 'rgba(6,10,22,0.96)',
+          backdropFilter: 'blur(12px)',
+          WebkitBackdropFilter: 'blur(12px)',
+          borderLeft: '1px solid rgba(255,255,255,0.08)',
+          borderTop: '1px solid rgba(255,255,255,0.08)',
+          transform: drawerOpen && !focusMode
+            ? 'translateX(0) translateY(0)'
+            : 'translateX(0) translateY(100%)',
+          transition: 'transform 300ms ease-out, visibility 0ms',
+          visibility: drawerOpen && !focusMode ? 'visible' : 'hidden',
+          transitionDelay: drawerOpen && !focusMode ? '0ms' : '0ms, 300ms',
+        }}
+        aria-hidden={!drawerOpen || focusMode}
+        data-drawer-state={drawerOpen && !focusMode ? 'open' : 'closed'}
+      >
+        {/* Desktop right-side slide override (overrides translateY for md+) */}
+        <style>{`
+          @media (min-width: 768px) {
+            [data-drawer-state="closed"] {
+              transform: translateX(100%) translateY(0) !important;
+            }
+            [data-drawer-state="open"] {
+              transform: translateX(0) translateY(0) !important;
+            }
+          }
+        `}</style>
           {/* View mode navigation */}
           <div className="panel-tight p-2">
             <div className="grid grid-cols-3 gap-1">
@@ -532,7 +707,13 @@ export default function App() {
               <ModelComparisonPanel variable={state.selectedVariable} region={state.selectedRegion} />
             </div>
           )}
-          {state.viewMode === 'historical' && <DataProvenancePanel />}
+          {state.viewMode === 'historical' && (
+            <div className="flex flex-col gap-3">
+              <DataProvenancePanel />
+              <HistoricalFloodValidation />
+            </div>
+          )}
+          {state.viewMode === 'case-study' && <SivasagarFloodCaseStudy />}
           {state.viewMode === 'prediction' && (
             <div className="flex flex-col gap-3">
               <IndiaClimateStats gridCells={gridCells} selectedDate={state.timeState.selectedDate} />
@@ -564,15 +745,28 @@ export default function App() {
             </div>
           )}
         </div>
-      )}
 
-      {/* ── Time slider bottom (z-[1000]) ── */}
+      {/* ── Time slider bottom (z-[1000], responsive — Req 29.4) ──
+          left offset reserves space for the fixed left toolbar (72px wide +
+          12px gap) on desktop so the forecast/legend row never overlaps it;
+          on mobile the toolbar is hidden so no offset is needed. ── */}
       <div
-        className={`fixed bottom-0 z-[1000] flex flex-col gap-1 transition-all duration-300 ${drawerOpen ? 'right-[392px]' : 'right-4'}`}
-        style={{ left: 16, transform: 'translateZ(0)', paddingBottom: 8 }}
+        ref={timelineRef}
+        className={`fixed z-[1000] flex flex-col gap-1 transition-all duration-300 left-4 md:left-[84px] ${drawerOpen && !focusMode ? 'md:right-[392px]' : 'right-4'} ${focusMode ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}
+        style={{
+          transform: 'translateZ(0)',
+          paddingBottom: 8,
+          // On mobile the drawer is a bottom sheet (30dvh) rather than a
+          // right-side panel, so the timeline must lift above it instead of
+          // sitting underneath at bottom-0 — otherwise the two overlap.
+          bottom: !isDesktopViewport && drawerOpen && !focusMode ? '30dvh' : 0,
+        }}
+        onTouchStart={handleTimelineTouchStart}
+        onTouchEnd={handleTimelineTouchEnd}
+        aria-label="Timeline; swipe left or right to change day"
       >
         {state.viewMode === 'prediction' && (
-          <div className="flex items-center gap-2" style={{ marginLeft: 80 }}>
+          <div className="flex items-center gap-2 flex-wrap">
             <ForecastAnimation
               currentDay={state.forecastDay ?? 1}
               onDayChange={(d) => update({ forecastDay: d })}
@@ -582,6 +776,18 @@ export default function App() {
         )}
         <TimeSlider timeState={state.timeState} onChange={(patch) => update((s) => ({ timeState: { ...s.timeState, ...patch } }))} />
       </div>
+
+      {/* ── Focus mode restore affordance — Google-Earth-style "just the globe" ── */}
+      {focusMode && (
+        <button
+          onClick={() => setFocusMode(false)}
+          className="fixed top-3 right-3 z-[1000] flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs text-white/70 hover:text-white transition-all animate-fade-in"
+          style={{ background: 'rgba(6,10,22,0.7)', border: '1px solid rgba(255,255,255,0.12)', backdropFilter: 'blur(8px)' }}
+          title="Show panels (Esc)"
+        >
+          <Eye size={14} /> Show panels
+        </button>
+      )}
 
       {/* ── Cell info card (Feature 25) ── */}
       {selectedCell && (
@@ -608,6 +814,13 @@ export default function App() {
       {/* ── Toasts ── */}
       {state.error && (
         <div className="fixed bottom-32 left-1/2 -translate-x-1/2 z-[1001] panel-tight px-4 py-2 text-sm text-red-300 border border-red-500/30 animate-slide-in-up">⚠ {state.error}</div>
+      )}
+      {/* ── Simulated data indicator (Req 7.4) ── */}
+      {!state.isLoading && !state.error && state.activePrediction?.model_version === 'mock' && (
+        <div className="fixed bottom-32 left-1/2 -translate-x-1/2 z-[1001] panel-tight px-3 py-1.5 text-xs text-amber-300/80 border border-amber-500/20 animate-slide-in-up flex items-center gap-1.5">
+          <span className="w-1.5 h-1.5 rounded-full bg-amber-400/70 animate-pulse" />
+          Simulated data — backend unavailable for this region
+        </div>
       )}
       {state.isLoading && (
         <div className="fixed top-20 left-1/2 -translate-x-1/2 z-[1001] panel-tight px-4 py-2 flex items-center gap-2 text-xs text-white/60">

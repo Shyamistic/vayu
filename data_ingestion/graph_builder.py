@@ -33,6 +33,17 @@ EIGHT_CONNECTIVITY = [
 # Roughly 225° (SW→NE flow) → converted to bearing from E: ~45° → π/4
 MONSOON_WIND_DIR = np.pi / 4.0
 
+BASE_FEATURE_NAMES = [
+    "rainfall", "tmax", "tmin", "insat_lst", "insat_sst",
+    "day_sin", "day_cos", "jjas_flag", "monsoon_progress",
+    "uwnd_850", "vwnd_850", "shum_850", "chirps_rain",
+    "elevation", "land_sea_mask", "lat_norm", "lon_norm",
+]
+MISSINGNESS_SOURCE_NAMES = [
+    "insat_lst", "insat_sst", "uwnd_850", "vwnd_850", "shum_850", "chirps_rain",
+]
+MISSINGNESS_FEATURE_NAMES = [f"{name}_missing" for name in MISSINGNESS_SOURCE_NAMES]
+
 
 def _haversine_km(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
     """Great-circle distance in km between two lat/lon points."""
@@ -70,17 +81,24 @@ class ClimateGraphBuilder:
         lon_min: float = LON_MIN,
         lon_max: float = LON_MAX,
         resolution: float = RESOLUTION,
+        include_missingness_indicators: bool = False,
     ):
         """
         Args:
             elevation_path: Path to 0.25° DEM NetCDF file (var='elevation').
             land_sea_mask_path: Path to 0.25° land-sea mask NetCDF (var='lsm').
+            include_missingness_indicators: Append six binary optional-source
+                missingness channels while preserving the legacy 17-channel prefix.
         """
         self.lat_min = float(lat_min)
         self.lat_max = float(lat_max)
         self.lon_min = float(lon_min)
         self.lon_max = float(lon_max)
         self.resolution = float(resolution)
+        self.include_missingness_indicators = bool(include_missingness_indicators)
+        self.feature_names = list(BASE_FEATURE_NAMES)
+        if self.include_missingness_indicators:
+            self.feature_names.extend(MISSINGNESS_FEATURE_NAMES)
 
         self.lats = np.arange(self.lat_min, self.lat_max + self.resolution / 2, self.resolution)
         self.lons = np.arange(self.lon_min, self.lon_max + self.resolution / 2, self.resolution)
@@ -106,6 +124,7 @@ class ClimateGraphBuilder:
         ds: xr.Dataset,
         elevation_path: str | Path | None = None,
         land_sea_mask_path: str | Path | None = None,
+        include_missingness_indicators: bool = False,
     ) -> "ClimateGraphBuilder":
         """Instantiate a builder aligned to the given dataset's spatial grid."""
         lats = ds.lat.values
@@ -132,6 +151,7 @@ class ClimateGraphBuilder:
             lon_min=lon_min,
             lon_max=lon_max,
             resolution=resolution,
+            include_missingness_indicators=include_missingness_indicators,
         )
 
     # ── Node index helpers ────────────────────────────────────────────────────
@@ -265,9 +285,19 @@ class ClimateGraphBuilder:
         # ── Dynamic node features ──────────────────────────────────────────
         def _get_var(name: str, default: float = 0.0) -> np.ndarray:
             if name in ds.data_vars:
-                arr = ds[name].values
-                return arr[t].reshape(-1).astype(np.float32)
+                arr = ds[name].values[t].reshape(-1).astype(np.float32)
+                return np.nan_to_num(arr, nan=default, posinf=default, neginf=default)
             return np.full(self.num_nodes, default, dtype=np.float32)
+
+        def _missing_indicator(name: str) -> np.ndarray:
+            availability_name = f"{name}_available"
+            if availability_name in ds.data_vars:
+                available = ds[availability_name].values[t].reshape(-1).astype(np.float32)
+                return (available < 0.5).astype(np.float32)
+            if name in ds.data_vars:
+                values = ds[name].values[t].reshape(-1)
+                return (~np.isfinite(values)).astype(np.float32)
+            return np.ones(self.num_nodes, dtype=np.float32)
 
         rainfall = _get_var("rainfall")
         tmax = _get_var("tmax")
@@ -332,14 +362,22 @@ class ClimateGraphBuilder:
         shum_850 = _get_var("shum_850", default=0.0)
         # CHIRPS satellite rainfall — auxiliary predictor, NOT replacing IMD target
         chirps_rain = _get_var("chirps_rain", default=0.0)
-        x = np.stack([
+        # Keep the stable 17-channel prefix for checkpoint compatibility.
+        feature_arrays = [
             rainfall, tmax, tmin, lst, sst,
             day_sin, day_cos,
             jjas, monsoon_progress,
             uwnd_850, vwnd_850, shum_850,
             chirps_rain,
             elev_norm, lsm, lat_norm, lon_norm,
-        ], axis=1)  # (num_nodes, 16)
+        ]
+        if self.include_missingness_indicators:
+            feature_arrays.extend(_missing_indicator(name) for name in MISSINGNESS_SOURCE_NAMES)
+        x = np.stack(feature_arrays, axis=1)
+        if x.shape[1] != len(self.feature_names):
+            raise RuntimeError(
+                f"Feature schema mismatch: tensor has {x.shape[1]}, schema has {len(self.feature_names)}"
+            )
 
         # ── Static features tensor (for graph-level ops) ──────────────────
         static = np.stack([elev, lsm, lat_grid, lon_grid], axis=1)  # (N, 4)
@@ -448,14 +486,13 @@ class ClimateGraphBuilder:
         return self._edge_attr
 
     def get_ghats_ridge_mask(self) -> torch.Tensor:
-        """Boolean mask of nodes on the Western Ghats ridge (lon ≈ 73-74.5°E).
-
-        Used to exempt orographic barriers from spatial smoothness loss.
-        """
-        mask = np.zeros(self.num_nodes, dtype=bool)
-        for lat_i in range(self.nlat):
-            for lon_j in range(self.nlon):
-                lon = self.lons[lon_j]
-                if 73.0 <= lon <= 74.5:
-                    mask[self._node_idx(lat_i, lon_j)] = True
+        """Mask only the Western Ghats ridge land band, never a national lon stripe."""
+        lat_grid = np.repeat(self.lats, self.nlon)
+        lon_grid = np.tile(self.lons, self.nlat)
+        land = self.land_sea_mask.reshape(-1) >= 0.5
+        mask = (
+            (lat_grid >= 7.5) & (lat_grid <= 21.5)
+            & (lon_grid >= 73.0) & (lon_grid <= 74.5)
+            & land
+        )
         return torch.tensor(mask, dtype=torch.bool)

@@ -26,6 +26,7 @@ from torch.utils.data import DataLoader, Dataset
 from torch_geometric.data import Data as GraphData
 
 from .climate_model import VayuClimateModel
+from .grid_climate_model import VayuGridClimateModel
 from .config import DataSplit, ModelConfig
 from .loss_functions import PhysicsInformedLoss
 from .baselines import run_baseline_suite
@@ -590,6 +591,8 @@ class VayuTrainer:
                     edge_index=graph_batch.edge_index.to(self.device),
                     edge_attr=graph_batch.edge_attr.to(self.device),
                 )
+                if hasattr(graph_batch, "pos") and graph_batch.pos is not None:
+                    g.pos = graph_batch.pos
                 target = targets[b].to(self.device)
                 with self._autocast_ctx():
                     preds = self.model(g)
@@ -700,16 +703,28 @@ class VayuTrainer:
         all_persistence_denorm: dict[str, list] = {"rainfall": [], "temp_max": [], "temp_min": []}
         all_climatology_denorm: dict[str, list] = {"rainfall": [], "temp_max": [], "temp_min": []}
 
+        reg_names = [r for r in available_regions() if r != "pilot"]
+        reg_preds = {r: {"rainfall": [], "temp_max": [], "temp_min": []} for r in reg_names}
+        reg_targets = {r: {"rainfall": [], "temp_max": [], "temp_min": []} for r in reg_names}
+
         for graph_batch, targets in test_loader:
             g = GraphData(
                 x=graph_batch.x[0].to(self.device),
                 edge_index=graph_batch.edge_index.to(self.device),
                 edge_attr=graph_batch.edge_attr.to(self.device),
             )
+            if hasattr(graph_batch, "pos") and graph_batch.pos is not None:
+                g.pos = graph_batch.pos
             target = targets[0].to(self.device)
             with self._autocast_ctx():
                 preds = self.model(g)
             baselines = _baseline_from_input(g, horizon=target.shape[0])
+            pos = getattr(g, "pos", None)
+            node_latlon = pos.detach().cpu().numpy() if pos is not None else None
+            region_masks: dict[str, np.ndarray] = {}
+            if node_latlon is not None:
+                for reg in reg_names:
+                    region_masks[reg] = region_mask(node_latlon, reg)
             for v_idx, var in enumerate(["rainfall", "temp_max", "temp_min"]):
                 p_2d = preds[var].cpu().numpy()
                 t_2d = target[..., v_idx].cpu().numpy().transpose(1, 0)
@@ -717,6 +732,11 @@ class VayuTrainer:
                 all_targets[var].append(t_2d.ravel())
                 all_persistence[var].append(baselines[f"persistence_{var}"].ravel())
                 all_climatology[var].append(baselines[f"climatology_{var}"].ravel())
+
+                for reg, mask in region_masks.items():
+                    if mask.any():
+                        reg_preds[reg][var].append(p_2d[mask, :].ravel())
+                        reg_targets[reg][var].append(t_2d[mask, :].ravel())
 
                 if self.norm_params and var in self.norm_params:
                     mean_grid = self.norm_params[var]["mean"]
@@ -743,6 +763,13 @@ class VayuTrainer:
                 "skill_vs_persistence": _skill_score(p, t, p_persist),
                 "skill_vs_climatology": _skill_score(p, t, p_clim),
             }
+            for reg in reg_names:
+                if reg_preds[reg][var]:
+                    rp = np.concatenate(reg_preds[reg][var])
+                    rt = np.concatenate(reg_targets[reg][var])
+                    results[var][f"r2_{reg}"] = _r2_score(rp, rt)
+                    results[var][f"rmse_{reg}"] = float(np.sqrt(np.nanmean((rp - rt) ** 2)))
+                    results[var][f"mae_{reg}"] = float(np.nanmean(np.abs(rp - rt)))
 
             if all_preds_denorm[var]:
                 pdn = np.concatenate(all_preds_denorm[var])
@@ -831,6 +858,28 @@ def train_cli() -> None:
             1,
             help="Accumulate gradients over N batches before stepping the optimiser "
                  "(effective batch = batch_size × N, no extra VRAM cost).",
+        ),
+        rain_weight: float | None = typer.Option(
+            None,
+            help="Override rainfall loss weight (default 1.8). Raise for flood/monsoon "
+                 "priority regions (Western Ghats, North-East India, Central India); "
+                 "literature: arXiv:2509.23267, arXiv:2605.30122, arXiv:2402.01295.",
+        ),
+        tmax_weight: float | None = typer.Option(
+            None,
+            help="Override temp_max loss weight (default 1.6). Raise for heat-extreme "
+                 "priority regions (Indo-Gangetic Plain); literature: arXiv:2205.10972.",
+        ),
+        tmin_weight: float | None = typer.Option(
+            None,
+            help="Override temp_min loss weight (default 1.2).",
+        ),
+        grid_unet: bool = typer.Option(
+            False,
+            help="Use VayuGridClimateModel (compact U-Net spatial encoder over the "
+                 "regular lat/lon grid) instead of the default GraphSAGE encoder. "
+                 "See research/ARCHITECTURE_VALIDATION.md. Requires nlat/nlon to be "
+                 "auto-detected from the normalized dataset's grid shape.",
         ),
     ):
         """Train VayuClimateModel on preprocessed IMD data."""
@@ -953,10 +1002,37 @@ def train_cli() -> None:
             config_kwargs["gnn_dropout"] = gnn_dropout
 
         config = ModelConfig(**config_kwargs)
-        model = VayuClimateModel(config)
+
+        if grid_unet:
+            manifest_path = Path(data_dir) / "sequence_manifest.json"
+            if not manifest_path.exists():
+                raise FileNotFoundError(
+                    f"--grid-unet requires {manifest_path} to auto-detect nlat/nlon "
+                    "(written by data_ingestion.cli build-sequences)."
+                )
+            grid_info = json.loads(manifest_path.read_text(encoding="utf-8"))["grid"]
+            nlat, nlon = grid_info["lat"], grid_info["lon"]
+            logger.info("Grid-UNet mode: auto-detected grid %dx%d from %s", nlat, nlon, manifest_path)
+            model = VayuGridClimateModel(config, nlat=nlat, nlon=nlon)
+        else:
+            model = VayuClimateModel(config)
+
+        variable_weights = None
+        if rain_weight is not None or tmax_weight is not None or tmin_weight is not None:
+            from .loss_functions import VARIABLE_WEIGHTS as _DEFAULT_WEIGHTS
+            variable_weights = dict(_DEFAULT_WEIGHTS)
+            if rain_weight is not None:
+                variable_weights["rainfall"] = rain_weight
+            if tmax_weight is not None:
+                variable_weights["temp_max"] = tmax_weight
+            if tmin_weight is not None:
+                variable_weights["temp_min"] = tmin_weight
+            logger.info("Per-region variable weight override: %s", variable_weights)
+
         loss_fn = PhysicsInformedLoss(
             lambda_conservation=config.lambda_conservation,
             lambda_smoothness=config.lambda_smoothness,
+            variable_weights=variable_weights,
         )
         norm_params = _load_norm_params_file(norm_params_file)
         trainer = VayuTrainer(
@@ -976,6 +1052,31 @@ def train_cli() -> None:
             len(val_sequences),
             source,
         )
+
+        # Derive the Western Ghats ridge mask from real node lat/lon so it is
+        # geographically WG-only and automatically empty for other regions.
+        if train_sequences:
+            probe_graph = train_sequences[0][0]
+            probe_pos = getattr(probe_graph, "pos", None)
+            if probe_pos is not None:
+                from ai_engine.regions import region_mask as _region_mask
+                node_latlon = probe_pos.detach().cpu().numpy()
+                wg_mask_np = _region_mask(node_latlon, "western_ghats") & (
+                    (node_latlon[:, 1] >= 73.0) & (node_latlon[:, 1] <= 74.5)
+                )
+                if wg_mask_np.any():
+                    mask_tensor = torch.tensor(wg_mask_np, dtype=torch.bool, device=trainer.device)
+                    if "ghats_ridge_mask" in dict(loss_fn.named_buffers()):
+                        loss_fn.ghats_ridge_mask = mask_tensor
+                    else:
+                        # Plain-attribute None set in __init__ must be cleared before
+                        # register_buffer, which rejects names already bound as attributes.
+                        del loss_fn.ghats_ridge_mask
+                        loss_fn.register_buffer("ghats_ridge_mask", mask_tensor)
+                    logger.info(
+                        "Ghats ridge smoothness exemption active: %d/%d nodes (WG-only)",
+                        int(wg_mask_np.sum()), len(wg_mask_np),
+                    )
 
         if run_baselines:
             logger.info("Running classical baseline suite...")
@@ -999,6 +1100,23 @@ def train_cli() -> None:
             require_benchmark_comparison=require_benchmarks,
             use_cosine_lr=cosine_lr,
         )
+
+        test_path = Path(data_dir) / "test_sequences.pt"
+        if test_path.exists():
+            logger.info("Evaluating held-out test set: %s", test_path)
+            test_sequences = torch.load(test_path, map_location="cpu", weights_only=False)
+            best_checkpoint = Path(checkpoint_dir) / "vayu_best.pt"
+            if best_checkpoint.exists():
+                trainer.model = VayuClimateModel.load(str(best_checkpoint), device=trainer.device)
+                trainer.model = trainer.model.to(trainer.device)
+            test_results = trainer.evaluate_test_set(test_sequences)
+            test_report_path = Path(checkpoint_dir) / "test_report.json"
+            test_report_path.write_text(json.dumps(_json_safe(test_results), indent=2), encoding="utf-8")
+            logger.info("Saved held-out test report: %s", test_report_path)
+        else:
+            logger.warning(
+                "No test_sequences.pt found in %s; skipping held-out test evaluation.", data_dir
+            )
 
     app()
 

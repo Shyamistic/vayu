@@ -87,19 +87,47 @@ class VayuFrontendStack(Stack):
     def __init__(self, scope: Construct, id: str, frontend_bucket: s3.Bucket, **kwargs):
         super().__init__(scope, id, **kwargs)
 
-        # CloudFront CDN — use S3StaticWebsiteOrigin (non-deprecated)
+        # Fingerprinted Vite output may be kept at the edge and in browsers for a year.
+        # CloudFront compress=True enables negotiated Brotli or gzip at edge locations.
+        asset_cache_policy = cloudfront.CachePolicy(
+            self, "HashedAssetCachePolicy",
+            min_ttl=Duration.seconds(0),
+            default_ttl=Duration.seconds(31_536_000),
+            max_ttl=Duration.seconds(31_536_000),
+            cookie_behavior=cloudfront.CacheCookieBehavior.none(),
+            header_behavior=cloudfront.CacheHeaderBehavior.none(),
+            query_string_behavior=cloudfront.CacheQueryStringBehavior.none(),
+            enable_accept_encoding_brotli=True,
+            enable_accept_encoding_gzip=True,
+        )
+        frontend_origin = origins.HttpOrigin(
+            frontend_bucket.bucket_website_domain_name,
+            protocol_policy=cloudfront.OriginProtocolPolicy.HTTP_ONLY,
+        )
         self.distribution = cloudfront.Distribution(
             self, "VayuCdn",
             comment="VAYU Climate Digital Twin",
+            # HTML, including index.html and SPA error fallbacks, must be revalidated.
             default_behavior=cloudfront.BehaviorOptions(
-                origin=origins.HttpOrigin(
-                    frontend_bucket.bucket_website_domain_name,
-                    protocol_policy=cloudfront.OriginProtocolPolicy.HTTP_ONLY,
-                ),
+                origin=frontend_origin,
                 viewer_protocol_policy=cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
-                cache_policy=cloudfront.CachePolicy.CACHING_OPTIMIZED,
+                cache_policy=cloudfront.CachePolicy.CACHING_DISABLED,
                 compress=True,
             ),
+            additional_behaviors={
+                "assets/*": cloudfront.BehaviorOptions(
+                    origin=frontend_origin,
+                    viewer_protocol_policy=cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
+                    cache_policy=asset_cache_policy,
+                    compress=True,
+                ),
+                "cesium/*": cloudfront.BehaviorOptions(
+                    origin=frontend_origin,
+                    viewer_protocol_policy=cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
+                    cache_policy=asset_cache_policy,
+                    compress=True,
+                ),
+            },
             error_responses=[
                 cloudfront.ErrorResponse(
                     http_status=403,

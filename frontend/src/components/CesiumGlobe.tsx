@@ -2,7 +2,18 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import * as Cesium from 'cesium';
 import { WindLayer } from 'cesium-wind-layer';
 import type { WindData } from 'cesium-wind-layer';
-import type { GridCell, RegionId, ScenarioResponse, VariableId } from '../types';
+import type { GridCell, IoTStation, RegionId, ScenarioResponse, VariableId } from '../types';
+import { calculateStationPredictionError, formatSignedError } from '../features/sensors/sensorNetwork';
+import { getCenterFacingView } from '../features/globe/cameraCentering';
+import {
+  createPostZoomCenteringController,
+  type ManualInteractionKind,
+  type PostZoomCenteringController,
+} from '../features/globe/postZoomCentering';
+import {
+  createResizeCompletionController,
+  type ResizeCompletionController,
+} from '../features/globe/resizeCompletion';
 import { REGIONS } from './RegionSelector';
 import { mapColor, COLOR_SCALES } from '../utils/colorScales';
 import type { ColormapId } from '../utils/colorScales';
@@ -10,7 +21,11 @@ import type { ColormapId } from '../utils/colorScales';
 // ── Constants ──────────────────────────────────────────────────────────────────
 
 const INDIA_CENTER  = { lat: 20.5, lon: 78.9, alt: 3_500_000 }; // Pan-India view
-const PILOT_CENTER  = { lat: 14.0, lon: 75.0, alt: 1_100_000 }; // Western Ghats
+// A camera-only overview; it deliberately does not imply that a national model
+// result is available. Data coverage remains governed by the selected region.
+const INDIA_OVERVIEW_BOUNDS = { latMin: 6.0, latMax: 38.0, lonMin: 66.0, lonMax: 100.0 };
+// Near-top-down rectangle framing keeps the full target inside the clear canvas.
+const REGION_PITCH_DEGREES = -89;
 
 // NASA GIBS WMTS — completely free, no API key required
 // Docs: https://wiki.earthdata.nasa.gov/display/GIBS
@@ -117,6 +132,11 @@ interface CesiumGlobeProps {
   activeLayer?: EarthLayer;
   gibsDate?: string;   // 'YYYY-MM-DD' for NASA GIBS time-aware layers
   onCellClick?: (cell: GridCell, screenX: number, screenY: number) => void;
+  /** Invoked by a touch long-press even when desktop inspect mode is off. */
+  onLongPress?: (cell: GridCell, screenX: number, screenY: number) => void;
+  /** Invoked on a plain left-click that lands off the globe (empty starfield),
+   *  used to drive the app's focus-mode UI toggle. */
+  onBackgroundClick?: () => void;
   terrainExaggeration?: number; // 1–5
   tourStep?: TourCameraStep | null;
   colormap?: ColormapId;   // scientific colormap selection
@@ -124,6 +144,8 @@ interface CesiumGlobeProps {
   selectedDate?: Date;      // for day/night terminator
   showWind?: boolean;       // toggle wind particle layer
   regionFlyTrigger?: number; // increment to force fly-to even same region
+  /** Changes whenever persistent UI changes the usable globe viewport. */
+  viewportKey?: string;
 }
 
 export default function CesiumGlobe({
@@ -135,6 +157,8 @@ export default function CesiumGlobe({
   activeLayer = 'satellite',
   gibsDate,
   onCellClick,
+  onLongPress,
+  onBackgroundClick,
   terrainExaggeration = 1,
   tourStep = null,
   colormap,
@@ -142,6 +166,7 @@ export default function CesiumGlobe({
   selectedDate,
   showWind = true,
   regionFlyTrigger,
+  viewportKey,
 }: CesiumGlobeProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const viewerRef    = useRef<Cesium.Viewer | null>(null);
@@ -155,13 +180,196 @@ export default function CesiumGlobe({
   // Refs for stable closure access in event handlers
   const gridCellsRef = useRef<GridCell[]>(gridCells);
   const onCellClickRef = useRef(onCellClick);
+  const onLongPressRef = useRef(onLongPress);
+  const onBackgroundClickRef = useRef(onBackgroundClick);
   const [isReady, setIsReady] = useState(false);
   const [statusMsg, setStatusMsg] = useState('Loading ISRO Earth View…');
   const [coords, setCoords] = useState<{ lat: number; lon: number } | null>(null);
+  // Programmatic flights suppress post-zoom normalization until completion.
+  const isCameraAnimatingRef = useRef(false);
+  const zoomCenteringRef = useRef<PostZoomCenteringController | null>(null);
+  const resizeCompletionRef = useRef<ResizeCompletionController | null>(null);
+  const hasFlownInitialRegionRef = useRef(false);
+
+  const setProgrammaticFlight = useCallback((active: boolean) => {
+    isCameraAnimatingRef.current = active;
+    zoomCenteringRef.current?.setProgrammaticFlight(active);
+  }, []);
+
+  /** Coordinated camera fly to a fixed point — cancels any in-flight animation
+   *  first and marks the camera as "animating" so the auto-center pitch
+   *  correction backs off. Used for the intro sequence and guided-tour steps,
+   *  where we want an exact camera position rather than "frame this area". */
+  const flyCameraTo = useCallback((
+    viewer: Cesium.Viewer,
+    options: {
+      destination: Cesium.Cartesian3;
+      orientation: { heading: number; pitch: number; roll: number };
+      duration: number;
+    },
+  ) => {
+    if (viewer.isDestroyed()) return;
+    try { viewer.camera.cancelFlight(); } catch { /* no flight in progress */ }
+    setProgrammaticFlight(true);
+    viewer.camera.flyTo({
+      ...options,
+      easingFunction: Cesium.EasingFunction.CUBIC_IN_OUT,
+      complete: () => { setProgrammaticFlight(false); },
+      cancel: () => { setProgrammaticFlight(false); },
+    });
+  }, [setProgrammaticFlight]);
+
+  /** Coordinated camera fly that *frames a geographic rectangle* at a fixed
+   *  pitch, regardless of the rectangle's aspect ratio.
+   *
+   *  IMPORTANT: `camera.flyTo({ destination: Rectangle, orientation })` is NOT
+   *  the right tool for this — Cesium first computes the camera distance
+   *  needed to frame the rectangle in a top-down view, and only afterward
+   *  rotates to the requested pitch. That rotation un-frames the rectangle,
+   *  which is why every region (including "All India") was landing at the
+   *  wrong position/zoom. `flyToBoundingSphere` with a `HeadingPitchRange`
+   *  offset computes the camera distance *after* accounting for the pitch,
+   *  so the rectangle is actually still in view when the flight completes. */
+  const flyCameraToBounds = useCallback((
+    viewer: Cesium.Viewer,
+    bounds: { latMin: number; latMax: number; lonMin: number; lonMax: number },
+    options: { pitchDegrees: number; duration: number },
+  ) => {
+    if (viewer.isDestroyed()) return;
+    const rectangle = Cesium.Rectangle.fromDegrees(bounds.lonMin, bounds.latMin, bounds.lonMax, bounds.latMax);
+    const boundingSphere = Cesium.BoundingSphere.fromRectangle3D(rectangle, viewer.scene.globe.ellipsoid);
+    try { viewer.camera.cancelFlight(); } catch { /* no flight in progress */ }
+    setProgrammaticFlight(true);
+    viewer.camera.flyToBoundingSphere(boundingSphere, {
+      // A zero range asks Cesium to compute the distance required to contain
+      // the sphere in the current frustum; no hand-tuned region altitude.
+      offset: new Cesium.HeadingPitchRange(0, Cesium.Math.toRadians(options.pitchDegrees), 0),
+      duration: options.duration,
+      easingFunction: Cesium.EasingFunction.CUBIC_IN_OUT,
+      complete: () => { setProgrammaticFlight(false); },
+      cancel: () => { setProgrammaticFlight(false); },
+    });
+  }, [setProgrammaticFlight]);
+
+  // ── IoT sensor pins and hover telemetry (Requirement 27) ──────────────────
+  useEffect(() => {
+    if (!isReady || !viewerRef.current) return;
+    const viewer = viewerRef.current;
+    const source = new Cesium.CustomDataSource('vayu-iot-sensors');
+    viewer.dataSources.add(source);
+    const hoverHandler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
+    const controller = new AbortController();
+    const apiBase = import.meta.env.VITE_API_URL || '';
+    let hoverTooltip: Cesium.Entity | undefined;
+    let disposed = false;
+
+    const statusColor = (status: IoTStation['status']) => {
+      if (status === 'online') return Cesium.Color.fromCssColorString('#4ade80');
+      if (status === 'low_battery') return Cesium.Color.fromCssColorString('#fbbf24');
+      return Cesium.Color.fromCssColorString('#94a3b8');
+    };
+    const formatValue = (value: number | null | undefined, unit: string, digits = 1) =>
+      value == null ? '—' : `${value.toFixed(digits)} ${unit}`;
+    const tooltipText = (station: IoTStation) => {
+      const sensors = station.sensors;
+      const error = calculateStationPredictionError(station, gridCellsRef.current);
+      const lines = [
+        station.name,
+        `Soil moisture: ${formatValue(sensors?.soil_moisture_pct, '%')}`,
+        `Temperature: ${formatValue(sensors?.temperature_c, '°C')}`,
+        `Humidity: ${formatValue(sensors?.humidity_pct, '%')}`,
+        `Rainfall gauge: ${sensors?.rain_detected == null ? '—' : sensors.rain_detected ? 'Detected' : 'None'}`,
+        `Water level: ${formatValue(sensors?.water_level_cm, 'cm')}`,
+      ];
+      if (error.temperatureC != null) {
+        lines.push(`Temperature error (AI − sensor): ${formatSignedError(error.temperatureC)} °C`);
+      }
+      if (error.rainfallProxy != null) {
+        lines.push(`Rainfall proxy error (AI − sensor): ${formatSignedError(error.rainfallProxy, 0)}`);
+      }
+      return lines.join('\n');
+    };
+
+    const loadStations = async () => {
+      try {
+        const response = await fetch(`${apiBase}/api/stations`, { signal: controller.signal });
+        if (!response.ok) throw new Error(`Station request failed: ${response.status}`);
+        const stations = await response.json() as IoTStation[];
+        if (disposed || !Array.isArray(stations)) return;
+
+        source.entities.removeAll();
+        hoverTooltip = source.entities.add({
+          show: false,
+          label: {
+            font: '12px Inter, sans-serif',
+            fillColor: Cesium.Color.WHITE,
+            outlineColor: Cesium.Color.BLACK,
+            outlineWidth: 2,
+            style: Cesium.LabelStyle.FILL_AND_OUTLINE,
+            showBackground: true,
+            backgroundColor: Cesium.Color.fromCssColorString('#08111ee8'),
+            horizontalOrigin: Cesium.HorizontalOrigin.LEFT,
+            verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
+            pixelOffset: new Cesium.Cartesian2(14, -12),
+            disableDepthTestDistance: Number.POSITIVE_INFINITY,
+          },
+        });
+
+        const pinBuilder = new Cesium.PinBuilder();
+        stations.forEach((station) => {
+          const color = statusColor(station.status);
+          const isOffline = station.status === 'offline';
+          source.entities.add({
+            position: Cesium.Cartesian3.fromDegrees(station.lon, station.lat, station.alt ?? 0),
+            billboard: {
+              image: pinBuilder.fromColor(color, 42),
+              verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
+              heightReference: Cesium.HeightReference.CLAMP_TO_GROUND,
+              scale: isOffline ? 0.72 : new Cesium.CallbackProperty(
+                () => 0.9 + Math.sin(Date.now() / 280) * 0.12,
+                false,
+              ),
+              disableDepthTestDistance: Number.POSITIVE_INFINITY,
+            },
+            properties: { station },
+          });
+        });
+      } catch (error) {
+        if (!controller.signal.aborted) console.warn('[VAYU] IoT station overlay unavailable:', error);
+      }
+    };
+
+    hoverHandler.setInputAction((movement: Cesium.ScreenSpaceEventHandler.MotionEvent) => {
+      const picked = viewer.scene.pick(movement.endPosition);
+      const station = (picked?.id as Cesium.Entity | undefined)?.properties?.station
+        ?.getValue(Cesium.JulianDate.now()) as IoTStation | undefined;
+      if (!station || !hoverTooltip) {
+        if (hoverTooltip) hoverTooltip.show = false;
+        return;
+      }
+      hoverTooltip.position = new Cesium.ConstantPositionProperty(
+        Cesium.Cartesian3.fromDegrees(station.lon, station.lat, station.alt ?? 0),
+      );
+      if (hoverTooltip.label) hoverTooltip.label.text = new Cesium.ConstantProperty(tooltipText(station));
+      hoverTooltip.show = true;
+    }, Cesium.ScreenSpaceEventType.MOUSE_MOVE);
+
+    void loadStations();
+    const refreshTimer = window.setInterval(() => void loadStations(), 30_000);
+    return () => {
+      disposed = true;
+      controller.abort();
+      window.clearInterval(refreshTimer);
+      hoverHandler.destroy();
+      if (!viewer.isDestroyed()) viewer.dataSources.remove(source, true);
+    };
+  }, [isReady]);
 
   // Keep refs in sync with props
   useEffect(() => { gridCellsRef.current = gridCells; }, [gridCells]);
   useEffect(() => { onCellClickRef.current = onCellClick; }, [onCellClick]);
+  useEffect(() => { onLongPressRef.current = onLongPress; }, [onLongPress]);
+  useEffect(() => { onBackgroundClickRef.current = onBackgroundClick; }, [onBackgroundClick]);
 
   // ── Initialize CesiumJS viewer ──────────────────────────────────────────────
   useEffect(() => {
@@ -230,48 +438,82 @@ export default function CesiumGlobe({
     viewer.scene.screenSpaceCameraController.minimumZoomDistance = 500;
     viewer.scene.screenSpaceCameraController.maximumZoomDistance = 50_000_000;
 
-    // ── Auto-center globe when zoomed out ──
-    // When far from Earth, gently pitch the camera toward looking at Earth's center.
-    // IMPORTANT: Never set pitch to exactly -90° (causes Cesium DeveloperError).
-    viewer.scene.preRender.addEventListener(() => {
-      try {
-        const cameraHeight = viewer.camera.positionCartographic.height;
-        if (cameraHeight > 4_000_000) {
-          const currentPitch = viewer.camera.pitch;
-          // Target: -85° (safe distance from -90° degenerate state)
-          const targetPitch = Cesium.Math.toRadians(-85);
-          const t = Math.min(1, (cameraHeight - 4_000_000) / 10_000_000);
-          const lerpFactor = t * 0.02;
-          const newPitch = Cesium.Math.clamp(
-            currentPitch + (targetPitch - currentPitch) * lerpFactor,
-            Cesium.Math.toRadians(-88),
-            Cesium.Math.toRadians(-10),
-          );
-          viewer.camera.setView({
-            orientation: {
-              heading: viewer.camera.heading,
-              pitch: newPitch,
-              roll: viewer.camera.roll,
-            },
-          });
-        }
-      } catch {
-        // Silently ignore camera errors during transitions
+    const normalizeAfterZoom = () => {
+      if (viewer.isDestroyed() || isCameraAnimatingRef.current) return;
+      const view = getCenterFacingView(viewer.camera.positionWC, viewer.camera.upWC);
+      viewer.camera.setView({
+        destination: new Cesium.Cartesian3(view.destination.x, view.destination.y, view.destination.z),
+        orientation: {
+          direction: new Cesium.Cartesian3(
+            view.orientation.direction.x,
+            view.orientation.direction.y,
+            view.orientation.direction.z,
+          ),
+          up: new Cesium.Cartesian3(view.orientation.up.x, view.orientation.up.y, view.orientation.up.z),
+        },
+      });
+      viewer.scene.requestRender();
+    };
+    const zoomCentering = createPostZoomCenteringController(normalizeAfterZoom);
+    zoomCenteringRef.current = zoomCentering;
+
+    const resizeCesium = () => {
+      if (viewer.isDestroyed()) return;
+      viewer.resize();
+      viewer.scene.requestRender();
+    };
+    const resizeCompletion = createResizeCompletionController(resizeCesium);
+    resizeCompletionRef.current = resizeCompletion;
+    const globeContainer = containerRef.current;
+    const boundsTransitionTarget = globeContainer?.closest('[data-testid="globe-viewport"]')
+      ?? globeContainer?.parentElement
+      ?? null;
+    const resizeObserver = globeContainer && typeof ResizeObserver !== 'undefined'
+      ? new ResizeObserver(([entry]) => {
+          if (entry) resizeCompletion.observed(entry.contentRect.width, entry.contentRect.height);
+        })
+      : null;
+    if (globeContainer) resizeObserver?.observe(globeContainer);
+    const onBoundsTransitionEnd = (event: Event) => {
+      const propertyName = (event as TransitionEvent).propertyName;
+      if (propertyName === 'top' || propertyName === 'right' || propertyName === 'bottom') {
+        resizeCompletion.transitionEnded();
       }
-    });
+    };
+    const onViewportResize = () => resizeCompletion.requestCompletion();
+    boundsTransitionTarget?.addEventListener('transitionend', onBoundsTransitionEnd);
+    window.addEventListener('resize', onViewportResize);
+    window.visualViewport?.addEventListener('resize', onViewportResize);
+    document.addEventListener('fullscreenchange', onViewportResize);
+    resizeCompletion.requestCompletion();
+
+    // ── NOTE: there used to be a per-frame "auto-center globe when zoomed
+    // out" pitch correction here (a `preRender` listener nudging
+    // `camera.pitch` toward -85° every frame). It was removed — twice
+    // reworking its pivot point still produced visible globe drift/freezing
+    // (walking the ground point toward the bottom of the screen, then
+    // snapping the view to the Arctic when pivoting around Earth's center,
+    // which is an undefined orientation at the planet's core). Cesium's
+    // default camera controller already keeps the globe framed correctly
+    // during manual drag/zoom/rotate; it does not need a competing
+    // per-frame orientation write. Initial framing and region flights still
+    // set an explicit pitch once via flyCameraTo/flyCameraToBounds below.
 
     // ── Cinematic intro: start from space, zoom to India ──
+    setProgrammaticFlight(true);
     viewer.camera.setView({
       destination: Cesium.Cartesian3.fromDegrees(INDIA_CENTER.lon, INDIA_CENTER.lat, 8_000_000),
       orientation: { heading: 0, pitch: Cesium.Math.toRadians(-89), roll: 0 },
     });
-    setTimeout(() => {
-      viewer.camera.flyTo({
-        destination: Cesium.Cartesian3.fromDegrees(PILOT_CENTER.lon, PILOT_CENTER.lat, PILOT_CENTER.alt),
-        orientation: { heading: 0, pitch: Cesium.Math.toRadians(-45), roll: 0 },
-        duration: 3.0,
-        easingFunction: Cesium.EasingFunction.CUBIC_IN_OUT,
-      });
+    const introFlyTimer = window.setTimeout(() => {
+      if (viewer.isDestroyed()) return;
+      // Marks the initial region as already flown-to so the region-sync effect
+      // below doesn't immediately re-trigger a second, competing flyTo on mount.
+      hasFlownInitialRegionRef.current = true;
+      // The landing view is a neutral full-India overview rather than a
+      // Western-Ghats model frame. It makes no statement about model coverage;
+      // selecting a region still performs the authoritative data-region flight.
+      flyCameraToBounds(viewer, INDIA_OVERVIEW_BOUNDS, { pitchDegrees: REGION_PITCH_DEGREES, duration: 3.0 });
     }, 800);
 
     // ── Mouse-move coordinate tracker ──
@@ -291,44 +533,163 @@ export default function CesiumGlobe({
       }
     }, Cesium.ScreenSpaceEventType.MOUSE_MOVE);
 
-    // ── Click handler for grid cell query (Feature 25) ──
-    // We store a ref to the latest gridCells so the closure stays current
-    handler.setInputAction((click: Cesium.ScreenSpaceEventHandler.PositionedEvent) => {
+    // ── Inspect gestures: click and touch long-press use the same robust picker ──
+    const inspectAt = (
+      position: Cesium.Cartesian2,
+      callback: ((cell: GridCell, x: number, y: number) => void) | undefined,
+    ) => {
+      if (!callback) return;
       try {
-        // Try pickPosition first (requires depth buffer), fallback to ellipsoid pick
-        let cartesian = viewer.scene.pickPosition(click.position);
+        let cartesian: Cesium.Cartesian3 | undefined = viewer.scene.pickPosition(position);
         if (!cartesian) {
-          const ellipsoidPick = viewer.camera.pickEllipsoid(click.position, viewer.scene.globe.ellipsoid);
-          if (!ellipsoidPick) return;
-          cartesian = ellipsoidPick;
+          const ray = viewer.camera.getPickRay(position);
+          cartesian = ray ? viewer.scene.globe.pick(ray, viewer.scene) : undefined;
         }
+        if (!cartesian) {
+          cartesian = viewer.camera.pickEllipsoid(position, viewer.scene.globe.ellipsoid);
+        }
+        if (!cartesian) return;
+
         const carto = Cesium.Cartographic.fromCartesian(cartesian);
         const clickLat = Cesium.Math.toDegrees(carto.latitude);
         const clickLon = Cesium.Math.toDegrees(carto.longitude);
+        const cells = gridCellsRef.current;
+        const cell = cells.reduce<GridCell | null>((closest, candidate) => {
+          if (!closest) return candidate;
+          return Math.hypot(candidate.lat - clickLat, candidate.lon - clickLon) <
+            Math.hypot(closest.lat - clickLat, closest.lon - clickLon)
+            ? candidate
+            : closest;
+        }, null);
 
-      // Find closest grid cell (nearest 0.25° node)
-      const snapLat = Math.round(clickLat / 0.25) * 0.25;
-      const snapLon = Math.round(clickLon / 0.25) * 0.25;
-      const key = `${snapLat.toFixed(3)}_${snapLon.toFixed(3)}`;
-
-      // Use ref so we always access the latest gridCells without re-registering
-      const cells = gridCellsRef.current;
-      const cell = cells.find(
-        (c) => `${c.lat.toFixed(3)}_${c.lon.toFixed(3)}` === key,
-      ) ?? cells.reduce<GridCell | null>((closest, c) => {
-        if (!closest) return c;
-        const d1 = Math.hypot(c.lat - clickLat, c.lon - clickLon);
-        const d2 = Math.hypot(closest.lat - clickLat, closest.lon - clickLon);
-        return d1 < d2 ? c : closest;
-      }, null);
-
-      if (cell && onCellClickRef.current) {
-        onCellClickRef.current(cell, click.position.x, click.position.y);
-      }
+        if (cell) callback(cell, position.x, position.y);
       } catch {
-        // pickPosition can throw DeveloperError when depth buffer isn't ready
+        // Picking can fail during an imagery/depth-buffer transition.
       }
+    };
+
+    handler.setInputAction((click: Cesium.ScreenSpaceEventHandler.PositionedEvent) => {
+      inspectAt(click.position, onCellClickRef.current);
+      // A click that hits neither an entity nor the globe/terrain surface is a
+      // click on empty starfield/sky — treat it as "focus on the globe" intent.
+      const hitEntity = viewer.scene.pick(click.position);
+      const hitGlobe = viewer.scene.pickPosition(click.position)
+        ?? (() => {
+          const ray = viewer.camera.getPickRay(click.position);
+          return ray ? viewer.scene.globe.pick(ray, viewer.scene) : undefined;
+        })();
+      if (!hitEntity && !hitGlobe) onBackgroundClickRef.current?.();
     }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
+
+    // Cesium handles pinch zoom and two-finger rotation. We disable browser-level
+    // manipulation only, so the canvas continues receiving the underlying touches.
+    const cameraController = viewer.scene.screenSpaceCameraController;
+    cameraController.enableZoom = true;
+    cameraController.enableRotate = true;
+    cameraController.enableTilt = true;
+    viewer.scene.canvas.style.touchAction = 'none';
+
+    let longPressTimer: number | null = null;
+    let longPressOrigin: { x: number; y: number } | null = null;
+    const activeTouchPointers = new Set<number>();
+    const touchPositions = new Map<number, { x: number; y: number }>();
+    const pointerInteractions = new Map<number, ManualInteractionKind>();
+    let pinchActive = false;
+    let pinchDistance: number | null = null;
+    const currentPinchDistance = () => {
+      const [first, second] = [...touchPositions.values()];
+      return first && second ? Math.hypot(second.x - first.x, second.y - first.y) : null;
+    };
+    const clearLongPress = () => {
+      if (longPressTimer !== null) window.clearTimeout(longPressTimer);
+      longPressTimer = null;
+      longPressOrigin = null;
+    };
+    const beginPointerInteraction = (pointerId: number, kind: ManualInteractionKind) => {
+      pointerInteractions.set(pointerId, kind);
+      zoomCentering.beginManualInput(kind);
+    };
+    const endPointerInteraction = (pointerId: number) => {
+      const kind = pointerInteractions.get(pointerId);
+      if (!kind) return;
+      pointerInteractions.delete(pointerId);
+      zoomCentering.endManualInput(kind);
+    };
+    const onPointerDown = (event: PointerEvent) => {
+      if (event.pointerType === 'touch') {
+        activeTouchPointers.add(event.pointerId);
+        touchPositions.set(event.pointerId, { x: event.clientX, y: event.clientY });
+        beginPointerInteraction(event.pointerId, 'pan');
+        clearLongPress();
+        if (activeTouchPointers.size === 2 && !pinchActive) {
+          pinchActive = true;
+          pinchDistance = currentPinchDistance();
+          zoomCentering.beginManualInput('pinch');
+        }
+        if (activeTouchPointers.size !== 1) return;
+        longPressOrigin = { x: event.clientX, y: event.clientY };
+        longPressTimer = window.setTimeout(() => {
+          if (longPressOrigin && activeTouchPointers.size === 1) {
+            inspectAt(new Cesium.Cartesian2(longPressOrigin.x, longPressOrigin.y), onLongPressRef.current);
+          }
+          clearLongPress();
+        }, 600);
+        return;
+      }
+
+      const kind: ManualInteractionKind | null = event.button === 2
+        ? 'zoom-drag'
+        : event.button === 1
+          ? 'pan'
+          : event.button === 0
+            ? 'rotate'
+            : null;
+      if (kind) beginPointerInteraction(event.pointerId, kind);
+    };
+    const onPointerMove = (event: PointerEvent) => {
+      if (event.pointerType === 'touch') {
+        touchPositions.set(event.pointerId, { x: event.clientX, y: event.clientY });
+        if (pinchActive && activeTouchPointers.size >= 2) {
+          const nextDistance = currentPinchDistance();
+          if (nextDistance !== null && pinchDistance !== null && Math.abs(nextDistance - pinchDistance) > 0.5) {
+            zoomCentering.markZoom();
+          }
+          pinchDistance = nextDistance;
+        }
+        if (!longPressOrigin) return;
+        if (
+          activeTouchPointers.size !== 1 ||
+          Math.hypot(event.clientX - longPressOrigin.x, event.clientY - longPressOrigin.y) > 12
+        ) clearLongPress();
+        return;
+      }
+      if (pointerInteractions.get(event.pointerId) === 'zoom-drag') zoomCentering.markZoom();
+    };
+    const onPointerEnd = (event: PointerEvent) => {
+      endPointerInteraction(event.pointerId);
+      if (event.pointerType !== 'touch') return;
+      activeTouchPointers.delete(event.pointerId);
+      touchPositions.delete(event.pointerId);
+      if (pinchActive && activeTouchPointers.size < 2) {
+        pinchActive = false;
+        pinchDistance = null;
+        zoomCentering.endManualInput('pinch');
+      }
+      clearLongPress();
+    };
+    const onWheel = () => zoomCentering.wheel();
+    const onCameraMoveStart = () => zoomCentering.beginManualInput('camera-motion');
+    const onCameraMoveEnd = () => zoomCentering.endManualInput('camera-motion');
+    const preventNativeGesture = (event: Event) => event.preventDefault();
+    viewer.camera.moveStart.addEventListener(onCameraMoveStart);
+    viewer.camera.moveEnd.addEventListener(onCameraMoveEnd);
+    viewer.scene.canvas.addEventListener('pointerdown', onPointerDown, { passive: true });
+    viewer.scene.canvas.addEventListener('pointermove', onPointerMove, { passive: true });
+    window.addEventListener('pointerup', onPointerEnd, { passive: true });
+    window.addEventListener('pointercancel', onPointerEnd, { passive: true });
+    viewer.scene.canvas.addEventListener('wheel', onWheel, { passive: true });
+    viewer.scene.canvas.addEventListener('gesturestart', preventNativeGesture, { passive: false });
+    viewer.scene.canvas.addEventListener('gesturechange', preventNativeGesture, { passive: false });
 
     // ── OSM Buildings (free, Cesium Ion asset 96188) ──
     Cesium.createOsmBuildingsAsync()
@@ -364,6 +725,26 @@ export default function CesiumGlobe({
     setIsReady(true);
 
     return () => {
+      window.clearTimeout(introFlyTimer);
+      clearLongPress();
+      viewer.camera.moveStart.removeEventListener(onCameraMoveStart);
+      viewer.camera.moveEnd.removeEventListener(onCameraMoveEnd);
+      viewer.scene.canvas.removeEventListener('pointerdown', onPointerDown);
+      viewer.scene.canvas.removeEventListener('pointermove', onPointerMove);
+      window.removeEventListener('pointerup', onPointerEnd);
+      window.removeEventListener('pointercancel', onPointerEnd);
+      viewer.scene.canvas.removeEventListener('wheel', onWheel);
+      viewer.scene.canvas.removeEventListener('gesturestart', preventNativeGesture);
+      viewer.scene.canvas.removeEventListener('gesturechange', preventNativeGesture);
+      resizeObserver?.disconnect();
+      boundsTransitionTarget?.removeEventListener('transitionend', onBoundsTransitionEnd);
+      window.removeEventListener('resize', onViewportResize);
+      window.visualViewport?.removeEventListener('resize', onViewportResize);
+      document.removeEventListener('fullscreenchange', onViewportResize);
+      zoomCentering.dispose();
+      resizeCompletion.dispose();
+      if (zoomCenteringRef.current === zoomCentering) zoomCenteringRef.current = null;
+      if (resizeCompletionRef.current === resizeCompletion) resizeCompletionRef.current = null;
       handler.destroy();
       if (windLayerRef.current) {
         try { windLayerRef.current.destroy(); } catch {}
@@ -650,18 +1031,36 @@ export default function CesiumGlobe({
     };
   }, [gridCells, variable, isReady, colormap]);
 
+  // Request a measured resize cycle after persistent UI changes the canvas
+  // bounds. The controller performs a final resize after the 300ms shell
+  // transition (or its deterministic fallback) and never touches the camera.
+  useEffect(() => {
+    if (!isReady) return;
+    resizeCompletionRef.current?.requestCompletion();
+  }, [isReady, viewportKey]);
+
   // ── Fly to region when region changes ─────────────────────────────────────
   useEffect(() => {
     if (!isReady || !viewerRef.current) return;
+    // Skip the very first run for the default region — the cinematic intro's
+    // own flyTo already takes the camera there, and racing it here was the
+    // cause of the globe occasionally winding up pointed at empty space.
+    if (!hasFlownInitialRegionRef.current) {
+      hasFlownInitialRegionRef.current = true;
+      if (!regionFlyTrigger) return;
+    }
     const regionOpt = REGIONS.find((r) => r.id === region);
     if (!regionOpt) return;
-    viewerRef.current.camera.flyTo({
-      destination: Cesium.Cartesian3.fromDegrees(regionOpt.centerLon, regionOpt.centerLat, regionOpt.altitude),
-      orientation: { heading: 0, pitch: Cesium.Math.toRadians(-48), roll: 0 },
-      duration: 2.5,
-      easingFunction: Cesium.EasingFunction.CUBIC_IN_OUT,
-    });
-  }, [region, isReady, regionFlyTrigger]);
+    // Fly to the region's exact geographic rectangle (matching
+    // ai_engine/regions.py REGION_BOUNDS) so every region — regardless of its
+    // lat/lon aspect ratio (North-East India is taller/narrower than the
+    // others, "All India" is much larger) — is correctly framed and centered.
+    // Pitch is kept close to top-down (REGION_PITCH_DEGREES, not a shallow
+    // -45/-48°) — a shallow pitch looks forward-and-down at the horizon
+    // instead of straight down at the target, which pushes the visible
+    // region toward the bottom of the frame with excess empty sky above.
+    flyCameraToBounds(viewerRef.current, regionOpt.bounds, { pitchDegrees: REGION_PITCH_DEGREES, duration: 2.5 });
+  }, [region, isReady, regionFlyTrigger, flyCameraToBounds]);
 
   // ── Terrain exaggeration (Feature 5) ───────────────────────────────────────
   useEffect(() => {
@@ -685,7 +1084,7 @@ export default function CesiumGlobe({
     if (!isReady || !viewerRef.current || !tourStep) return;
     const viewer = viewerRef.current;
     if (viewer.isDestroyed()) return;
-    viewer.camera.flyTo({
+    flyCameraTo(viewer, {
       destination: Cesium.Cartesian3.fromDegrees(tourStep.lon, tourStep.lat, tourStep.altitude),
       orientation: {
         heading: 0,
@@ -693,9 +1092,8 @@ export default function CesiumGlobe({
         roll: 0,
       },
       duration: tourStep.duration,
-      easingFunction: Cesium.EasingFunction.CUBIC_IN_OUT,
     });
-  }, [isReady, tourStep]);
+  }, [isReady, tourStep, flyCameraTo]);
 
   // ── 3D Extruded Rainfall Columns (Feature 1) ───────────────────────────────
   useEffect(() => {
@@ -863,3 +1261,12 @@ export default function CesiumGlobe({
     </div>
   );
 }
+
+
+// This module is dynamically imported by AsyncCesiumGlobe so Cesium stays out of
+// the initial bundle. Configure its token only once the renderer is requested.
+const cesiumToken = import.meta.env.VITE_CESIUM_ION_TOKEN;
+if (!cesiumToken || cesiumToken.includes('your_token_here')) {
+  console.warn('[VAYU] No valid VITE_CESIUM_ION_TOKEN set; terrain may be unavailable.');
+}
+Cesium.Ion.defaultAccessToken = cesiumToken || '';

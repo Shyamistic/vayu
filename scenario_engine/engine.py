@@ -33,6 +33,8 @@ class ScenarioType(Enum):
     RAINFALL_SCALING = "rainfall_scaling"
     MONSOON_DELAY = "monsoon_delay"
     SST_ANOMALY = "sst_anomaly"
+    URBANIZATION_CHANGE = "urbanization_change"
+    DEFORESTATION_IMPACT = "deforestation_impact"
 
 
 @dataclass
@@ -240,6 +242,12 @@ class ScenarioEngine:
         elif config.scenario_type == ScenarioType.SST_ANOMALY:
             x, clamped, clamp_msg = self._apply_sst_anomaly(x, config.magnitude)
 
+        elif config.scenario_type == ScenarioType.URBANIZATION_CHANGE:
+            x, clamped, clamp_msg = self._apply_urbanization_change(x, config.magnitude)
+
+        elif config.scenario_type == ScenarioType.DEFORESTATION_IMPACT:
+            x, clamped, clamp_msg = self._apply_deforestation_impact(x, config.magnitude)
+
         else:
             raise ValueError(f"Unknown scenario type: {config.scenario_type}")
 
@@ -364,6 +372,113 @@ class ScenarioEngine:
 
         clamped = False
         msg = f"El Niño SST anomaly +{delta_c}°C applied to Arabian Sea cells"
+        return x, clamped, msg
+
+    def _apply_urbanization_change(
+        self, x: torch.Tensor, magnitude: float
+    ) -> tuple[torch.Tensor, bool, str | None]:
+        """Simulate urbanization effects on local climate.
+
+        Urbanization increases surface albedo reduction, surface roughness, and
+        anthropogenic heat — raising temperatures (urban heat island) and
+        slightly reducing infiltration (changing rainfall runoff).
+
+        Args:
+            magnitude: Fractional urban expansion (0.0–1.0). E.g., 0.5 = 50% increase
+                       in urban area. Negative values simulate de-urbanization / greening.
+        """
+        x = x.clone()
+        tmax_std = self._get_std("temp_max", default=5.0)
+        tmin_std = self._get_std("temp_min", default=5.0)
+
+        # Urban heat island: +0.5°C temp rise per 10% urbanization increase
+        uhi_delta_c = magnitude * 0.5  # °C per unit magnitude
+        delta_tmax_norm = uhi_delta_c / tmax_std
+        delta_tmin_norm = uhi_delta_c * 0.7 / tmin_std  # nights warm more than days
+
+        x[:, :, CHANNEL_TMAX] += delta_tmax_norm
+        x[:, :, CHANNEL_TMIN] += delta_tmin_norm
+
+        # Urban surfaces reduce evapotranspiration and increase surface runoff,
+        # leading to local reduction in convective rainfall (approx -3% per 10%)
+        rain_channel = x[:, :, CHANNEL_RAINFALL]
+        rain_reduction_factor = 1.0 - (magnitude * 0.03)
+        x[:, :, CHANNEL_RAINFALL] = rain_channel * max(0.5, rain_reduction_factor)
+
+        # Enforce bounds
+        lo_t, hi_t = PHYS_BOUNDS_NORMALIZED["temp_max"]
+        clamped = bool(
+            (x[:, :, CHANNEL_TMAX] > hi_t).any() or
+            (x[:, :, CHANNEL_TMAX] < lo_t).any()
+        )
+        x[:, :, CHANNEL_TMAX] = x[:, :, CHANNEL_TMAX].clamp(lo_t, hi_t)
+        x[:, :, CHANNEL_TMIN] = x[:, :, CHANNEL_TMIN].clamp(lo_t, hi_t)
+
+        lo_r, hi_r = PHYS_BOUNDS_NORMALIZED["rainfall"]
+        x[:, :, CHANNEL_RAINFALL] = x[:, :, CHANNEL_RAINFALL].clamp(lo_r, hi_r)
+
+        direction = "increase" if magnitude > 0 else "decrease"
+        msg = (
+            f"Urbanization {direction} {abs(magnitude):.0%}: UHI +{uhi_delta_c:.2f}°C, "
+            f"rainfall −{abs(magnitude * 3.0):.1f}%"
+        )
+        return x, clamped, msg
+
+    def _apply_deforestation_impact(
+        self, x: torch.Tensor, magnitude: float
+    ) -> tuple[torch.Tensor, bool, str | None]:
+        """Simulate deforestation effects on regional climate.
+
+        Deforestation reduces evapotranspiration, lowers surface albedo, and
+        reduces moisture recycling — increasing temperature and decreasing
+        rainfall (especially convective/orographic rainfall).
+
+        Args:
+            magnitude: Fraction of forest cover lost (0.0–1.0). E.g., 0.3 = 30% forest loss.
+                       Negative values simulate afforestation/reforestation.
+        """
+        x = x.clone()
+        tmax_std = self._get_std("temp_max", default=5.0)
+        tmin_std = self._get_std("temp_min", default=5.0)
+
+        # Deforestation raises tmax (+1.5°C per 50% forest loss) and tmin (+0.5°C)
+        # due to loss of shade and transpirational cooling
+        delta_tmax_c = magnitude * 1.5
+        delta_tmin_c = magnitude * 0.5
+        delta_tmax_norm = delta_tmax_c / tmax_std
+        delta_tmin_norm = delta_tmin_c / tmin_std
+
+        x[:, :, CHANNEL_TMAX] += delta_tmax_norm
+        x[:, :, CHANNEL_TMIN] += delta_tmin_norm
+
+        # Reduce moisture recycling: convective rainfall decreases
+        # ~5–8% per 10% forest cover loss (Amazon studies extrapolated)
+        rain_reduction_factor = 1.0 - (magnitude * 0.07)
+        rain_channel = x[:, :, CHANNEL_RAINFALL]
+        x[:, :, CHANNEL_RAINFALL] = rain_channel * max(0.3, rain_reduction_factor)
+
+        # Also reduce land surface temperature channel (LST feedback)
+        if x.shape[2] > CHANNEL_LST:
+            lst_std = self._get_std("lst", default=5.0)
+            x[:, :, CHANNEL_LST] += (delta_tmax_c * 1.2) / lst_std  # LST warms more than air
+
+        # Enforce bounds
+        lo_t, hi_t = PHYS_BOUNDS_NORMALIZED["temp_max"]
+        clamped = bool(
+            (x[:, :, CHANNEL_TMAX] > hi_t).any() or
+            (x[:, :, CHANNEL_TMAX] < lo_t).any()
+        )
+        x[:, :, CHANNEL_TMAX] = x[:, :, CHANNEL_TMAX].clamp(lo_t, hi_t)
+        x[:, :, CHANNEL_TMIN] = x[:, :, CHANNEL_TMIN].clamp(lo_t, hi_t)
+
+        lo_r, hi_r = PHYS_BOUNDS_NORMALIZED["rainfall"]
+        x[:, :, CHANNEL_RAINFALL] = x[:, :, CHANNEL_RAINFALL].clamp(lo_r, hi_r)
+
+        direction = "loss" if magnitude > 0 else "gain (afforestation)"
+        msg = (
+            f"Forest cover {direction} {abs(magnitude):.0%}: "
+            f"tmax +{delta_tmax_c:.2f}°C, rainfall −{abs(magnitude * 7.0):.1f}%"
+        )
         return x, clamped, msg
 
     # ── Hotspot identification ─────────────────────────────────────────────────

@@ -1,79 +1,15 @@
 import { useState } from 'react';
 import {
-  Thermometer, Droplets, Wind, Waves,
   Play, RotateCcw, AlertTriangle, Info,
 } from 'lucide-react';
 import { runScenario } from '../api/client';
-import type { ScenarioRequest, ScenarioResponse, ScenarioTypeId } from '../types';
+import type { ScenarioRequest, ScenarioResponse } from '../types';
+import { SCENARIO_OPTIONS } from '../features/analysis/WhatIfScenarioEngine';
 
 interface WhatIfPanelProps {
   onResult: (result: ScenarioResponse) => void;
   onReset: () => void;
 }
-
-interface ScenarioOption {
-  id: ScenarioTypeId;
-  label: string;
-  icon: React.ReactNode;
-  description: string;
-  magnitudeLabel: string;
-  magnitudeMin: number;
-  magnitudeMax: number;
-  magnitudeStep: number;
-  defaultMagnitude: number;
-  unit: string;
-}
-
-const SCENARIO_OPTIONS: ScenarioOption[] = [
-  {
-    id: 'temperature_offset',
-    label: 'Temperature Rise',
-    icon: <Thermometer size={16} />,
-    description: 'Uniform temperature increase across the region',
-    magnitudeLabel: 'Temperature offset',
-    magnitudeMin: -3,
-    magnitudeMax: 4,
-    magnitudeStep: 0.5,
-    defaultMagnitude: 2.0,
-    unit: '°C',
-  },
-  {
-    id: 'rainfall_scaling',
-    label: 'Rainfall Change',
-    icon: <Droplets size={16} />,
-    description: 'Scale rainfall by a percentage (>1 = wetter, <1 = drier)',
-    magnitudeLabel: 'Scale factor',
-    magnitudeMin: 0.4,
-    magnitudeMax: 2.0,
-    magnitudeStep: 0.1,
-    defaultMagnitude: 0.8,
-    unit: '×',
-  },
-  {
-    id: 'monsoon_delay',
-    label: 'Monsoon Delay',
-    icon: <Wind size={16} />,
-    description: 'Shift monsoon onset by N days (positive = later)',
-    magnitudeLabel: 'Delay (days)',
-    magnitudeMin: -21,
-    magnitudeMax: 21,
-    magnitudeStep: 7,
-    defaultMagnitude: 14,
-    unit: ' days',
-  },
-  {
-    id: 'sst_anomaly',
-    label: 'El Niño (SST)',
-    icon: <Waves size={16} />,
-    description: 'El Niño-like Arabian Sea warming anomaly',
-    magnitudeLabel: 'SST anomaly',
-    magnitudeMin: -3,
-    magnitudeMax: 3,
-    magnitudeStep: 0.5,
-    defaultMagnitude: 1.5,
-    unit: '°C',
-  },
-];
 
 const TARGET_SEASONS = [
   { id: 'annual', label: 'Annual' },
@@ -83,14 +19,14 @@ const TARGET_SEASONS = [
 ];
 
 export default function WhatIfPanel({ onResult, onReset }: WhatIfPanelProps) {
-  const [selectedScenario, setSelectedScenario] = useState<ScenarioOption>(SCENARIO_OPTIONS[0]);
+  const [selectedScenario, setSelectedScenario] = useState<(typeof SCENARIO_OPTIONS)[0]>(SCENARIO_OPTIONS[0]);
   const [magnitude, setMagnitude] = useState(SCENARIO_OPTIONS[0].defaultMagnitude);
   const [targetSeason, setTargetSeason] = useState('annual');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<ScenarioResponse | null>(null);
 
-  const handleScenarioChange = (option: ScenarioOption) => {
+  const handleScenarioChange = (option: (typeof SCENARIO_OPTIONS)[0]) => {
     setSelectedScenario(option);
     setMagnitude(option.defaultMagnitude);
     setError(null);
@@ -125,10 +61,7 @@ export default function WhatIfPanel({ onResult, onReset }: WhatIfPanelProps) {
     onReset();
   };
 
-  const magnitudePct =
-    selectedScenario.id === 'rainfall_scaling'
-      ? `${((magnitude - 1) * 100).toFixed(0)}%`
-      : `${magnitude > 0 ? '+' : ''}${magnitude}${selectedScenario.unit}`;
+  const magnitudePct = selectedScenario.formatMagnitude(magnitude);
 
   return (
     <div className="panel p-4 flex flex-col gap-4 w-full">
@@ -149,19 +82,20 @@ export default function WhatIfPanel({ onResult, onReset }: WhatIfPanelProps) {
       </div>
 
       {/* Scenario type selector */}
-      <div className="grid grid-cols-2 gap-2">
+      <div className="grid grid-cols-3 gap-1.5">
         {SCENARIO_OPTIONS.map((opt) => (
           <button
             key={opt.id}
             onClick={() => handleScenarioChange(opt)}
-            className={`flex flex-col items-start gap-1 p-2.5 rounded-lg border transition-all text-left ${
+            className={`flex flex-col items-start gap-1 p-2 rounded-lg border transition-all text-left ${
               selectedScenario.id === opt.id
                 ? 'border-vayu-blue bg-vayu-blue/20 text-white'
                 : 'border-white/10 bg-white/5 text-white/60 hover:text-white/80 hover:border-white/20'
             }`}
+            title={opt.description}
           >
             <div className={selectedScenario.id === opt.id ? 'text-vayu-accent' : ''}>{opt.icon}</div>
-            <span className="text-xs font-medium">{opt.label}</span>
+            <span className="text-xs font-medium leading-tight">{opt.label}</span>
           </button>
         ))}
       </div>

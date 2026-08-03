@@ -10,6 +10,7 @@ REGION_BOUNDS: dict[str, dict[str, float]] = {
     "north_east_india": {"lat_min": 22.0, "lat_max": 29.5, "lon_min": 88.0, "lon_max": 97.5},
     "indo_gangetic_plain": {"lat_min": 23.0, "lat_max": 31.5, "lon_min": 74.0, "lon_max": 89.5},
     "central_india": {"lat_min": 17.0, "lat_max": 25.5, "lon_min": 74.0, "lon_max": 84.5},
+    "full_india": {"lat_min": 6.0, "lat_max": 38.0, "lon_min": 66.0, "lon_max": 100.0},
 }
 
 

@@ -1,4 +1,6 @@
 /* VAYU Global Styles */
+@import './design-system/tokens.css';
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -13,6 +15,7 @@
 
   /* Part B: Dark theme — never pure white text */
   body {
+    font-family: var(--font-family-sans, 'Inter', system-ui, sans-serif);
     color: rgba(255, 255, 255, 0.85);
     font-variant-numeric: tabular-nums;
   }
@@ -205,6 +208,9 @@ input:focus-visible {
   .animate-fade-in {
     animation: fadeIn 0.3s ease-out;
   }
+  .animate-slide-in-down {
+    animation: slideInDown 0.25s ease-out;
+  }
 
   /* Glow pulse for active elements */
   .glow-pulse {
@@ -265,6 +271,60 @@ input:focus-visible {
   0%   { background-position: -200% 0; }
   100% { background-position:  200% 0; }
 }
+@keyframes skeleton-shimmer {
+  0%   { background-position: -200% 0; }
+  100% { background-position:  200% 0; }
+}
+
+/* Connection status indicator animations (Req 30.1, 30.2) */
+@keyframes connection-dot-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%       { opacity: 0.4; transform: scale(0.75); }
+}
+
+/* Freshness badge pulse — cyan glow when data is current (Req 30.2, 88.3) */
+@keyframes freshness-pulse {
+  0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(34, 211, 238, 0); }
+  50%       { opacity: 0.8; box-shadow: 0 0 0 3px rgba(34, 211, 238, 0.25); }
+}
+
+/* Offline banner slide-in (Req 30.3) */
+@keyframes slideInDown {
+  from { opacity: 0; transform: translateY(-10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Reduced motion: disable connection/freshness animations */
+@media (prefers-reduced-motion: reduce) {
+  [style*="connection-dot-pulse"],
+  [style*="freshness-pulse"] {
+    animation: none !important;
+  }
+}
 /* Custom scrollbar for panels (hide completely, show on hover via JS) */
 .scrollbar-none::-webkit-scrollbar { display: none; }
 .scrollbar-none { -ms-overflow-style: none; scrollbar-width: none; }
+
+/* Hindi locale — Noto Sans Devanagari font support */
+html.lang-hi {
+  font-family: 'Noto Sans Devanagari', 'Inter', system-ui, sans-serif;
+}
+
+html.lang-hi .font-sans {
+  font-family: 'Noto Sans Devanagari', 'Inter', system-ui, sans-serif;
+}
+
+
+/* Mobile field interface: reserve the lower 30% for the data sheet and let Cesium own gestures. */
+@media (max-width: 767px) {
+  html, body { overscroll-behavior: none; }
+  .cesium-viewer, .cesium-viewer canvas, .cesium-widget canvas { touch-action: none; }
+  [data-testid="mobile-globe-viewport"] { height: 70dvh; }
+  [data-testid="mobile-floating-controls"] button { min-width: 44px; min-height: 44px; }
+}
+
+@supports (padding: max(0px)) {
+  @media (max-width: 767px) {
+    [data-testid="mobile-floating-controls"] { top: calc(68px + env(safe-area-inset-top)); }
+  }
+}

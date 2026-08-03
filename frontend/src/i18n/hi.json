@@ -1,0 +1,171 @@
+{
+  "app": {
+    "title": "मौसम",
+    "subtitle": "जलवायु डिजिटल ट्विन",
+    "tagline": "इसरो BAH 2026"
+  },
+  "header": {
+    "online": "ऑनलाइन",
+    "offline": "ऑफ़लाइन",
+    "startTour": "गाइडेड टूर शुरू करें",
+    "togglePanels": "पैनल टॉगल करें"
+  },
+  "variables": {
+    "rainfall": "वर्षा",
+    "temp_max": "अधिकतम तापमान",
+    "temp_min": "न्यूनतम तापमान",
+    "humidity": "आर्द्रता",
+    "wind_speed": "हवा की गति",
+    "pressure": "वायुमंडलीय दबाव"
+  },
+  "variablesShort": {
+    "rainfall": "वर्षा",
+    "temp_max": "अधि. ता.",
+    "temp_min": "न्यू. ता."
+  },
+  "units": {
+    "mmPerDay": "मिमी/दिन",
+    "celsius": "°से.",
+    "percent": "%",
+    "kmh": "किमी/घं",
+    "hPa": "हेक्टोपास्कल"
+  },
+  "regions": {
+    "western_ghats": "पश्चिमी घाट",
+    "north_east_india": "पूर्वोत्तर भारत",
+    "indo_gangetic_plain": "सिंधु-गंगा मैदान",
+    "central_india": "मध्य भारत",
+    "pilot": "पायलट क्षेत्र"
+  },
+  "views": {
+    "prediction": "पूर्वानुमान",
+    "scenario": "क्या-अगर",
+    "metrics": "मेट्रिक्स",
+    "historical": "इतिहास",
+    "agriculture": "कृषि",
+    "environment": "पर्यावरण"
+  },
+  "forecast": {
+    "title": "7-दिवसीय पूर्वानुमान",
+    "day": "दिन {{day}}",
+    "today": "आज",
+    "playAnimation": "एनिमेशन चलाएं",
+    "pauseAnimation": "एनिमेशन रोकें",
+    "speed": "गति",
+    "forecastDay": "पूर्वानुमान दिवस"
+  },
+  "controls": {
+    "terrain": "भूभाग",
+    "terrainExaggeration": "भूभाग अतिशयोक्ति",
+    "threeDimensional": "3D",
+    "wind": "हवा",
+    "inspect": "निरीक्षण",
+    "inspectTooltip": "सेल डेटा निरीक्षण (ग्लोब पर क्लिक करें)",
+    "split": "विभाजन",
+    "layers": "परतें",
+    "heatmap": "हीटमैप"
+  },
+  "panels": {
+    "dataSources": "डेटा स्रोत",
+    "whatIf": "क्या-अगर परिदृश्य",
+    "modelComparison": "मॉडल तुलना",
+    "nwpComparison": "NWP तुलना",
+    "predictionSummary": "पूर्वानुमान सारांश",
+    "trendSparklines": "रुझान स्पार्कलाइन",
+    "monsoonTracker": "मानसून ट्रैकर",
+    "floodRisk": "बाढ़ जोखिम",
+    "droughtSPI": "सूखा SPI",
+    "exportTools": "निर्यात उपकरण",
+    "agriculture": "कृषि सलाह",
+    "aqi": "वायु गुणवत्ता सूचकांक",
+    "iot": "IoT सेंसर",
+    "cyclone": "चक्रवात ट्रैकर",
+    "climateRisk": "जलवायु जोखिम स्कोर",
+    "colormap": "रंग मानचित्र"
+  },
+  "stats": {
+    "mean": "औसत",
+    "max": "अधिकतम",
+    "min": "न्यूनतम",
+    "median": "मध्यिका",
+    "stdDev": "मानक विचलन",
+    "gridCells": "ग्रिड सेल"
+  },
+  "export": {
+    "screenshot": "स्क्रीनशॉट",
+    "exportData": "डेटा निर्यात",
+    "shareView": "दृश्य साझा करें",
+    "exportCSV": "CSV निर्यात",
+    "exportGeoTIFF": "GeoTIFF निर्यात",
+    "exportVideo": "वीडियो निर्यात"
+  },
+  "alerts": {
+    "extremeEvent": "चरम घटना",
+    "heatWave": "लू",
+    "floodRisk": "बाढ़ जोखिम",
+    "drought": "सूखा चेतावनी",
+    "cyclone": "चक्रवात चेतावनी",
+    "airQuality": "वायु गुणवत्ता चेतावनी"
+  },
+  "dataSources": {
+    "imdRainfall": "IMD ग्रिडेड वर्षा (0.25°, 2010–2025)",
+    "imdTemperature": "IMD तापमान (1.0°, 2010–2025)",
+    "ncepWind": "NCEP/NCAR 850 hPa हवा व आर्द्रता",
+    "chirps": "CHIRPS उपग्रह वर्षा सत्यापन",
+    "gebco": "GEBCO ऊंचाई व समुद्र तल",
+    "nasaGibs": "NASA GIBS पृथ्वी अवलोकन परतें"
+  },
+  "loading": {
+    "prediction": "पूर्वानुमान लोड हो रहा है…",
+    "tiles": "टाइल लोड हो रही हैं…",
+    "data": "डेटा लोड हो रहा है…"
+  },
+  "errors": {
+    "globeUnavailable": "3D ग्लोब उपलब्ध नहीं है",
+    "retry": "पुनः प्रयास करें",
+    "noDataForRegion": "चयनित स्थान के लिए कोई पूर्वानुमान डेटा उपलब्ध नहीं है",
+    "offlineMode": "ऑफ़लाइन मोड में कार्य कर रहा है",
+    "lastUpdated": "अंतिम अपडेट: {{timestamp}}"
+  },
+  "language": {
+    "toggle": "भाषा",
+    "en": "English",
+    "hi": "हिन्दी"
+  },
+  "layers": {
+    "satellite": "उपग्रह",
+    "modis": "MODIS",
+    "precipitation": "वर्षण",
+    "cloud": "बादल",
+    "sst": "समुद्र सतह तापमान",
+    "photorealistic": "फोटोरियलिस्टिक 3D"
+  },
+  "tour": {
+    "welcome": "मौसम में आपका स्वागत है",
+    "description": "भारत का पहला AI-संचालित जलवायु डिजिटल ट्विन",
+    "next": "अगला",
+    "back": "पीछे",
+    "finish": "समाप्त",
+    "skip": "टूर छोड़ें"
+  },
+  "agriculture": {
+    "rice": "चावल",
+    "wheat": "गेहूं",
+    "cotton": "कपास",
+    "sugarcane": "गन्ना",
+    "tea": "चाय",
+    "coffee": "कॉफ़ी",
+    "advisory": "सलाह",
+    "delaySowing": "बुवाई में देरी करें",
+    "harvestImmediately": "तुरंत कटाई करें",
+    "cropCalendar": "फ़सल कैलेंडर",
+    "growingDegreeDays": "बढ़ते डिग्री दिवस"
+  },
+  "monsoon": {
+    "onset": "मानसून आगमन",
+    "retreat": "मानसून वापसी",
+    "daysAhead": "सामान्य से दिन आगे",
+    "daysBehind": "सामान्य से दिन पीछे",
+    "index": "मानसून सूचकांक"
+  }
+}

@@ -49,23 +49,26 @@ export default function ColorLegend({ variable }: ColorLegendProps) {
   const cfg = CONFIG[variable];
 
   return (
-    <div className="panel-tight px-3 py-2 flex flex-col gap-1 min-w-[180px]">
+    <div
+      className="px-1 py-1 flex flex-col gap-1 min-w-[180px]"
+      style={{ textShadow: '0 1px 3px rgba(0,0,0,0.9), 0 0 6px rgba(0,0,0,0.6)' }}
+    >
       {/* Title */}
       <div className="flex items-center justify-between">
-        <span className="text-xs text-white/60 font-medium">{cfg.label}</span>
-        <span className="text-xs text-white/40">{cfg.unit}</span>
+        <span className="text-xs text-white/80 font-medium">{cfg.label}</span>
+        <span className="text-xs text-white/60">{cfg.unit}</span>
       </div>
 
       {/* Gradient bar */}
       <div
         className="h-2.5 rounded-sm w-full"
-        style={{ background: cfg.gradient }}
+        style={{ background: cfg.gradient, boxShadow: '0 1px 4px rgba(0,0,0,0.6)' }}
       />
 
       {/* Tick labels */}
       <div className="flex justify-between">
         {cfg.ticks.map((tick) => (
-          <span key={tick} className="text-[10px] text-white/40 font-mono">
+          <span key={tick} className="text-[10px] text-white/60 font-mono">
             {tick}
           </span>
         ))}

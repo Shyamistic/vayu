@@ -54,8 +54,8 @@ export default function ForecastAnimation({ currentDay, onDayChange }: ForecastA
 
   return (
     <div
-      className="panel-tight px-2.5 py-2 flex flex-col gap-1.5 animate-slide-in-up"
-      style={{ minWidth: 180 }}
+      className="px-1 py-1 flex flex-col gap-1.5 animate-slide-in-up"
+      style={{ minWidth: 180, textShadow: '0 1px 3px rgba(0,0,0,0.9), 0 0 6px rgba(0,0,0,0.6)' }}
     >
       {/* Day timeline */}
       <div className="flex gap-1">
