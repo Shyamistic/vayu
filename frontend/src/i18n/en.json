@@ -1,0 +1,171 @@
+{
+  "app": {
+    "title": "MAUSAM",
+    "subtitle": "Climate Digital Twin",
+    "tagline": "ISRO BAH 2026"
+  },
+  "header": {
+    "online": "Online",
+    "offline": "Offline",
+    "startTour": "Start guided tour",
+    "togglePanels": "Toggle panels"
+  },
+  "variables": {
+    "rainfall": "Rainfall",
+    "temp_max": "Max Temperature",
+    "temp_min": "Min Temperature",
+    "humidity": "Humidity",
+    "wind_speed": "Wind Speed",
+    "pressure": "Pressure"
+  },
+  "variablesShort": {
+    "rainfall": "Rainfall",
+    "temp_max": "Tmax",
+    "temp_min": "Tmin"
+  },
+  "units": {
+    "mmPerDay": "mm/day",
+    "celsius": "°C",
+    "percent": "%",
+    "kmh": "km/h",
+    "hPa": "hPa"
+  },
+  "regions": {
+    "western_ghats": "Western Ghats",
+    "north_east_india": "North East India",
+    "indo_gangetic_plain": "Indo-Gangetic Plain",
+    "central_india": "Central India",
+    "pilot": "Pilot Region"
+  },
+  "views": {
+    "prediction": "Predict",
+    "scenario": "What-If",
+    "metrics": "Metrics",
+    "historical": "History",
+    "agriculture": "Crops",
+    "environment": "Env"
+  },
+  "forecast": {
+    "title": "7-Day Forecast",
+    "day": "Day {{day}}",
+    "today": "Today",
+    "playAnimation": "Play Animation",
+    "pauseAnimation": "Pause Animation",
+    "speed": "Speed",
+    "forecastDay": "Forecast Day"
+  },
+  "controls": {
+    "terrain": "Terrain",
+    "terrainExaggeration": "Terrain Exaggeration",
+    "threeDimensional": "3D",
+    "wind": "Wind",
+    "inspect": "Inspect",
+    "inspectTooltip": "Inspect cell data (click globe)",
+    "split": "Split",
+    "layers": "Layers",
+    "heatmap": "Heatmap"
+  },
+  "panels": {
+    "dataSources": "Data Sources",
+    "whatIf": "What-If Scenarios",
+    "modelComparison": "Model Comparison",
+    "nwpComparison": "NWP Comparison",
+    "predictionSummary": "Prediction Summary",
+    "trendSparklines": "Trend Sparklines",
+    "monsoonTracker": "Monsoon Tracker",
+    "floodRisk": "Flood Risk",
+    "droughtSPI": "Drought SPI",
+    "exportTools": "Export Tools",
+    "agriculture": "Agriculture Advisory",
+    "aqi": "Air Quality Index",
+    "iot": "IoT Sensors",
+    "cyclone": "Cyclone Tracker",
+    "climateRisk": "Climate Risk Score",
+    "colormap": "Colormap"
+  },
+  "stats": {
+    "mean": "Mean",
+    "max": "Max",
+    "min": "Min",
+    "median": "Median",
+    "stdDev": "Std Dev",
+    "gridCells": "Grid Cells"
+  },
+  "export": {
+    "screenshot": "Screenshot",
+    "exportData": "Export Data",
+    "shareView": "Share View",
+    "exportCSV": "Export CSV",
+    "exportGeoTIFF": "Export GeoTIFF",
+    "exportVideo": "Export Video"
+  },
+  "alerts": {
+    "extremeEvent": "Extreme Event",
+    "heatWave": "Heat Wave",
+    "floodRisk": "Flood Risk",
+    "drought": "Drought Warning",
+    "cyclone": "Cyclone Alert",
+    "airQuality": "Air Quality Alert"
+  },
+  "dataSources": {
+    "imdRainfall": "IMD Gridded Rainfall (0.25°, 2010–2025)",
+    "imdTemperature": "IMD Temperature (1.0°, 2010–2025)",
+    "ncepWind": "NCEP/NCAR 850 hPa Wind & Humidity",
+    "chirps": "CHIRPS Satellite Rainfall Validation",
+    "gebco": "GEBCO Elevation & Bathymetry",
+    "nasaGibs": "NASA GIBS Earth Observation Layers"
+  },
+  "loading": {
+    "prediction": "Loading prediction…",
+    "tiles": "Loading tiles…",
+    "data": "Loading data…"
+  },
+  "errors": {
+    "globeUnavailable": "3D Globe unavailable",
+    "retry": "Retry",
+    "noDataForRegion": "No prediction data available for the selected location",
+    "offlineMode": "Working in offline mode",
+    "lastUpdated": "Last updated: {{timestamp}}"
+  },
+  "language": {
+    "toggle": "Language",
+    "en": "English",
+    "hi": "हिन्दी"
+  },
+  "layers": {
+    "satellite": "Satellite",
+    "modis": "MODIS",
+    "precipitation": "Precipitation",
+    "cloud": "Cloud",
+    "sst": "SST",
+    "photorealistic": "Photorealistic 3D"
+  },
+  "tour": {
+    "welcome": "Welcome to MAUSAM",
+    "description": "India's first AI-powered Climate Digital Twin",
+    "next": "Next",
+    "back": "Back",
+    "finish": "Finish",
+    "skip": "Skip Tour"
+  },
+  "agriculture": {
+    "rice": "Rice",
+    "wheat": "Wheat",
+    "cotton": "Cotton",
+    "sugarcane": "Sugarcane",
+    "tea": "Tea",
+    "coffee": "Coffee",
+    "advisory": "Advisory",
+    "delaySowing": "Delay Sowing",
+    "harvestImmediately": "Harvest Immediately",
+    "cropCalendar": "Crop Calendar",
+    "growingDegreeDays": "Growing Degree Days"
+  },
+  "monsoon": {
+    "onset": "Monsoon Onset",
+    "retreat": "Monsoon Retreat",
+    "daysAhead": "Days Ahead of Normal",
+    "daysBehind": "Days Behind Normal",
+    "index": "Monsoon Index"
+  }
+}

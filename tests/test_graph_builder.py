@@ -13,6 +13,7 @@ import torch
 import xarray as xr
 import pandas as pd
 
+from data_ingestion import graph_builder as graph_builder_module
 from data_ingestion.graph_builder import ClimateGraphBuilder
 
 
@@ -112,6 +113,83 @@ def test_ghats_mask_correct_lons(builder):
         lon_j = idx.item() % builder.nlon
         lon = builder.lons[lon_j]
         assert 73.0 <= lon <= 74.5, f"Ghats node has unexpected lon {lon}"
+
+
+def test_ghats_mask_empty_outside_western_ghats_latitude():
+    """A grid whose longitude overlaps 73-74.5°E but whose latitude is outside
+    the Western Ghats band (e.g. Indo-Gangetic Plain) must get an empty mask."""
+    builder = ClimateGraphBuilder(
+        lat_min=25.0, lat_max=27.0, lon_min=72.0, lon_max=76.0, resolution=0.25,
+    )
+    mask = builder.get_ghats_ridge_mask()
+    assert not mask.any(), "Ghats mask must be empty for a non-WG-latitude grid"
+
+
+def test_ghats_mask_respects_land_sea_mask():
+    """A ridge-longitude/latitude cell marked as sea must not be in the mask."""
+    builder = ClimateGraphBuilder(
+        lat_min=10.0, lat_max=11.0, lon_min=73.0, lon_max=74.5, resolution=0.25,
+    )
+    # Force every cell to sea; mask must then be empty regardless of lon/lat.
+    builder.land_sea_mask = np.zeros_like(builder.land_sea_mask)
+    mask = builder.get_ghats_ridge_mask()
+    assert not mask.any(), "Sea cells must never be included in the Ghats ridge mask"
+
+
+def test_missingness_indicators_append_six_channels(small_ds):
+    """Opt-in missingness indicators extend the legacy 17-channel schema to 23."""
+    builder = ClimateGraphBuilder(include_missingness_indicators=True)
+    assert len(builder.feature_names) == 23
+    assert builder.feature_names[:17] == [
+        "rainfall", "tmax", "tmin", "insat_lst", "insat_sst",
+        "day_sin", "day_cos", "jjas_flag", "monsoon_progress",
+        "uwnd_850", "vwnd_850", "shum_850", "chirps_rain",
+        "elevation", "land_sea_mask", "lat_norm", "lon_norm",
+    ]
+    graph = builder.build_graph(small_ds, time_idx=0)
+    assert graph.x.shape[1] == 23
+
+
+def test_missingness_indicator_flags_absent_source(small_ds):
+    """A source absent from the dataset is flagged as fully missing (indicator=1)."""
+    builder = ClimateGraphBuilder(include_missingness_indicators=True)
+    graph = builder.build_graph(small_ds, time_idx=0)
+    # insat_lst is index 3 in the legacy prefix; its missingness flag is appended
+    # right after the 17 legacy channels in MISSINGNESS_SOURCE_NAMES order.
+    lst_missing_col = 17 + graph_builder_module.MISSINGNESS_SOURCE_NAMES.index("insat_lst")
+    assert torch.all(graph.x[:, lst_missing_col] == 1.0), (
+        "insat_lst is absent from small_ds and must be flagged fully missing"
+    )
+
+
+def test_missingness_indicator_respects_availability_field():
+    """When an *_available companion field is present, it drives the indicator,
+    not just finiteness of the raw (possibly zero-filled) value."""
+    ndays = 3
+    lats = np.arange(8.0, 9.25, 0.25)
+    lons = np.arange(72.0, 73.25, 0.25)
+    shape = (ndays, len(lats), len(lons))
+    ds = xr.Dataset(
+        {
+            "chirps_rain": (("time", "lat", "lon"), np.zeros(shape, dtype=np.float32)),
+            "chirps_rain_available": (("time", "lat", "lon"), np.zeros(shape, dtype=np.float32)),
+        },
+        coords={"time": pd.date_range("2023-01-01", periods=ndays), "lat": lats, "lon": lons},
+    )
+    builder = ClimateGraphBuilder(
+        lat_min=8.0, lat_max=9.0, lon_min=72.0, lon_max=73.0, resolution=0.25,
+        include_missingness_indicators=True,
+    )
+    graph = builder.build_graph(ds, time_idx=0)
+    chirps_missing_col = 17 + graph_builder_module.MISSINGNESS_SOURCE_NAMES.index("chirps_rain")
+    # chirps_rain itself is 0.0 (a valid finite value), but availability=0 means missing.
+    assert torch.all(graph.x[:, chirps_missing_col] == 1.0)
+
+
+def test_legacy_default_has_no_missingness_channels(builder):
+    """The default constructor keeps the stable 17-channel schema."""
+    assert len(builder.feature_names) == 17
+    assert builder.include_missingness_indicators is False
 
 
 # ── Property 7: Sequence windowing is temporally contiguous ──────────────────

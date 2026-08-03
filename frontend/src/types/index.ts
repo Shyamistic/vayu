@@ -33,13 +33,45 @@ export type ScenarioTypeId =
   | 'temperature_offset'
   | 'rainfall_scaling'
   | 'monsoon_delay'
-  | 'sst_anomaly';
+  | 'sst_anomaly'
+  | 'urbanization_change'
+  | 'deforestation_impact';
 
 export interface ScenarioRequest {
   scenario_type: ScenarioTypeId;
   magnitude: number;
   target_region?: string;
   target_season?: string;
+}
+
+/**
+ * A single scenario in a chained compound scenario.
+ */
+export interface ChainedScenario {
+  id: string; // unique ID for this step
+  scenario_type: ScenarioTypeId;
+  magnitude: number;
+  label?: string; // optional user-defined label
+}
+
+/**
+ * Request for running multiple chained scenarios (compound effects).
+ * The backend runs them sequentially, each using the previous output as its baseline.
+ */
+export interface CompoundScenarioRequest {
+  scenarios: ChainedScenario[];
+  target_region?: string;
+  target_season?: string;
+}
+
+/**
+ * Extended ScenarioResponse that carries the anomaly delta arrays
+ * needed for rendering anomaly maps.
+ */
+export interface ScenarioResponseWithAnomaly extends ScenarioResponse {
+  anomaly_map: Record<string, number[]>; // same as delta; alias for clarity
+  grid_lats: number[];
+  grid_lons: number[];
 }
 
 export interface Hotspot {
@@ -66,6 +98,41 @@ export interface ScenarioResponse {
   clamped: boolean;
   clamp_message?: string;
   computation_time_s: number;
+}
+
+// ── IoT sensor types ─────────────────────────────────────────────────────────
+
+export type IoTStationStatus = 'online' | 'low_battery' | 'offline';
+
+export interface SensorReading {
+  temperature_c: number | null;
+  humidity_pct: number | null;
+  pressure_hpa: number | null;
+  light_lux: number | null;
+  soil_moisture_pct: number | null;
+  rain_detected: boolean | null;
+  wind_speed_ms: number | null;
+  wind_gust_ms: number | null;
+  water_level_cm: number | null;
+}
+
+export interface PowerStatus {
+  battery_v: number | null;
+  solar_v: number | null;
+  charging_ma: number | null;
+}
+
+export interface IoTStation {
+  station_id: string;
+  name: string;
+  lat: number;
+  lon: number;
+  alt: number;
+  description?: string | null;
+  last_seen: string | null;
+  status: IoTStationStatus;
+  sensors: SensorReading | null;
+  power: PowerStatus | null;
 }
 
 // ── Metrics types ─────────────────────────────────────────────────────────────
@@ -115,7 +182,7 @@ export type RegionId =
   | 'central_india'
   | 'pilot';
 
-export type ViewMode = 'prediction' | 'historical' | 'scenario' | 'metrics' | 'agriculture' | 'environment';
+export type ViewMode = 'prediction' | 'historical' | 'scenario' | 'metrics' | 'agriculture' | 'environment' | 'case-study';
 
 export interface TimeState {
   selectedDate: Date;

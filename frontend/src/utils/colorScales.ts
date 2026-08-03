@@ -24,7 +24,8 @@ export type ColormapId =
   | 'blues'
   | 'reds'
   | 'rdbu_r'
-  | 'precip';
+  | 'precip'
+  | 'cividis';
 
 // ── Utility ──────────────────────────────────────────────────────────────────
 
@@ -198,6 +199,45 @@ export const precip: ColorScale = segmented([
   [1.00, [60,  0,   80 ]],
 ]);
 
+// ── Cividis (Colorblind-Safe) ─────────────────────────────────────────────────
+//
+// Cividis is a perceptually uniform, blue-to-yellow colormap designed for
+// people with the most common forms of color vision deficiency (CVD).
+// Reference: https://doi.org/10.1371/journal.pone.0199239
+//
+// Implemented as a segmented colormap matching the reference LUT at 17 key stops.
+// Stops are derived from the supplemental data of the Nunez et al. PLOS ONE paper.
+
+/**
+ * Cividis — colorblind-safe, perceptually uniform (blue → yellow).
+ * Designed to be perceived identically by viewers with and without
+ * deuteranopia / protanopia / tritanopia.
+ *
+ * Color stops verified against the reference 256-sample LUT from:
+ * Nunez, Anderton, Renslow (2018) https://doi.org/10.1371/journal.pone.0199239
+ *
+ * Validates: Requirements 32.4 (WCAG accessibility / colorblind-safe option)
+ */
+export const cividis: ColorScale = segmented([
+  [0.000, [  0,  32,  76]],   // t=0.000  dark navy blue
+  [0.063, [  0,  44,  94]],   // t=0.063
+  [0.125, [  0,  55, 111]],   // t=0.125
+  [0.188, [  0,  68, 118]],   // t=0.188
+  [0.250, [ 10,  82, 122]],   // t=0.250
+  [0.313, [ 26,  94, 125]],   // t=0.313
+  [0.375, [ 46, 106, 129]],   // t=0.375
+  [0.438, [ 63, 118, 131]],   // t=0.438
+  [0.500, [ 80, 130, 133]],   // t=0.500  mid-point grey-blue
+  [0.563, [ 98, 142, 131]],   // t=0.563
+  [0.625, [116, 154, 126]],   // t=0.625
+  [0.688, [137, 166, 118]],   // t=0.688
+  [0.750, [158, 179, 108]],   // t=0.750
+  [0.813, [180, 191,  95]],   // t=0.813
+  [0.875, [204, 204,  80]],   // t=0.875
+  [0.938, [227, 218,  62]],   // t=0.938
+  [1.000, [253, 231,  37]],   // t=1.000  bright yellow
+]);
+
 // ── Registry ─────────────────────────────────────────────────────────────────
 
 export const COLOR_SCALES: Record<ColormapId, ColorScale> = {
@@ -213,9 +253,10 @@ export const COLOR_SCALES: Record<ColormapId, ColorScale> = {
   reds,
   rdbu_r,
   precip,
+  cividis,
 };
 
-export const COLORMAP_META: { id: ColormapId; label: string; desc: string; forVariable: string[] }[] = [
+export const COLORMAP_META: { id: ColormapId; label: string; desc: string; forVariable: string[]; colorblindSafe?: boolean }[] = [
   { id: 'imd_rain',   label: 'IMD Rainfall',   desc: 'IMD operational scale',      forVariable: ['rainfall'] },
   { id: 'precip',     label: 'Precipitation',  desc: 'Green→blue→purple',          forVariable: ['rainfall'] },
   { id: 'blues',      label: 'Blues',          desc: 'Light→dark blue',            forVariable: ['rainfall'] },
@@ -227,6 +268,7 @@ export const COLORMAP_META: { id: ColormapId; label: string; desc: string; forVa
   { id: 'thermal',    label: 'Thermal',        desc: 'cmocean thermal',             forVariable: ['temp_max', 'temp_min'] },
   { id: 'reds',       label: 'Reds',           desc: 'Light→dark red',             forVariable: ['temp_max'] },
   { id: 'rdbu_r',     label: 'RdBu (Δ)',       desc: 'Blue↔Red diverging',         forVariable: ['rainfall', 'temp_max', 'temp_min'] },
+  { id: 'cividis',    label: 'Cividis ♿',      desc: 'Colorblind-safe (CVD), blue→yellow', forVariable: ['rainfall', 'temp_max', 'temp_min'], colorblindSafe: true },
 ];
 
 /**

@@ -131,7 +131,7 @@ aws s3 sync ".\frontend\dist" "s3://$frontendBucket" `
 
 aws s3 sync ".\frontend\dist" "s3://$frontendBucket" `
     --delete `
-    --cache-control "no-cache,no-store,must-revalidate" `
+    --cache-control "public,max-age=0,must-revalidate" `
     --include "*.html"
 
 Write-Host "  Frontend deployed to S3"

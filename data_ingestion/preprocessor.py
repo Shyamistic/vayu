@@ -20,9 +20,9 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-# Pilot region constants
+# Pilot and strict full-India region constants.
 LAT_MIN, LAT_MAX, LON_MIN, LON_MAX = 8.0, 20.0, 72.0, 78.0
-INDIA_LAT_MIN, INDIA_LAT_MAX, INDIA_LON_MIN, INDIA_LON_MAX = 6.0, 38.0, 68.0, 98.0
+INDIA_LAT_MIN, INDIA_LAT_MAX, INDIA_LON_MIN, INDIA_LON_MAX = 6.0, 38.0, 66.0, 100.0
 RESOLUTION = 0.25
 CLIMATOLOGY_START, CLIMATOLOGY_END = 1981, 2010
 SIGMA_OUTLIER = 3.0
@@ -290,35 +290,38 @@ class ClimatePreprocessor:
         self,
         ds: xr.Dataset,
         climatology_ds: xr.Dataset | None = None,
+        fit_time_range: tuple[str, str] | None = None,
     ) -> tuple[xr.Dataset, dict[str, dict]]:
-        """Z-score normalize each variable per grid cell over 1981-2010.
+        """Z-score normalize each variable with externally supplied or fit-period statistics.
 
-        Args:
-            ds: Input dataset.
-            climatology_ds: Pre-computed per-cell mean/std from 1981-2010.
-                            If None, computed from the input data.
-
-        Returns:
-            Tuple of (normalized_ds, norm_params_dict).
-            norm_params_dict maps variable → {"mean": array, "std": array}.
+        When ``climatology_ds`` is not supplied, statistics are fit only over
+        ``fit_time_range`` when provided. This prevents validation/test leakage.
         """
+        fit_ds = ds
+        if climatology_ds is None and fit_time_range is not None:
+            if "time" not in ds.coords:
+                raise ValueError("fit_time_range requires a time coordinate")
+            fit_ds = ds.sel(time=slice(fit_time_range[0], fit_time_range[1]))
+            if int(fit_ds.sizes.get("time", 0)) == 0:
+                raise ValueError(f"No observations in normalization fit range {fit_time_range}")
+
         norm_params: dict[str, dict] = {}
         normalized_vars: dict[str, xr.DataArray] = {}
 
         for var in ds.data_vars:
-            if var.endswith("_qc_flag"):
+            if var.endswith("_qc_flag") or var.endswith("_available"):
                 normalized_vars[var] = ds[var]
                 continue
 
             arr = ds[var].values.astype(np.float32)
-
             if climatology_ds is not None and (var + "_mean") in climatology_ds:
                 mean = climatology_ds[var + "_mean"].values
                 std = climatology_ds[var + "_std"].values
             else:
-                mean = np.nanmean(arr, axis=0)
-                std = np.nanstd(arr, axis=0)
-                std = np.where(std < 1e-6, 1e-6, std)
+                fit_arr = fit_ds[var].values.astype(np.float32)
+                mean = np.nanmean(fit_arr, axis=0)
+                std = np.nanstd(fit_arr, axis=0)
+                std = np.where(np.isfinite(std) & (std >= 1e-6), std, 1.0)
 
             normalized = (arr - mean[np.newaxis]) / std[np.newaxis]
             norm_params[var] = {"mean": mean, "std": std}
@@ -437,9 +440,12 @@ class ClimatePreprocessor:
         tmin_ds: xr.Dataset,
         climatology_ds: xr.Dataset | None = None,
         ncep_dir: str | None = None,
+        era5_dir: str | None = None,
         chirps_dir: str | None = None,
         start_year: int = 2010,
         end_year: int = 2025,
+        normalization_fit_start_year: int | None = None,
+        normalization_fit_end_year: int | None = None,
     ) -> tuple[xr.Dataset, dict[str, dict]]:
         """Full IMD preprocessing pipeline.
 
@@ -479,9 +485,13 @@ class ClimatePreprocessor:
                 # precipitating). Replacing IMD ground-truth with CHIRPS makes
                 # R²_rain permanently negative. Use CHIRPS as an additional predictor.
                 chirps_aligned = chirps.reindex_like(rain_clipped, method="nearest", tolerance=1)
-                # Add as separate feature; fill missing with 0 (not replacing IMD)
-                chirps_rain = chirps_aligned["rainfall"].fillna(0.0).rename("chirps_rain")
-                rain_clipped = rain_clipped.assign(chirps_rain=chirps_rain)
+                # Preserve missingness until graph construction; a companion
+                # availability field distinguishes absent observations from true zeros.
+                chirps_rain = chirps_aligned["rainfall"].rename("chirps_rain")
+                rain_clipped = rain_clipped.assign(
+                    chirps_rain=chirps_rain,
+                    chirps_rain_available=xr.where(chirps_rain.notnull(), 1.0, 0.0).astype(np.float32),
+                )
                 logger.info("CHIRPS added as auxiliary feature 'chirps_rain' (IMD rainfall preserved as target)")
 
         # 3. QC each variable
@@ -489,35 +499,77 @@ class ClimatePreprocessor:
         tmax_qc = self.quality_control(tmax_rg, "tmax", climatology_ds)
         tmin_qc = self.quality_control(tmin_rg, "tmin", climatology_ds)
 
-        # 4. Merge: align times
+        # 4. Merge and preserve auxiliary predictors/availability fields.
+        rain_vars = ["rainfall", "rainfall_qc_flag"]
+        rain_vars.extend(v for v in ["chirps_rain", "chirps_rain_available"] if v in rain_qc)
         merged = xr.merge([
-            rain_qc[["rainfall", "rainfall_qc_flag"]],
+            rain_qc[rain_vars],
             tmax_qc[["tmax", "tmax_qc_flag"]],
             tmin_qc[["tmin", "tmin_qc_flag"]],
         ], join="inner")
 
-        # 5. Normalize (dynamic vars only)
-        dynamic_vars = xr.Dataset({v: merged[v] for v in ["rainfall", "tmax", "tmin"]})
-        normalized, norm_params = self.normalize(dynamic_vars, climatology_ds)
+        # 5. Normalize using training-period statistics only when requested.
+        dynamic_names = ["rainfall", "tmax", "tmin"]
+        if "chirps_rain" in merged:
+            dynamic_names.append("chirps_rain")
+        dynamic_vars = xr.Dataset({v: merged[v] for v in dynamic_names})
+        fit_range = None
+        if normalization_fit_start_year is not None or normalization_fit_end_year is not None:
+            fit_start = normalization_fit_start_year or start_year
+            fit_end = normalization_fit_end_year or end_year
+            if fit_start > fit_end:
+                raise ValueError("normalization fit start year must not exceed end year")
+            fit_range = (f"{fit_start}-01-01", f"{fit_end}-12-31")
+        normalized, norm_params = self.normalize(
+            dynamic_vars, climatology_ds, fit_time_range=fit_range
+        )
 
-        # Re-attach QC flags
-        for flag_var in ["rainfall_qc_flag", "tmax_qc_flag", "tmin_qc_flag"]:
+        # Re-attach QC and availability fields without normalization.
+        for flag_var in [
+            "rainfall_qc_flag", "tmax_qc_flag", "tmin_qc_flag",
+            "chirps_rain_available",
+        ]:
             if flag_var in merged:
                 normalized[flag_var] = merged[flag_var]
 
         # 6. Encode cyclical time
         normalized = self.encode_cyclical_time(normalized)
 
-        # 7. Merge NCEP wind at 850 hPa (optional — graceful fallback if absent)
+        # 7. Merge 850 hPa wind/humidity (optional — graceful fallback if absent).
+        # ERA5 is preferred over NCEP when both are provided (finer native
+        # resolution, no known component-grid-mismatch blocker); NCEP fills in
+        # any feature ERA5 doesn't supply (e.g. a year still downloading).
+        reanalysis_ds: xr.Dataset | None = None
+        reanalysis_source = None
+        if era5_dir is not None:
+            reanalysis_ds = self.load_era5_at_850(era5_dir, start_year, end_year)
+            reanalysis_source = "ERA5"
         if ncep_dir is not None:
             ncep_ds = self.load_ncep_wind_at_850(ncep_dir, start_year, end_year)
             if ncep_ds is not None:
-                # Align to the same time axis as the IMD data
-                ncep_aligned = ncep_ds.reindex(time=normalized.time, method="nearest", tolerance="1D")
-                for var in ncep_ds.data_vars:
-                    if var not in normalized:
-                        normalized[var] = ncep_aligned[var].fillna(0.0)
-                logger.info("Merged NCEP 850 hPa wind into normalized dataset: %s", list(ncep_ds.data_vars))
+                if reanalysis_ds is None:
+                    reanalysis_ds, reanalysis_source = ncep_ds, "NCEP"
+                else:
+                    # Fill only features ERA5 didn't provide; never overwrite ERA5 values.
+                    missing_vars = [v for v in ncep_ds.data_vars if v not in reanalysis_ds.data_vars]
+                    if missing_vars:
+                        reanalysis_ds = xr.merge([reanalysis_ds, ncep_ds[missing_vars]])
+                        reanalysis_source = f"{reanalysis_source}+NCEP({','.join(missing_vars)})"
+
+        if reanalysis_ds is not None:
+            # Align to the same time axis as the IMD data
+            reanalysis_aligned = reanalysis_ds.reindex(time=normalized.time, method="nearest", tolerance="1D")
+            for var in reanalysis_ds.data_vars:
+                if var not in normalized:
+                    aligned = reanalysis_aligned[var]
+                    normalized[f"{var}_available"] = xr.where(
+                        aligned.notnull(), 1.0, 0.0
+                    ).astype(np.float32)
+                    normalized[var] = aligned.fillna(0.0)
+            logger.info(
+                "Merged 850 hPa reanalysis into normalized dataset (source=%s): %s",
+                reanalysis_source, list(reanalysis_ds.data_vars),
+            )
 
         return normalized, norm_params
 
@@ -602,21 +654,35 @@ class ClimatePreprocessor:
         # sortby is required both for sel(slice) and RegularGridInterpolator.
         ncep_ds = ncep_ds.sortby("lat").sortby("lon")
 
-        # Regrid 2.5° NCEP → 0.25° target grid
+        result = self._regrid_reanalysis_dataset(ncep_ds, margin=5.0)
+        logger.info(
+            "NCEP wind loaded: %d days, variables=%s",
+            len(result.time),
+            list(result.data_vars),
+        )
+        return result
+
+    def _regrid_reanalysis_dataset(self, ds: xr.Dataset, margin: float = 5.0) -> xr.Dataset:
+        """Bilinearly regrid a coarse reanalysis dataset (lat/lon/time) onto the
+        preprocessor's target 0.25° grid. Shared by the NCEP and ERA5 loaders so
+        the two sources produce identical downstream grids/behavior.
+
+        Requires *ds* to already have ``lat``/``lon``/``time`` dims with ascending
+        lat/lon coordinates (callers must ``sortby`` first).
+        """
         target_lats = np.arange(self.lat_min, self.lat_max + self.resolution / 2, self.resolution)
         target_lons = np.arange(self.lon_min, self.lon_max + self.resolution / 2, self.resolution)
-        margin = 5.0
-        ncep_clipped = ncep_ds.sel(
+        clipped = ds.sel(
             lat=slice(self.lat_min - margin, self.lat_max + margin),
             lon=slice(self.lon_min - margin, self.lon_max + margin),
         )
 
-        src_lats = ncep_clipped.lat.values.astype(float)
-        src_lons = ncep_clipped.lon.values.astype(float)
+        src_lats = clipped.lat.values.astype(float)
+        src_lons = clipped.lon.values.astype(float)
         regridded: dict[str, xr.DataArray] = {}
 
-        for var in ncep_clipped.data_vars:
-            arr = ncep_clipped[var].values.astype(np.float32)  # (time, lat, lon)
+        for var in clipped.data_vars:
+            arr = clipped[var].values.astype(np.float32)  # (time, lat, lon)
             out = np.full((arr.shape[0], len(target_lats), len(target_lons)), np.nan, dtype=np.float32)
             for t in range(arr.shape[0]):
                 slab = arr[t]
@@ -637,15 +703,100 @@ class ClimatePreprocessor:
                 )
             regridded[var] = xr.DataArray(
                 out,
-                coords={"time": ncep_clipped.time, "lat": target_lats, "lon": target_lons},
+                coords={"time": clipped.time, "lat": target_lats, "lon": target_lons},
                 dims=["time", "lat", "lon"],
             )
 
-        result = xr.Dataset(regridded)
+        return xr.Dataset(regridded)
+
+    def load_era5_at_850(
+        self,
+        era5_dir: str,
+        start_year: int,
+        end_year: int,
+    ) -> xr.Dataset | None:
+        """Load Copernicus CDS ERA5 850 hPa wind + specific humidity, regrid to 0.25°.
+
+        Reads ``era5_{uwnd,vwnd,shum}_{YYYY}_850hPa.nc`` from *era5_dir*
+        (produced by ``data/download_era5.py``). Unlike NCEP files, ERA5's
+        NetCDF variable names do not match its filename convention — CDS
+        exports single-letter short names (``u``, ``v``, ``q``) rather than
+        ``uwnd``/``vwnd``/``shum`` — and ERA5 uses ``valid_time``/``latitude``/
+        ``longitude``/``pressure_level`` coordinate names instead of NCEP's
+        ``time``/``lat``/``lon``/``level``. This loader renames both the
+        variables and the coordinates so the result is interchangeable with
+        ``load_ncep_wind_at_850``'s output (``uwnd_850``/``vwnd_850``/``shum_850``
+        on a ``time``/``lat``/``lon`` grid).
+
+        ERA5's ``rhum`` (relative humidity, variable ``r``) is intentionally
+        NOT loaded here — the model's declared 17th input feature (``shum_850``,
+        config.py) is specific humidity, not relative humidity, so ``rhum``
+        would be the wrong physical quantity for that slot. If ``rhum`` is later
+        needed as its own auxiliary feature, add it as a separate named channel
+        rather than substituting it for ``shum_850``.
+
+        Returns None (with a warning) if no files are found so the pipeline
+        degrades gracefully when ERA5 data is absent or download is incomplete
+        for a given year — partial year coverage (e.g. only 2010 downloaded so
+        far) is merged as-is; missing years are simply absent from the time axis.
+        """
+        import glob as _glob
+
+        era5_path = Path(era5_dir)
+        # short CDS variable name -> (filename component, output feature name)
+        var_map = {"u": ("uwnd", "uwnd_850"), "v": ("vwnd", "vwnd_850"), "q": ("shum", "shum_850")}
+        combined: dict[str, list[xr.DataArray]] = {long: [] for _, long in var_map.values()}
+        years_found: set[int] = set()
+
+        for cds_name, (file_component, long_name) in var_map.items():
+            for year in range(start_year, end_year + 1):
+                pattern = str(era5_path / f"era5_{file_component}_{year}_850hPa.nc")
+                files = _glob.glob(pattern)
+                if not files:
+                    logger.debug("ERA5 file not found: %s (skipping year %d)", pattern, year)
+                    continue
+                ds = xr.open_dataset(files[0])
+                if "pressure_level" in ds.dims:
+                    ds = ds.sel(pressure_level=850, method="nearest")
+                if cds_name not in ds.data_vars:
+                    logger.warning(
+                        "Expected ERA5 variable '%s' not found in %s (data_vars=%s) — skipping",
+                        cds_name, files[0], list(ds.data_vars),
+                    )
+                    continue
+                arr = ds[cds_name]
+                arr.name = long_name
+                combined[long_name].append(arr)
+                years_found.add(year)
+
+        if not any(combined.values()):
+            logger.warning("No ERA5 850 hPa files found in %s — skipping ERA5 wind/humidity features", era5_dir)
+            return None
+
+        arrays = {}
+        for long_name, da_list in combined.items():
+            if not da_list:
+                logger.warning(
+                    "ERA5 feature '%s' has no data in %s for any year in %d-%d — it will be absent "
+                    "from the merged dataset rather than silently zero-filled.",
+                    long_name, era5_dir, start_year, end_year,
+                )
+                continue
+            merged_da = xr.concat(da_list, dim="valid_time").sortby("valid_time")
+            rename_map = {"valid_time": "time", "latitude": "lat", "longitude": "lon"}
+            rename_map = {k: v for k, v in rename_map.items() if k in merged_da.dims}
+            if rename_map:
+                merged_da = merged_da.rename(rename_map)
+            arrays[long_name] = merged_da
+
+        if not arrays:
+            return None
+
+        era5_ds = xr.Dataset(arrays).sortby("lat").sortby("lon")
+        result = self._regrid_reanalysis_dataset(era5_ds, margin=5.0)
         logger.info(
-            "NCEP wind loaded: %d days, variables=%s",
-            len(result.time),
-            list(result.data_vars),
+            "ERA5 850 hPa loaded: %d days, years_covered=%s (of %d-%d requested), variables=%s",
+            len(result.time), sorted(years_found), start_year, end_year, list(result.data_vars),
         )
         return result
 

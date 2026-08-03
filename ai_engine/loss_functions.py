@@ -64,10 +64,18 @@ class PhysicsInformedLoss(nn.Module):
         lambda_conservation: float = 0.1,
         lambda_smoothness: float = 0.05,
         ghats_ridge_mask: torch.Tensor | None = None,
+        variable_weights: dict[str, float] | None = None,
     ):
         super().__init__()
         self.lambda_conservation = lambda_conservation
         self.lambda_smoothness = lambda_smoothness
+        # Per-region variable-priority override. Defaults to the global v2
+        # rebalanced weights; callers (e.g. trainer.py's --rain-weight /
+        # --tmax-weight / --tmin-weight CLI flags) may override per region
+        # based on that region's dominant hazard (rainfall/flood vs. heat
+        # extremes) per the literature cited in loss_functions.py's module
+        # docstring and research/VAYU_STATE_OF_ART_IMPROVEMENTS.md.
+        self.variable_weights = dict(variable_weights) if variable_weights else dict(VARIABLE_WEIGHTS)
         # v2: weighted CRPS for rainfall (stable on normalized data)
         self._crps    = WeightedCRPSLoss(alpha=3.0, heavy_threshold=20.0)
 
@@ -115,7 +123,7 @@ class PhysicsInformedLoss(nn.Module):
         # ── Prediction Loss (weighted MSE / focal) ──────────────────────────────
         pred_loss = torch.tensor(0.0, device=pred_stacked.device)
         for v_idx, var_name in enumerate(VARIABLE_ORDER):
-            weight = VARIABLE_WEIGHTS[var_name]
+            weight = self.variable_weights[var_name]
             var_pred = pred_stacked[..., v_idx]  # (horizon, num_nodes)
             var_true = targets[..., v_idx]
             valid = ~torch.isnan(var_true)

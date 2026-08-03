@@ -53,7 +53,10 @@ export async function fetchPrediction(
     // Fallback to pre-computed mock data when backend is offline
     // This ensures the demo works standalone for hackathon judges
     console.info('[VAYU] Backend offline — loading demo prediction data');
-    return _loadMockPrediction();
+    const mockData = await _loadMockPrediction();
+    // Mark as mock so the UI can show a subtle "simulated data" indicator (Req 7.4)
+    mockData.model_version = 'mock';
+    return mockData;
   }
 }
 
@@ -65,6 +68,8 @@ const MOCK_SCENARIO_FILES: Record<string, string> = {
   rainfall_scaling: '/mock_scenarios/rainfall_scaling.json',
   monsoon_delay: '/mock_scenarios/temperature_offset.json',
   sst_anomaly: '/mock_scenarios/temperature_offset.json',
+  urbanization_change: '/mock_scenarios/temperature_offset.json',
+  deforestation_impact: '/mock_scenarios/temperature_offset.json',
 };
 
 export async function runScenario(

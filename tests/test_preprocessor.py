@@ -79,6 +79,50 @@ def test_normalized_values_approximately_standard(preprocessor, pilot_rainfall_d
     assert 0.3 < float(np.std(valid)) < 3.0, "Std not near 1.0"
 
 
+def test_normalize_fit_time_range_uses_only_training_period(preprocessor):
+    """Statistics must be computed only from the requested fit window, not the full series."""
+    lats = np.array([8.0, 8.25])
+    lons = np.array([72.0, 72.25])
+    times = pd.date_range("2010-01-01", periods=4, freq="YS")  # 2010-2013
+    # Training years (2010-2011) have mean 0; the later "test" years (2012-2013)
+    # have a very different mean. Fitting on 2010-2011 only must ignore the shift.
+    data = np.array([
+        [[0.0, 0.0], [0.0, 0.0]],
+        [[0.0, 0.0], [0.0, 0.0]],
+        [[100.0, 100.0], [100.0, 100.0]],
+        [[100.0, 100.0], [100.0, 100.0]],
+    ], dtype=np.float32)
+    ds = xr.Dataset(
+        {"rainfall": (("time", "lat", "lon"), data)},
+        coords={"time": times, "lat": lats, "lon": lons},
+    )
+
+    norm_ds, params = preprocessor.normalize(ds, fit_time_range=("2010-01-01", "2011-12-31"))
+    assert np.allclose(params["rainfall"]["mean"], 0.0)
+    # Values from the unseen 2012-2013 period must not have been used to fit the mean/std.
+    later_normalized = norm_ds["rainfall"].values[2:]
+    assert np.all(later_normalized > 1.0), "Later years should show as far off the training-fit mean"
+
+
+def test_normalize_without_fit_range_uses_full_series(preprocessor):
+    """Backward-compatible default: no fit_time_range fits on the entire dataset."""
+    lats = np.array([8.0, 8.25])
+    lons = np.array([72.0, 72.25])
+    times = pd.date_range("2010-01-01", periods=4, freq="YS")
+    data = np.array([
+        [[0.0, 0.0], [0.0, 0.0]],
+        [[0.0, 0.0], [0.0, 0.0]],
+        [[100.0, 100.0], [100.0, 100.0]],
+        [[100.0, 100.0], [100.0, 100.0]],
+    ], dtype=np.float32)
+    ds = xr.Dataset(
+        {"rainfall": (("time", "lat", "lon"), data)},
+        coords={"time": times, "lat": lats, "lon": lons},
+    )
+    _, params = preprocessor.normalize(ds)
+    assert np.allclose(params["rainfall"]["mean"], 50.0)
+
+
 # ── Property 3: Quality control identifies outliers and fills short gaps ──────
 
 def test_qc_flags_outliers():
