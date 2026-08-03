@@ -37,8 +37,14 @@ class ModelConfig:
     learning_rate: float = 3e-4
     batch_size: int = 16
     max_epochs: int = 100
-    lambda_conservation: float = 0.02   # reduced — conservation was suppressing temp gradients
-    lambda_smoothness: float = 0.02
+    # v3: both physics penalties default OFF.
+    # conservation = |mean(pred) - mean(true)| is minimized by predicting the
+    # mean, which rewarded the measured R²_rain → 0.000 collapse.
+    # smoothness penalizes adjacent-node temperature differences, but real
+    # terrain-driven gradients are large and physical, so it suppressed the
+    # spatial variance that R²_tmax scores.
+    lambda_conservation: float = 0.0
+    lambda_smoothness: float = 0.0
     mc_dropout_passes: int = 10
     weight_decay: float = 1e-4
 

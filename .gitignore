@@ -1,4 +1,5 @@
 .env
+.env.local
 .venv/
 venv/
 __pycache__/
@@ -15,37 +16,33 @@ build/
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
+.hypothesis/
 htmlcov/
 .coverage
 *.pt
 *.pth
 checkpoints/
 
-# ── Data files (large .nc, raw datasets) ─────────────────────────────────────
-data/imd/
-data/mosdac/
-data/processed/
-data/processed_full_india/
-data/processed_western_ghats/
-data/kaggle_bundle_full_india/
-data/kaggle_bundle_western_ghats/
-data/ncep_wind/
-data/ncep_wind_subset/
-data/chirps_subset/
-data/static/
+# ── Data files (large .nc, raw datasets) ──────────────────────────────────
+data/*
+!data/*.py
+!data/*.ps1
+!data/*.md
 chirps/
 gebco/
 
-# ── Frontend ──────────────────────────────────────────────────────────────────
+# ── Frontend ───────────────────────────────────────────────────────────────
 node_modules/
 frontend/dist/
 frontend/.vite/
 frontend/.tsbuild/
 frontend/*.tsbuildinfo
 *.local
+frontend/.env
+frontend/.env.local
 frontend/.env.production
 
-# ── Cloned reference repos (not part of VAYU source — used for inspiration only) ─
+# ── Cloned reference repos (not part of VAYU source — used for inspiration only) ──
 fluid-earth/
 CesiumHeatmap/
 cesium-wind-layer/
@@ -54,7 +51,7 @@ react-globe.gl/
 terriajs/
 GeoJson-Data-of-Indian-States/
 
-# ── Copilot / AI session working documents ────────────────────────────────────
+# ── Copilot / AI session working documents ────────────────────────────────
 COPILOT_PROMPT.md
 COPILOT_SESSION_CONTEXT.md
 COPILOT_TERRA_MIGRATION_PROMPT.md
@@ -64,26 +61,29 @@ FRONTEND_REFACTOR_PROMPT.md
 FRONTEND_REFACTOR_TASKS.md
 KAGGLE_EXECUTION_NEXT_STEPS_2026-06-21.md
 TRAINING_TODOS_2026-06-21.md
+DATA_ACQUISITION_TASKS.md
+IMPLEMENTATION_CONTEXT.md
 
-# ── Large binary / model weights ─────────────────────────────────────────────
+# ── Large binary / model weights ──────────────────────────────────────────
 vayu_best*.pt
 *.nc
 
-# ── Local research docs and working notes ─────────────────────────────────────
+# ── Local research docs and working notes ─────────────────────────────────
 research/
+generated/
 
-# ── Local Kiro specs and session artifacts ────────────────────────────────────
+# ── Local Kiro specs and session artifacts ────────────────────────────────
 .kiro/
 
-# ── Vite temp files ───────────────────────────────────────────────────────────
+# ── Vite temp files ────────────────────────────────────────────────────────
 *.timestamp-*.mjs
 
-# ── CDK / Deployment artifacts ────────────────────────────────────────────────
+# ── CDK / Deployment artifacts ─────────────────────────────────────────────
 cdk-outputs.json
 cdk.context.json
 cdk.out/
 
-# ── Submission / paper artifacts (private) ────────────────────────────────────
+# ── Submission / paper artifacts (private) ─────────────────────────────────
 submission/
 .ipynb_checkpoints/
 .vscode/
@@ -91,5 +91,24 @@ submission/
 Thumbs.db
 .DS_Store
 
+# ── Notebook/editor/OS noise ────────────────────────────────────────────────
 
-# ── Notebook/editor/OS noise ──────────────────────────────────────────────────
+# ── Credentials / secrets / tokens ──────────────────────────────────────────
+*.pem
+*.key
+*credentials*.json
+kaggle.json
+access_token
+firmware/include/StationSecrets.h
+!firmware/StationSecrets.example.h
+
+# ── Reference/archive folders not part of source ────────────────────────────
+HydroRIVERS_v10_as.gdb/
+HydroRIVERS_TechDoc_v10.pdf
+
+# ── Misc scratch/output files left in repo root ──────────────────────────────
+diskinfo.txt
+out3.log
+s3list.xml
+s3list2.xml
+gitstatus_tmp.txt

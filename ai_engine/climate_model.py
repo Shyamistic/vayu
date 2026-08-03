@@ -132,7 +132,13 @@ class VayuClimateModel(nn.Module):
         # Pass last timestep's raw features so heads can learn residuals
         # Also pass full input sequence for trend computation
         last_input = x[:, -1, :]  # (num_nodes, in_features) — last day's features
-        predictions = self.heads(temporal_ctx, last_input, full_input=x)  # dict[var → (num_nodes, horizon)]
+        # Day-of-year climatology for the target days, when the dataset supplies
+        # it (see ai_engine/windowed_dataset.py). Fitted on training years only
+        # and known from the calendar, so it is a legitimate baseline input.
+        clim_future = getattr(graph_batch, "clim_future", None)
+        predictions = self.heads(
+            temporal_ctx, last_input, full_input=x, clim_future=clim_future
+        )  # dict[var → (num_nodes, horizon)]
 
         return predictions
 
