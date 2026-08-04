@@ -32,13 +32,19 @@ DEFAULT_DIR = Path("data/imd_history")
 IMD_HOST = "imdpune.gov.in"
 
 
-def imd_https_reachable(timeout: float = 20.0) -> tuple[bool, str]:
+def imd_https_reachable(
+    timeout: float = 15.0, probes: int = 8
+) -> tuple[bool, str]:
     """Pre-flight check on the IMD HTTPS endpoint.
 
-    This server is intermittently unavailable: it served 1901 in ~28s, then
-    within the hour began refusing TCP 443 while still answering ICMP ping.
-    Without this check the script grinds through every year x every retry
-    against a dead port, which takes hours and downloads nothing.
+    This server accepts connections only INTERMITTENTLY. Measured: 1 of 6
+    consecutive TCP 443 probes connected (in 1.0s) while the other five timed
+    out at 15s, and the same host answers ICMP ping throughout. A browser
+    appears to work because reloading the page retries.
+
+    So a single probe is not evidence the server is down, and the check tries
+    several times before giving up. The point is only to distinguish "server is
+    genuinely unreachable" from "server is flaky but usable with persistence".
     """
     import socket
 
@@ -47,20 +53,23 @@ def imd_https_reachable(timeout: float = 20.0) -> tuple[bool, str]:
     except OSError as exc:
         return False, f"DNS lookup failed for {IMD_HOST}: {exc}"
 
-    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    sock.settimeout(timeout)
-    try:
-        sock.connect((ip, 443))
-        return True, f"{IMD_HOST} ({ip}) accepting HTTPS"
-    except OSError as exc:
-        return False, (
-            f"{IMD_HOST} ({ip}) resolves but TCP 443 is not accepting "
-            f"connections ({type(exc).__name__}). The IMD server is down or "
-            f"rate-limiting; this is not a local network problem. Re-run later "
-            f"-- already-downloaded years are skipped."
-        )
-    finally:
-        sock.close()
+    for i in range(probes):
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.settimeout(timeout)
+        try:
+            sock.connect((ip, 443))
+            return True, (f"{IMD_HOST} ({ip}) accepting HTTPS "
+                          f"(probe {i + 1}/{probes})")
+        except OSError:
+            pass
+        finally:
+            sock.close()
+
+    return False, (
+        f"{IMD_HOST} ({ip}) resolves but none of {probes} TCP 443 probes "
+        f"connected. This server is intermittently available, so retry later "
+        f"-- already-downloaded years are skipped on re-run."
+    )
 
 
 def already_have(out_dir: Path, var: str, year: int) -> bool:
@@ -77,12 +86,13 @@ def fetch_year(var: str, year: int, out_dir: Path, attempts: int, backoff: float
         try:
             imdlib.get_data(var, year, year, fn_format="yearwise", file_dir=str(out_dir))
             return True
-        except Exception as exc:  # network flakiness is expected here
-            wait = backoff * attempt
-            print(f"    attempt {attempt}/{attempts} failed: "
-                  f"{type(exc).__name__}: {str(exc)[:90]}")
+        except Exception as exc:  # intermittent server; expected frequently
+            # Cap the wait: this server's failures are fast timeouts and its
+            # availability is random, so long backoffs only waste wall-clock.
+            wait = min(backoff * attempt, 30.0)
+            print(f"    attempt {attempt}/{attempts}: "
+                  f"{type(exc).__name__}: {str(exc)[:70]}")
             if attempt < attempts:
-                print(f"    retrying in {wait:.0f}s")
                 time.sleep(wait)
     return False
 
@@ -93,8 +103,11 @@ def main() -> int:
     ap.add_argument("--start", type=int, default=1901)
     ap.add_argument("--end", type=int, default=2025)
     ap.add_argument("--out", type=Path, default=DEFAULT_DIR)
-    ap.add_argument("--attempts", type=int, default=4)
-    ap.add_argument("--backoff", type=float, default=15.0)
+    # Measured connect success rate is roughly 1 in 6, so a year needs many
+    # attempts. Failures are fast timeouts, and backoff is capped, so a high
+    # attempt count costs little.
+    ap.add_argument("--attempts", type=int, default=20)
+    ap.add_argument("--backoff", type=float, default=5.0)
     ap.add_argument("--skip-preflight", action="store_true",
                     help="Attempt downloads even if the IMD host looks unreachable")
     args = ap.parse_args()
