@@ -166,8 +166,15 @@ def preprocess(
     )
 
     out_path = output_dir / f"normalized_{start_year}-{end_year}.nc"
-    normalized.to_netcdf(out_path)
-    typer.echo(f"Saved to {out_path}")
+    # zlib-compress: this file is the one that must be uploaded to Kaggle for
+    # --all-windows training, and the upload has repeatedly failed on large
+    # files. Measured on the real Western Ghats file: 207.0 MB -> 77.0 MB
+    # (2.69x smaller) at complevel=4, costing 9s to write. Lossless.
+    normalized.to_netcdf(
+        out_path,
+        encoding={v: {"zlib": True, "complevel": 4} for v in normalized.data_vars},
+    )
+    typer.echo(f"Saved to {out_path} ({out_path.stat().st_size / 1e6:.0f} MB, zlib complevel=4)")
 
     # Persist full normalization parameters for denormalized evaluation.
     norm_ds_vars = {}
