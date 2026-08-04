@@ -29,6 +29,40 @@ import imdlib
 DEFAULT_DIR = Path("data/imd_history")
 
 
+IMD_HOST = "imdpune.gov.in"
+
+
+def imd_https_reachable(timeout: float = 20.0) -> tuple[bool, str]:
+    """Pre-flight check on the IMD HTTPS endpoint.
+
+    This server is intermittently unavailable: it served 1901 in ~28s, then
+    within the hour began refusing TCP 443 while still answering ICMP ping.
+    Without this check the script grinds through every year x every retry
+    against a dead port, which takes hours and downloads nothing.
+    """
+    import socket
+
+    try:
+        ip = socket.gethostbyname(IMD_HOST)
+    except OSError as exc:
+        return False, f"DNS lookup failed for {IMD_HOST}: {exc}"
+
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    sock.settimeout(timeout)
+    try:
+        sock.connect((ip, 443))
+        return True, f"{IMD_HOST} ({ip}) accepting HTTPS"
+    except OSError as exc:
+        return False, (
+            f"{IMD_HOST} ({ip}) resolves but TCP 443 is not accepting "
+            f"connections ({type(exc).__name__}). The IMD server is down or "
+            f"rate-limiting; this is not a local network problem. Re-run later "
+            f"-- already-downloaded years are skipped."
+        )
+    finally:
+        sock.close()
+
+
 def already_have(out_dir: Path, var: str, year: int) -> bool:
     """imdlib writes <var>/<year>.grd under file_dir with fn_format='yearwise'."""
     candidates = [
@@ -61,10 +95,25 @@ def main() -> int:
     ap.add_argument("--out", type=Path, default=DEFAULT_DIR)
     ap.add_argument("--attempts", type=int, default=4)
     ap.add_argument("--backoff", type=float, default=15.0)
+    ap.add_argument("--skip-preflight", action="store_true",
+                    help="Attempt downloads even if the IMD host looks unreachable")
     args = ap.parse_args()
 
     args.out.mkdir(parents=True, exist_ok=True)
     years = list(range(args.start, args.end + 1))
+
+    remaining = [y for y in years if not already_have(args.out, args.var, y)]
+    if not remaining:
+        print(f"All {len(years)} years of {args.var} already present in {args.out}")
+        return 0
+
+    if not args.skip_preflight:
+        ok, detail = imd_https_reachable()
+        print(f"pre-flight: {detail}")
+        if not ok:
+            print(f"\nAborting before touching {len(remaining)} remaining years.")
+            print("Use --skip-preflight to try anyway.")
+            return 2
 
     done, skipped, failed = 0, 0, []
     t_start = time.time()
