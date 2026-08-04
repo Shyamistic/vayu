@@ -141,14 +141,25 @@ class PredictionHeads(nn.Module):
     # Channel indices in the input feature tensor for each target variable
     VARIABLE_CHANNELS = {"rainfall": 0, "temp_max": 1, "temp_min": 2}
 
-    # Initial baseline blend per variable, from measured 2022 WG validation skill
-    # (see SingleVariableHead docstring). Rainfall starts on climatology only
-    # because persistence scores R² = -0.30 for it; temperatures start on the
-    # 50/50 blend that measured +0.796 (tmax) and +0.804 (tmin).
+    # Initial baseline blend (w_persistence, w_climatology) per variable.
+    # Chosen from a weight scan on 2022 validation data for ALL FOUR regions
+    # (scripts/skill_ceiling_probe.py). The optimum is remarkably stable across
+    # regions, which is why one shared initialization is used rather than
+    # per-region values — and the weights are learnable, so each region refines
+    # them during training.
+    #
+    #   region          | best w_persist rain | tmax | tmin
+    #   western_ghats   |                0.15 | 0.45 | 0.40
+    #   north_east      |                0.15 | 0.50 | 0.55
+    #   indo_gangetic   |                0.10 | 0.45 | 0.40
+    #   central_india   |                0.10 | 0.40 | 0.40
+    #
+    # Rainfall leans almost entirely on climatology because persistence is
+    # actively harmful for it (R² between -0.30 and -0.49 across regions).
     BASELINE_INIT = {
-        "rainfall": (0.0, 1.0),
-        "temp_max": (0.5, 0.5),
-        "temp_min": (0.5, 0.5),
+        "rainfall": (0.12, 0.88),
+        "temp_max": (0.45, 0.55),
+        "temp_min": (0.45, 0.55),
     }
 
     def __init__(

@@ -147,14 +147,20 @@ def test_head_falls_back_to_persistence_without_climatology():
     assert torch.allclose(out, torch.full((5, 3), 1.5), atol=1e-6)
 
 
-def test_rainfall_baseline_is_climatology_not_persistence():
-    """Persistence scores R² = -0.30 for rainfall on real data, climatology
-    +0.215, so rainfall must not start anchored on persistence."""
+def test_rainfall_baseline_leans_on_climatology():
+    """Persistence scores R² between -0.30 and -0.49 for rainfall across all
+    four regions, so rainfall must be anchored mostly on climatology. Measured
+    optimum for w_persistence is 0.10-0.15 (scripts/skill_ceiling_probe.py)."""
     wp, wc = PredictionHeads.BASELINE_INIT["rainfall"]
-    assert wp == 0.0 and wc == 1.0
+    assert 0.05 <= wp <= 0.2, f"rainfall w_persistence {wp} outside measured optimum"
+    assert wc > wp * 4, "rainfall must lean on climatology"
+
+    # Temperatures: persistence is genuinely informative (0.72-0.87), so both
+    # baselines carry real weight; measured optimum is ~0.40-0.55.
     for var in ("temp_max", "temp_min"):
         wp, wc = PredictionHeads.BASELINE_INIT[var]
-        assert wp > 0.0 and wc > 0.0, f"{var} should blend both baselines"
+        assert 0.3 <= wp <= 0.6, f"{var} w_persistence {wp} outside measured optimum"
+        assert 0.3 <= wc <= 0.7, f"{var} w_climatology {wc} outside measured optimum"
 
 
 def test_baseline_weights_are_learnable():
