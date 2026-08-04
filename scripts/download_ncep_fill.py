@@ -75,6 +75,10 @@ def main() -> int:
     ap.add_argument("--vars", nargs="*", default=list(VARS))
     ap.add_argument("--start", type=int, default=2010)
     ap.add_argument("--end", type=int, default=2025)
+    # NCEP/NCAR R1 itself starts 1948; 1981 is used as the default extension
+    # target because it's where CHIRPS and OISST also begin, so all three
+    # auxiliary sources can be aligned to the same window (see
+    # scripts/download_chirps_history.py and data/download_oisst_sst.py).
     ap.add_argument("--out", type=Path, default=DEFAULT_DIR)
     ap.add_argument("--attempts", type=int, default=4)
     ap.add_argument("--backoff", type=float, default=10.0)
