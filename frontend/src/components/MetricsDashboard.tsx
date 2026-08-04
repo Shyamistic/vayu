@@ -91,7 +91,7 @@ export default function MetricsDashboard({
   const predicted = observed.map((v) => v + (rand() - 0.5) * 3);
 
   return (
-    <div className="panel p-4 flex flex-col gap-4 w-80">
+    <div className="panel p-4 flex flex-col gap-4 w-full">
       {/* Header */}
       <div className="flex items-center justify-between">
         <h2 className="text-white font-semibold text-sm">Model Performance</h2>

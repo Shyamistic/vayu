@@ -4,7 +4,7 @@ import {
   CloudRain, Thermometer, Activity,
   BarChart2, Database, Layers, BookOpen,
   SplitSquareHorizontal, Mountain, Leaf, Wind,
-  Radio, Waves, Download, BarChart, Menu, X, Search, Eye,
+  Radio, Waves, Download, BarChart, Menu, X, Search, Eye, Map,
 } from 'lucide-react';
 import { format, addDays } from 'date-fns';
 import CesiumGlobe from './components/AsyncCesiumGlobe';
@@ -41,6 +41,7 @@ import ClimateRiskScore from './components/ClimateRiskScore';
 import IMDAlertBanner from './components/IMDAlertBanner';
 import ModelInfoCard from './components/ModelInfoCard';
 import { CinematicIntro } from './design-system/CinematicIntro';
+import { TabPanelModal } from './design-system/TabPanelModal';
 import OfflineModeBadge from './features/platform/OfflineModeBadge';
 import HistoricalFloodValidation from './features/model/HistoricalFloodValidation';
 import type { ColormapId } from './utils/colorScales';
@@ -154,6 +155,7 @@ export default function App() {
   // (or press Esc, or Cesium's LEFT_CLICK on empty sky) to restore it.
   const [focusMode, setFocusMode] = useState(false);
   const [showWind, setShowWind] = useState(false);
+  const [mapMode, setMapMode] = useState<'3d' | '2d'>('3d');
   const [regionFlyTrigger, setRegionFlyTrigger] = useState(0);
   const [inspectMode, setInspectMode] = useState(false);
   const [isDesktopViewport, setIsDesktopViewport] = useState(() =>
@@ -379,6 +381,7 @@ export default function App() {
             show3D={show3D}
             selectedDate={state.timeState.selectedDate}
             showWind={showWind}
+            mapMode={mapMode}
             regionFlyTrigger={regionFlyTrigger}
             viewportKey={globeViewportKey}
           />
@@ -526,6 +529,22 @@ export default function App() {
             {terrainExaggeration}×
           </span>
         </div>
+
+        {/* 2D / 3D map mode toggle */}
+        <button
+          onClick={() => setMapMode((m) => (m === '3d' ? '2d' : '3d'))}
+          className="flex flex-col items-center gap-1 px-3 py-2.5 rounded-lg mt-1 transition-all"
+          style={{
+            background: 'rgba(6,10,22,0.92)',
+            border: mapMode === '2d' ? '1px solid #22d3ee' : '1px solid rgba(255,255,255,0.08)',
+            color: mapMode === '2d' ? '#22d3ee' : 'rgba(255,255,255,0.4)',
+            boxShadow: mapMode === '2d' ? '0 0 10px rgba(34,211,238,0.3)' : 'none',
+          }}
+          title={mapMode === '3d' ? 'Switch to 2D map (India)' : 'Switch to 3D globe'}
+        >
+          <Map size={14} />
+          <span className="text-[9px] font-medium">{mapMode === '3d' ? '2D' : '3D Globe'}</span>
+        </button>
 
         {/* 3D Rainfall Toggle (Feature 1) */}
         {state.selectedVariable === 'rainfall' && (
@@ -693,27 +712,9 @@ export default function App() {
             <LayerControlPanel activeLayer={activeLayer} onLayerChange={handleLayerChange} gibsDate={gibsDate} onDateChange={setGibsDate} />
           </div>
 
-          {/* What-If Scenarios — always visible in drawer */}
-          <WhatIfPanel onResult={handleScenarioResult} onReset={handleScenarioReset} />
-
-          {/* Conditional panels by view mode */}
-          {state.viewMode === 'metrics' && (
-            <div className="flex flex-col gap-3">
-              {/* Model Architecture card */}
-              <ModelInfoCard />
-              <SatelliteDataCard />
-              <MetricsDashboard selectedVariable={state.selectedVariable} onVariableChange={(v) => update({ selectedVariable: v })} />
-              <NWPComparisonPanel variable={state.selectedVariable} region={state.selectedRegion} />
-              <ModelComparisonPanel variable={state.selectedVariable} region={state.selectedRegion} />
-            </div>
-          )}
-          {state.viewMode === 'historical' && (
-            <div className="flex flex-col gap-3">
-              <DataProvenancePanel />
-              <HistoricalFloodValidation />
-            </div>
-          )}
-          {state.viewMode === 'case-study' && <SivasagarFloodCaseStudy />}
+          {/* Predict stays inline in the drawer; every other tab (What-If and
+              everything after it) opens as a pop-up instead — see TabPanelModal
+              below. */}
           {state.viewMode === 'prediction' && (
             <div className="flex flex-col gap-3">
               <IndiaClimateStats gridCells={gridCells} selectedDate={state.timeState.selectedDate} />
@@ -732,6 +733,34 @@ export default function App() {
               <ExportTools gridCells={gridCells} variable={state.selectedVariable} selectedDate={state.timeState.selectedDate} region={state.selectedRegion} />
             </div>
           )}
+        </div>
+
+        <TabPanelModal
+          open={state.viewMode !== 'prediction'}
+          title={VIEW_TABS.find((t) => t.id === state.viewMode)?.label ?? ''}
+          icon={VIEW_TABS.find((t) => t.id === state.viewMode)?.icon}
+          onClose={() => update({ viewMode: 'prediction' })}
+        >
+          {state.viewMode === 'scenario' && (
+            <WhatIfPanel onResult={handleScenarioResult} onReset={handleScenarioReset} />
+          )}
+          {state.viewMode === 'metrics' && (
+            <div className="flex flex-col gap-3">
+              {/* Model Architecture card */}
+              <ModelInfoCard />
+              <SatelliteDataCard />
+              <MetricsDashboard selectedVariable={state.selectedVariable} onVariableChange={(v) => update({ selectedVariable: v })} />
+              <NWPComparisonPanel variable={state.selectedVariable} region={state.selectedRegion} />
+              <ModelComparisonPanel variable={state.selectedVariable} region={state.selectedRegion} />
+            </div>
+          )}
+          {state.viewMode === 'historical' && (
+            <div className="flex flex-col gap-3">
+              <DataProvenancePanel />
+              <HistoricalFloodValidation />
+            </div>
+          )}
+          {state.viewMode === 'case-study' && <SivasagarFloodCaseStudy />}
           {state.viewMode === 'agriculture' && (
             <div className="flex flex-col gap-3">
               <AgriculturePanel gridCells={gridCells} />
@@ -744,7 +773,7 @@ export default function App() {
               <IoTSensorPanel />
             </div>
           )}
-        </div>
+        </TabPanelModal>
 
       {/* ── Time slider bottom (z-[1000], responsive — Req 29.4) ──
           left offset reserves space for the fixed left toolbar (72px wide +
