@@ -1001,6 +1001,23 @@ def train_cli() -> None:
         if all_windows and not normalized_file:
             raise typer.BadParameter("--all-windows requires --normalized-file")
 
+        if all_windows:
+            # Fail fast with an actionable message. A missing NetCDF otherwise
+            # surfaces as an opaque xarray/netCDF4 KeyError from the file cache.
+            for _label, _p in (
+                ("--normalized-file", normalized_file),
+                ("--elevation-file", elevation_file),
+                ("--lsm-file", lsm_file),
+            ):
+                if _p and not Path(_p).exists():
+                    raise typer.BadParameter(
+                        f"{_label} not found: {_p}\n"
+                        "Kaggle bundles are often split across sibling folders "
+                        "(…-1-001 / …-1-002); make sure every folder of the "
+                        "dataset is attached and that the staging cell copied "
+                        "normalized_*.nc, elevation.nc and lsm.nc."
+                    )
+
         # ── Build the lazy sliding-window splits up front when requested ──────
         windowed_splits = None
         if all_windows:
