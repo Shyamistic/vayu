@@ -302,10 +302,9 @@ class WindowedSequenceDataset(Dataset):
         self.input_window = int(input_window)
         self.target_window = int(target_window)
         self.climatology = climatology
-        if climatology is not None:
-            self._doy = xr.DataArray(dense.times).dt.dayofyear.values
-        else:
-            self._doy = None
+        # Always available so evaluation can mask to a season (e.g. JJAS)
+        # regardless of whether the climatology baseline is in use.
+        self._doy = xr.DataArray(dense.times).dt.dayofyear.values
 
     def __len__(self) -> int:
         return len(self.starts)
@@ -331,6 +330,14 @@ class WindowedSequenceDataset(Dataset):
             # Climatology for the TARGET days → (N, tw, 3)
             doy_idx = self._doy[s + iw : s + iw + tw] - 1
             graph.clim_future = self.climatology[doy_idx].permute(1, 0, 2).contiguous()
+
+        # Day-of-year for each target day, independent of the climatology
+        # baseline. Lets evaluation mask to the monsoon season (JJAS) without
+        # needing full calendar dates on every downstream consumer.
+        doy_full = xr.DataArray(self.dense.times).dt.dayofyear.values
+        graph.target_doy = torch.from_numpy(
+            doy_full[s + iw : s + iw + tw].astype(np.int64)
+        )
         return graph, y
 
 

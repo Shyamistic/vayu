@@ -209,6 +209,8 @@ def _collate_sequences(
     # like x rather than shared like the topology.
     if getattr(graphs[0], "clim_future", None) is not None:
         batched_graph.clim_future = torch.stack([g.clim_future for g in graphs], dim=0)
+    if getattr(graphs[0], "target_doy", None) is not None:
+        batched_graph.target_doy = torch.stack([g.target_doy for g in graphs], dim=0)
     return batched_graph, t_batch
 
 
@@ -719,6 +721,20 @@ class VayuTrainer:
         reg_preds = {r: {"rainfall": [], "temp_max": [], "temp_min": []} for r in reg_names}
         reg_targets = {r: {"rainfall": [], "temp_max": [], "temp_min": []} for r in reg_names}
 
+        # Kept as (N, horizon) rather than raveled, so per-lead-time metrics,
+        # JJAS masking and multi-day accumulation can be computed after the
+        # loop without another pass over the model. See ai_engine/verification.py.
+        lead_preds: dict[str, list] = {"rainfall": [], "temp_max": [], "temp_min": []}
+        lead_targets: dict[str, list] = {"rainfall": [], "temp_max": [], "temp_min": []}
+        lead_persist: dict[str, list] = {"rainfall": [], "temp_max": [], "temp_min": []}
+        lead_clim: dict[str, list] = {"rainfall": [], "temp_max": [], "temp_min": []}
+        lead_doy: dict[str, list] = {"rainfall": [], "temp_max": [], "temp_min": []}
+        # Denormalized (physical-unit) per-window arrays, needed for categorical
+        # (mm/day threshold) scores — denormalizing per-window here, since
+        # _denormalize_grid broadcasts against a single (N, horizon) array.
+        lead_preds_denorm: dict[str, list] = {"rainfall": [], "temp_max": [], "temp_min": []}
+        lead_targets_denorm: dict[str, list] = {"rainfall": [], "temp_max": [], "temp_min": []}
+
         for graph_batch, targets in test_loader:
             g = GraphData(
                 x=graph_batch.x[0].to(self.device),
@@ -740,6 +756,13 @@ class VayuTrainer:
             if node_latlon is not None:
                 for reg in reg_names:
                     region_masks[reg] = region_mask(node_latlon, reg)
+
+            # (horizon,) day-of-year for this window's target days, broadcast
+            # across nodes below to build per-lead / per-season masks without
+            # retraining anything.
+            _doy = getattr(graph_batch, "target_doy", None)
+            doy_1d = _doy[0].cpu().numpy() if _doy is not None else None
+
             for v_idx, var in enumerate(["rainfall", "temp_max", "temp_min"]):
                 p_2d = preds[var].cpu().numpy()
                 t_2d = target[..., v_idx].cpu().numpy().transpose(1, 0)
@@ -747,6 +770,12 @@ class VayuTrainer:
                 all_targets[var].append(t_2d.ravel())
                 all_persistence[var].append(baselines[f"persistence_{var}"].ravel())
                 all_climatology[var].append(baselines[f"climatology_{var}"].ravel())
+                lead_preds[var].append(p_2d)                    # (N, horizon)
+                lead_targets[var].append(t_2d)
+                lead_persist[var].append(baselines[f"persistence_{var}"])
+                lead_clim[var].append(baselines[f"climatology_{var}"])
+                if doy_1d is not None:
+                    lead_doy[var].append(np.broadcast_to(doy_1d, p_2d.shape))
 
                 for reg, mask in region_masks.items():
                     if mask.any():
@@ -756,14 +785,18 @@ class VayuTrainer:
                 if self.norm_params and var in self.norm_params:
                     mean_grid = self.norm_params[var]["mean"]
                     std_grid = self.norm_params[var]["std"]
-                    all_preds_denorm[var].append(_denormalize_grid(p_2d, mean_grid, std_grid).ravel())
-                    all_targets_denorm[var].append(_denormalize_grid(t_2d, mean_grid, std_grid).ravel())
+                    pdn_2d = _denormalize_grid(p_2d, mean_grid, std_grid)
+                    tdn_2d = _denormalize_grid(t_2d, mean_grid, std_grid)
+                    all_preds_denorm[var].append(pdn_2d.ravel())
+                    all_targets_denorm[var].append(tdn_2d.ravel())
                     all_persistence_denorm[var].append(
                         _denormalize_grid(baselines[f"persistence_{var}"], mean_grid, std_grid).ravel()
                     )
                     all_climatology_denorm[var].append(
                         _denormalize_grid(baselines[f"climatology_{var}"], mean_grid, std_grid).ravel()
                     )
+                    lead_preds_denorm[var].append(pdn_2d)      # (N, horizon)
+                    lead_targets_denorm[var].append(tdn_2d)
 
         results = {}
         for var in ["rainfall", "temp_max", "temp_min"]:
@@ -803,6 +836,81 @@ class VayuTrainer:
                 results[var]["skill_vs_persistence"],
                 results[var]["skill_vs_climatology"],
             )
+
+            # ── Literature-comparable verification (per-lead, JJAS, accumulation,
+            # categorical) — see ai_engine/verification.py for why the pooled
+            # all-year/all-lead R² above understates rainfall skill.
+            if lead_preds[var]:
+                from ai_engine import verification as vf
+
+                lp = np.stack(lead_preds[var])       # (samples, N, horizon)
+                lt = np.stack(lead_targets[var])
+                lpe = np.stack(lead_persist[var])
+                lcl = np.stack(lead_clim[var])
+
+                results[var]["by_lead_all_year"] = vf.evaluate_by_lead(
+                    lp, lt, persistence=lpe, climatology=lcl
+                )
+
+                if lead_doy[var]:
+                    ldoy = np.stack(lead_doy[var])
+                    # day-of-year -> calendar month via a fixed non-leap-year
+                    # lookup (JJAS boundaries do not depend on leap days).
+                    _month_of_doy = np.array(
+                        [0] + sum(([m] * d for m, d in enumerate(
+                            [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31], start=1
+                        )), [])
+                    )
+                    doy_clamped = np.clip(ldoy, 1, 365)
+                    monsoon = np.isin(_month_of_doy[doy_clamped], list(vf.MONSOON_MONTHS))
+                    if monsoon.any():
+                        results[var]["by_lead_jjas"] = vf.evaluate_by_lead(
+                            np.where(monsoon, lp, np.nan),
+                            np.where(monsoon, lt, np.nan),
+                            persistence=np.where(monsoon, lpe, np.nan),
+                            climatology=np.where(monsoon, lcl, np.nan),
+                        )
+
+                if var == "rainfall" and lp.shape[-1] >= 3:
+                    acc3_p = vf.accumulate(lp, 3)
+                    acc3_t = vf.accumulate(lt, 3)
+                    acc3_c = vf.accumulate(lcl, 3)
+                    results[var]["accum_3day"] = {
+                        "r2": vf.r2(acc3_p.ravel(), acc3_t.ravel()),
+                        "skill_vs_climatology": vf.skill_score(
+                            acc3_p.ravel(), acc3_c.ravel(), acc3_t.ravel()
+                        ),
+                    }
+                    if lp.shape[-1] >= 5:
+                        acc5_p, acc5_t = vf.accumulate(lp, 5), vf.accumulate(lt, 5)
+                        acc5_c = vf.accumulate(lcl, 5)
+                        results[var]["accum_5day"] = {
+                            "r2": vf.r2(acc5_p.ravel(), acc5_t.ravel()),
+                            "skill_vs_climatology": vf.skill_score(
+                                acc5_p.ravel(), acc5_c.ravel(), acc5_t.ravel()
+                            ),
+                        }
+
+                    # Categorical scores need physical units (mm/day); skip
+                    # entirely if this checkpoint has no norm_params attached.
+                    if lead_preds_denorm[var]:
+                        pdn_lead = np.stack(lead_preds_denorm[var])
+                        tdn_lead = np.stack(lead_targets_denorm[var])
+                        for name, thr in vf.IMD_RAIN_THRESHOLDS_MM.items():
+                            results[var].setdefault("categorical", {})[name] = (
+                                vf.contingency_scores(pdn_lead.ravel(), tdn_lead.ravel(), thr)
+                            )
+
+                    day1 = results[var]["by_lead_all_year"].get("day1", {})
+                    day1_jjas = results[var].get("by_lead_jjas", {}).get("day1", {})
+                    logger.info(
+                        "Test %s day-1: R²=%.3f (all-year) / %.3f (JJAS) | "
+                        "3-day accum R²=%.3f | 5-day accum R²=%.3f",
+                        var, day1.get("r2", float("nan")),
+                        day1_jjas.get("r2", float("nan")),
+                        results[var].get("accum_3day", {}).get("r2", float("nan")),
+                        results[var].get("accum_5day", {}).get("r2", float("nan")),
+                    )
 
         return results
 
