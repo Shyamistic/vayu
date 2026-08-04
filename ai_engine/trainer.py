@@ -940,6 +940,14 @@ def train_cli() -> None:
             help="Heavy-rain emphasis threshold in NORMALIZED z-score units (not mm/day). "
                  "The v2 default of 20.0 made the emphasis inert on z-scored targets.",
         ),
+        rain_heavy_alpha: float = typer.Option(
+            3.0,
+            help="Heavy-rain emphasis strength: w(y) = 1 + alpha * clamp(y/thr,0,1)^2. "
+                 "NOTE R2 is an UNWEIGHTED squared-error score, so any alpha > 0 "
+                 "optimizes a different objective than the reported metric and can "
+                 "cost overall R2_rain in exchange for extreme-event accuracy. "
+                 "Set 0.0 for plain MSE exactly aligned with R2.",
+        ),
     ):
         """Train VayuClimateModel on preprocessed IMD data."""
         import logging
@@ -1140,6 +1148,11 @@ def train_cli() -> None:
             variable_weights=variable_weights,
             rain_occurrence_weight=rain_occurrence_weight,
             rain_heavy_threshold=rain_heavy_threshold,
+            rain_heavy_alpha=rain_heavy_alpha,
+        )
+        logger.info(
+            "Rainfall loss: weighted MSE (heavy alpha=%.2f, threshold=%.2f z, occurrence=%.2f)",
+            rain_heavy_alpha, rain_heavy_threshold, rain_occurrence_weight,
         )
         norm_params = _load_norm_params_file(norm_params_file)
         trainer = VayuTrainer(
