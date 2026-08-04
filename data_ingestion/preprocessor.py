@@ -442,6 +442,7 @@ class ClimatePreprocessor:
         ncep_dir: str | None = None,
         era5_dir: str | None = None,
         chirps_dir: str | None = None,
+        oisst_dir: str | None = None,
         start_year: int = 2010,
         end_year: int = 2025,
         normalization_fit_start_year: int | None = None,
@@ -570,6 +571,37 @@ class ClimatePreprocessor:
                 "Merged 850 hPa reanalysis into normalized dataset (source=%s): %s",
                 reanalysis_source, list(reanalysis_ds.data_vars),
             )
+
+        # 8. Merge sea-surface temperature into the insat_sst slot.
+        #
+        # DISCLOSURE: this is NOAA OISST v2.1 (optimum-interpolation AVHRR + in-situ
+        # blend), NOT INSAT-3D SST. MOSDAC access for the real 3RIMG_L3B_SST_DLY
+        # product was never approved (see DATA_ACQUISITION_TASKS.md section 2 —
+        # still open as of this commit). OISST is used as a stand-in for the
+        # `insat_sst` feature slot until/unless MOSDAC access is granted, and this
+        # substitution must be stated in any manifest or report that cites this
+        # feature — never presented as real INSAT-3D data.
+        #
+        # insat_lst (land surface temperature) has NO substitute wired in. No
+        # public, no-registration LST source at daily/0.25 deg cadence was found;
+        # it remains zero-filled with `insat_lst_available=0` throughout (see
+        # DATA_ACQUISITION_TASKS.md section 2).
+        if oisst_dir is not None:
+            oisst = self._load_oisst_sst(oisst_dir, start_year, end_year)
+            if oisst is not None:
+                oisst_aligned = oisst.reindex(
+                    time=normalized.time, method="nearest", tolerance="1D"
+                )
+                sst = oisst_aligned["sst"]
+                normalized["insat_sst_available"] = xr.where(
+                    sst.notnull(), 1.0, 0.0
+                ).astype(np.float32)
+                normalized["insat_sst"] = sst.fillna(0.0).astype(np.float32)
+                logger.info(
+                    "Merged NOAA OISST v2.1 into 'insat_sst' slot (SUBSTITUTE for "
+                    "INSAT-3D SST — MOSDAC access not yet approved): %d days",
+                    int(sst.notnull().any(dim=[d for d in sst.dims if d != "time"]).sum()),
+                )
 
         return normalized, norm_params
 
@@ -798,6 +830,62 @@ class ClimatePreprocessor:
             "ERA5 850 hPa loaded: %d days, years_covered=%s (of %d-%d requested), variables=%s",
             len(result.time), sorted(years_found), start_year, end_year, list(result.data_vars),
         )
+        return result
+
+    def _load_oisst_sst(
+        self,
+        oisst_dir: str,
+        start_year: int,
+        end_year: int,
+    ) -> xr.Dataset | None:
+        """Load NOAA OISST v2.1 daily SST, clipped and regridded to the target grid.
+
+        Expects per-day files named ``oisst-avhrr-v02r01.YYYYMMDD.nc`` (the format
+        produced by ``data/download_oisst_sst.py``), each a global 0.25 deg grid
+        with longitude in 0-360 convention. Longitude is converted to -180..180
+        before clipping since the preprocessor's region bounds use that convention.
+
+        SST is a scalar field (not a directional/vector quantity like wind), so no
+        component-alignment concerns apply here the way they do for uwnd/vwnd —
+        unlike wind, no bilinear-regrid-then-recombine step is needed beyond the
+        same nearest/linear regrid already used for reanalysis fields.
+
+        Returns None (with a warning) if no files are found, matching the
+        graceful-degradation behavior of ``_load_chirps`` / ``load_ncep_wind_at_850``.
+        """
+        import glob as _glob
+
+        oisst_path = Path(oisst_dir)
+        frames: list[xr.DataArray] = []
+
+        for year in range(start_year, end_year + 1):
+            files = sorted(_glob.glob(str(oisst_path / f"oisst-avhrr-v02r01.{year}*.nc")))
+            if not files:
+                logger.debug("No OISST files for %d in %s", year, oisst_path)
+                continue
+            for f in files:
+                ds = xr.open_dataset(f)
+                if "sst" not in ds.data_vars:
+                    logger.warning("OISST file %s has no 'sst' variable — skipping", f)
+                    continue
+                da = ds["sst"]
+                if "zlev" in da.dims:
+                    da = da.isel(zlev=0, drop=True)
+                frames.append(da)
+
+        if not frames:
+            logger.warning("No OISST files found in %s — insat_sst stays zero-filled", oisst_dir)
+            return None
+
+        merged = xr.concat(frames, dim="time").sortby("time")
+
+        # OISST longitude is 0..360; region bounds (this project) use -180..180.
+        lon_180 = ((merged.lon.values + 180) % 360) - 180
+        merged = merged.assign_coords(lon=lon_180).sortby("lon")
+
+        oisst_ds = xr.Dataset({"sst": merged}).sortby("lat")
+        result = self._regrid_reanalysis_dataset(oisst_ds, margin=5.0)
+        logger.info("OISST SST loaded: %d days, region clipped to model grid", len(result.time))
         return result
 
     def _load_chirps(

@@ -132,6 +132,13 @@ def preprocess(
         help="Directory containing CHIRPS subsetted files (chirps_YYYY_WG.nc) or global "
              "chirps-v2.0.YYYY.days_p25.nc files. CHIRPS is retained as an auxiliary predictor.",
     ),
+    oisst_dir: Path | None = typer.Option(
+        None, "--oisst-dir",
+        help="Directory containing NOAA OISST v2.1 daily files "
+             "(oisst-avhrr-v02r01.YYYYMMDD.nc). Fills the insat_sst feature slot as a "
+             "DISCLOSED SUBSTITUTE for INSAT-3D SST — MOSDAC access was never approved. "
+             "See DATA_ACQUISITION_TASKS.md section 2.",
+    ),
     normalization_fit_start_year: int = typer.Option(
         2010, "--normalization-fit-start-year", help="First year used to fit normalization statistics"
     ),
@@ -159,6 +166,7 @@ def preprocess(
         ncep_dir=str(ncep_wind_dir) if ncep_wind_dir else None,
         era5_dir=str(era5_dir) if era5_dir else None,
         chirps_dir=str(chirps_dir) if chirps_dir else None,
+        oisst_dir=str(oisst_dir) if oisst_dir else None,
         start_year=start_year,
         end_year=end_year,
         normalization_fit_start_year=normalization_fit_start_year,
