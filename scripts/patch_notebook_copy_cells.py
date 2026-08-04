@@ -51,8 +51,18 @@ OPTIONAL_FILES = ['train_sequences.pt', 'val_sequences.pt', 'test_sequences.pt']
 
 
 def _locate(name):
-    """Find `name` anywhere under /kaggle/input, preferring this region's bundle."""
+    """Find `name` anywhere under /kaggle/input, preferring this region's bundle.
+
+    Falls back to a suffixed variant, because Kaggle renames a file to
+    `train_sequences-001.pt` when a name collides with an earlier version.
+    """
     matches = sorted(_ROOT.rglob(name))
+    if not matches:
+        stem, dot, ext = name.rpartition('.')
+        if dot:
+            matches = sorted(_ROOT.rglob(f'{stem}-[0-9][0-9][0-9].{ext}'))
+        if matches:
+            print(f'note: {name} not found; using suffixed variant {matches[0].name}')
     if not matches:
         return None
     preferred = [m for m in matches if f'kaggle_bundle_{REGION}' in str(m)]
@@ -68,8 +78,10 @@ for _f in REQUIRED_FILES + OPTIONAL_FILES:
         else:
             print(f'optional, not found: {_f}')
         continue
-    shutil.copy(_src, PROCESSED_DIR)
-    print(f'staged {_f:28s} <- {_src.parent}')
+    # Copy to the CANONICAL name so a Kaggle-suffixed source (…-001.pt) still
+    # lands as the filename the trainer expects.
+    shutil.copy(_src, _P(PROCESSED_DIR) / _f)
+    print(f'staged {_f:28s} <- {_src.parent.name}/{_src.name}')
 
 if _missing:
     raise RuntimeError(
@@ -91,7 +103,9 @@ def main() -> None:
                 continue
             src = "".join(cell["source"])
             # The staging cell is the one that shutil.copy's into PROCESSED_DIR.
-            if "shutil.copy" in src and "PROCESSED_DIR" in src and "REQUIRED_FILES" not in src:
+            # Matches both the original and an already-patched cell so this
+            # script is idempotent and safe to re-run.
+            if "shutil.copy" in src and "PROCESSED_DIR" in src:
                 cell["source"] = NEW_CELL.splitlines(keepends=True)
                 patched = True
                 break
