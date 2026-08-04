@@ -63,10 +63,15 @@ const VARIABLE_CONFIG = {
   temp_min: { label: 'Tmin',     unit: '°C',     min: 10, max: 35, extrudeScale: 0    },
 };
 
-/** Return CSS color string for heatmap canvas rendering — uses fluid-earth colormaps */
-function _heatmapColor(t: number, variable: VariableId, colormapId: ColormapId): string {
+/**
+ * Return CSS color string for heatmap canvas rendering — uses fluid-earth colormaps.
+ * `edgeFactor` (0–1) fades the cell toward transparent near the data domain's
+ * boundary so the overlay reads as a soft field rather than a pasted rectangle.
+ */
+function _heatmapColor(t: number, variable: VariableId, colormapId: ColormapId, edgeFactor = 1): string {
   if (variable === 'rainfall' && t < 0.04) return 'rgba(255,255,255,0)';
-  return mapColor(t, colormapId, variable === 'rainfall' && t < 0.05 ? 0 : 0.85);
+  const baseAlpha = variable === 'rainfall' && t < 0.05 ? 0 : 0.85;
+  return mapColor(t, colormapId, baseAlpha * edgeFactor);
 }
 
 /** Interpolate the IMD standard colormap for rainfall, perceptual colormaps for temperature */
@@ -143,6 +148,7 @@ interface CesiumGlobeProps {
   show3D?: boolean;         // 3D extruded rainfall columns
   selectedDate?: Date;      // for day/night terminator
   showWind?: boolean;       // toggle wind particle layer
+  mapMode?: '3d' | '2d';    // '2d' morphs to a top-down orthographic map focused on India
   regionFlyTrigger?: number; // increment to force fly-to even same region
   /** Changes whenever persistent UI changes the usable globe viewport. */
   viewportKey?: string;
@@ -165,6 +171,7 @@ export default function CesiumGlobe({
   show3D = false,
   selectedDate,
   showWind = true,
+  mapMode = '3d',
   regionFlyTrigger,
   viewportKey,
 }: CesiumGlobeProps) {
@@ -250,6 +257,44 @@ export default function CesiumGlobe({
       cancel: () => { setProgrammaticFlight(false); },
     });
   }, [setProgrammaticFlight]);
+
+  // ── 2D / 3D scene mode toggle ───────────────────────────────────────────────
+  // Cesium's built-in 2D/3D morph keeps every existing layer, entity, and
+  // interaction (heatmap, boundaries, wind particles, IoT pins) working
+  // unchanged — only the projection changes — so no separate map library or
+  // duplicate rendering path is needed for the 2D view.
+  useEffect(() => {
+    if (!isReady || !viewerRef.current) return;
+    const viewer = viewerRef.current;
+    if (viewer.isDestroyed()) return;
+
+    const flyToIndiaTopDown = (duration: number) => {
+      if (viewer.isDestroyed()) return;
+      viewer.camera.flyTo({
+        destination: Cesium.Rectangle.fromDegrees(
+          INDIA_OVERVIEW_BOUNDS.lonMin,
+          INDIA_OVERVIEW_BOUNDS.latMin,
+          INDIA_OVERVIEW_BOUNDS.lonMax,
+          INDIA_OVERVIEW_BOUNDS.latMax
+        ),
+        duration,
+      });
+    };
+
+    if (mapMode === '2d') {
+      if (viewer.scene.mode === Cesium.SceneMode.SCENE2D) {
+        flyToIndiaTopDown(1.0);
+      } else {
+        const removeListener = viewer.scene.morphComplete.addEventListener(() => {
+          removeListener();
+          flyToIndiaTopDown(0.0);
+        });
+        viewer.scene.morphTo2D(1.0);
+      }
+    } else if (viewer.scene.mode !== Cesium.SceneMode.SCENE3D) {
+      viewer.scene.morphTo3D(1.0);
+    }
+  }, [isReady, mapMode]);
 
   // ── IoT sensor pins and hover telemetry (Requirement 27) ──────────────────
   useEffect(() => {
@@ -976,14 +1021,21 @@ export default function CesiumGlobe({
         variable === 'rainfall' ? 'imd_rain' : variable === 'temp_max' ? 'plasma' : 'viridis'
       );
 
-      // Paint canvas
-      const scale = 4;
-      const canvas = document.createElement('canvas');
-      canvas.width = nLon * scale;
-      canvas.height = nLat * scale;
-      const ctx = canvas.getContext('2d');
-      if (!ctx) return;
+      // Paint a raw, one-pixel-per-cell raster first, then smooth-scale it
+      // up. Browser image scaling bilinearly (often bicubically) blends the
+      // colors *and* alpha between neighboring cells, so the discrete 0.25°
+      // grid reads as a continuous spatial field (Ventusky-style) instead
+      // of hard-edged blocks — with no per-point interpolation math needed.
+      const raw = document.createElement('canvas');
+      raw.width = nLon;
+      raw.height = nLat;
+      const rawCtx = raw.getContext('2d');
+      if (!rawCtx) return;
       const cfg = VARIABLE_CONFIG[variable];
+
+      // Feather the outer ~2 cells toward transparent so the domain boundary
+      // reads as a soft fade instead of a hard-edged rectangle.
+      const FEATHER_CELLS = 2;
 
       for (let latIdx = 0; latIdx < nLat; latIdx++) {
         for (let lonIdx = 0; lonIdx < nLon; lonIdx++) {
@@ -993,13 +1045,30 @@ export default function CesiumGlobe({
           if (cell) {
             const val = cell[variable] as number;
             const t = Math.max(0, Math.min(1, (val - cfg.min) / (cfg.max - cfg.min)));
-            ctx.fillStyle = _heatmapColor(t, variable, activeColormap);
+            const distToEdge = Math.min(latIdx, nLat - 1 - latIdx, lonIdx, nLon - 1 - lonIdx);
+            const edgeFactor = Math.min(1, (distToEdge + 0.5) / FEATHER_CELLS);
+            rawCtx.fillStyle = _heatmapColor(t, variable, activeColormap, edgeFactor);
           } else {
-            ctx.fillStyle = 'rgba(0,0,0,0)';
+            rawCtx.fillStyle = 'rgba(0,0,0,0)';
           }
-          ctx.fillRect(lonIdx * scale, latIdx * scale, scale, scale);
+          rawCtx.fillRect(lonIdx, latIdx, 1, 1);
         }
       }
+
+      // Cap the output canvas so very large regions (e.g. full India) don't
+      // produce an oversized texture — clamp the up-scale factor instead of
+      // using a fixed one.
+      const MAX_OUTPUT_PX = 2048;
+      const smoothScale = Math.max(4, Math.min(24, Math.floor(MAX_OUTPUT_PX / Math.max(nLon, nLat))));
+
+      const canvas = document.createElement('canvas');
+      canvas.width = nLon * smoothScale;
+      canvas.height = nLat * smoothScale;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return;
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = 'high';
+      ctx.drawImage(raw, 0, 0, canvas.width, canvas.height);
 
       const cellSize = 0.25;
       const west = lons[0] - cellSize / 2;

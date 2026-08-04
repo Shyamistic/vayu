@@ -2,7 +2,7 @@ import { Database, Satellite, Globe, GitBranch } from 'lucide-react';
 
 export default function DataProvenancePanel() {
   return (
-    <div className="panel p-4 flex flex-col gap-4 w-72">
+    <div className="panel p-4 flex flex-col gap-4 w-full">
       <h2 className="text-white font-semibold text-sm flex items-center gap-2">
         <Database size={14} className="text-vayu-accent" />
         Data Provenance
