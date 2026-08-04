@@ -75,6 +75,76 @@ class DenseRegionTensor:
         return int(self.x.shape[0])
 
 
+def rescale_unstandardized_channels(
+    x: torch.Tensor,
+    feature_names: list[str],
+    times: np.ndarray,
+    fit_years: tuple[int, int],
+    lo: float = 0.05,
+    hi: float = 3.0,
+) -> list[str]:
+    """Z-score any channel that was never standardized, in place.
+
+    Measured on the real v2 datasets, the atmospheric channels reach the model in
+    RAW physical units while everything else is a per-cell z-score:
+
+        channel      std      corr with next-day rainfall
+        uwnd_850    6.3791    +0.2417
+        vwnd_850    2.6458    -0.0579
+        shum_850    0.0027    +0.3189   <-- strongest real predictor
+        rainfall    0.7629    +0.5106
+        tmax        0.9800    -0.2208
+
+    So inputs span a ~2400x dynamic range and specific humidity — the single most
+    informative atmospheric field — is numerically invisible next to the winds.
+    Statistics are computed over ``fit_years`` only, so this adds no leakage.
+
+    Channels legitimately living on a bounded scale (day_sin/cos, land/sea mask,
+    lat/lon, elevation) fall inside [lo, hi] and are left untouched.
+
+    Returns the list of channel names that were rescaled.
+    """
+    years = xr.DataArray(times).dt.year.values
+    fit_mask = (years >= fit_years[0]) & (years <= fit_years[1])
+    rescaled: list[str] = []
+
+    for c in range(x.shape[2]):
+        ch = x[:, fit_mask, c]
+        std = float(ch.std())
+        if std < 1e-8:
+            continue  # dead channel; rescaling would divide by ~0
+        if lo <= std <= hi:
+            continue  # already on a sane scale
+        mean = float(ch.mean())
+        x[:, :, c] = (x[:, :, c] - mean) / std
+        rescaled.append(f"{feature_names[c]} (std {std:.4g} -> 1.0)")
+
+    if rescaled:
+        logger.info("Rescaled unstandardized channels: %s", ", ".join(rescaled))
+    return rescaled
+
+
+def report_dead_channels(x: torch.Tensor, feature_names: list[str]) -> list[str]:
+    """Log channels carrying no information so they are visible, not silent.
+
+    Measured: insat_lst / insat_sst / chirps_rain are 100% zeros in every region,
+    and uwnd/vwnd/shum are additionally all-zero for Indo-Gangetic and Central
+    India — i.e. those regions have no moisture or circulation predictor at all,
+    which bounds their achievable rainfall skill at climatology.
+    """
+    dead = [
+        feature_names[c]
+        for c in range(x.shape[2])
+        if float(x[:, :, c].std()) < 1e-8
+    ]
+    if dead:
+        logger.warning(
+            "%d/%d input channels are CONSTANT and carry no signal: %s",
+            len(dead), x.shape[2], ", ".join(dead),
+        )
+    return dead
+
+
 def build_dense_region_tensor(
     normalized_file: str | Path,
     elevation_file: str | Path | None = None,
@@ -279,6 +349,7 @@ def build_windowed_splits(
     include_missingness_indicators: bool = False,
     use_climatology_baseline: bool = True,
     climatology_smooth_days: int = 15,
+    rescale_channels: bool = True,
 ) -> tuple[WindowedSequenceDataset, WindowedSequenceDataset, WindowedSequenceDataset, DenseRegionTensor]:
     """Build leakage-safe calendar-split lazy datasets from one normalized file."""
     dense = build_dense_region_tensor(
@@ -288,6 +359,12 @@ def build_windowed_splits(
         resolution=resolution,
         include_missingness_indicators=include_missingness_indicators,
     )
+
+    report_dead_channels(dense.x, dense.feature_names)
+    if rescale_channels:
+        rescale_unstandardized_channels(
+            dense.x, dense.feature_names, dense.times, fit_years=train_years
+        )
 
     climatology = None
     if use_climatology_baseline:
