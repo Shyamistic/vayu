@@ -156,6 +156,10 @@ export default function App() {
   const [focusMode, setFocusMode] = useState(false);
   const [showWind, setShowWind] = useState(false);
   const [mapMode, setMapMode] = useState<'3d' | '2d'>('3d');
+  // One-time auto-rotate + auto-play-forecast hero moment, right after the
+  // cinematic intro. Turns itself off on completion or the first real user
+  // interaction with the globe (see CesiumGlobe's heroMode effect).
+  const [heroPlaying, setHeroPlaying] = useState(true);
   const [regionFlyTrigger, setRegionFlyTrigger] = useState(0);
   const [inspectMode, setInspectMode] = useState(false);
   const [isDesktopViewport, setIsDesktopViewport] = useState(() =>
@@ -382,6 +386,9 @@ export default function App() {
             selectedDate={state.timeState.selectedDate}
             showWind={showWind}
             mapMode={mapMode}
+            heroMode={heroPlaying}
+            onHeroDayChange={(d) => update({ forecastDay: d })}
+            onHeroComplete={() => setHeroPlaying(false)}
             regionFlyTrigger={regionFlyTrigger}
             viewportKey={globeViewportKey}
           />
