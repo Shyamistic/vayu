@@ -4,7 +4,7 @@ import {
   CloudRain, Thermometer, Activity,
   BarChart2, Database, Layers, BookOpen,
   SplitSquareHorizontal, Mountain, Leaf, Wind,
-  Radio, Waves, Download, BarChart, Menu, X, Search, Eye, Map,
+  Radio, Waves, Download, BarChart, Menu, X, Search, Eye, Map, Moon,
 } from 'lucide-react';
 import { format, addDays } from 'date-fns';
 import CesiumGlobe from './components/AsyncCesiumGlobe';
@@ -155,6 +155,7 @@ export default function App() {
   // (or press Esc, or Cesium's LEFT_CLICK on empty sky) to restore it.
   const [focusMode, setFocusMode] = useState(false);
   const [showWind, setShowWind] = useState(false);
+  const [showTerminator, setShowTerminator] = useState(false);
   const [mapMode, setMapMode] = useState<'3d' | '2d'>('3d');
   // One-time auto-rotate + auto-play-forecast hero moment, right after the
   // cinematic intro. Turns itself off on completion or the first real user
@@ -385,6 +386,7 @@ export default function App() {
             show3D={show3D}
             selectedDate={state.timeState.selectedDate}
             showWind={showWind}
+            showTerminator={showTerminator}
             mapMode={mapMode}
             heroMode={heroPlaying}
             onHeroDayChange={(d) => update({ forecastDay: d })}
@@ -585,6 +587,22 @@ export default function App() {
         >
           <Wind size={14} />
           <span className="text-[9px] font-medium">Wind</span>
+        </button>
+
+        {/* Day/night terminator toggle */}
+        <button
+          onClick={() => setShowTerminator((v) => !v)}
+          className="flex flex-col items-center gap-1 px-3 py-2.5 rounded-lg mt-1 transition-all"
+          style={{
+            background: 'rgba(6,10,22,0.92)',
+            border: showTerminator ? '1px solid #818cf8' : '1px solid rgba(255,255,255,0.08)',
+            color: showTerminator ? '#818cf8' : 'rgba(255,255,255,0.3)',
+            boxShadow: showTerminator ? '0 0 8px rgba(129,140,248,0.25)' : 'none',
+          }}
+          title="Toggle day/night terminator"
+        >
+          <Moon size={14} />
+          <span className="text-[9px] font-medium">Terminator</span>
         </button>
 
         {/* Inspect mode toggle */}

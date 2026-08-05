@@ -17,6 +17,7 @@ import {
 import { REGIONS } from './RegionSelector';
 import { mapColor, COLOR_SCALES } from '../utils/colorScales';
 import type { ColormapId } from '../utils/colorScales';
+import { TerminatorLayer } from '../features/globe/layers/TerminatorLayer';
 
 // ── Constants ──────────────────────────────────────────────────────────────────
 
@@ -148,6 +149,7 @@ interface CesiumGlobeProps {
   show3D?: boolean;         // 3D extruded rainfall columns
   selectedDate?: Date;      // for day/night terminator
   showWind?: boolean;       // toggle wind particle layer
+  showTerminator?: boolean; // toggle day/night terminator line + nightside shading
   mapMode?: '3d' | '2d';    // '2d' morphs to a top-down orthographic map focused on India
   /** One-time auto-rotate + auto-play-forecast hero sequence (e.g. right after
    *  the cinematic intro). Cancels immediately on any real user input and
@@ -179,6 +181,7 @@ export default function CesiumGlobe({
   show3D = false,
   selectedDate,
   showWind = true,
+  showTerminator = false,
   mapMode = '3d',
   heroMode = false,
   onHeroDayChange,
@@ -194,7 +197,8 @@ export default function CesiumGlobe({
   const heatmapLayerRef = useRef<Cesium.ImageryLayer | null>(null);
   const windLayerRef = useRef<WindLayer | null>(null);
   const extrude3DRef = useRef<Cesium.CustomDataSource | null>(null);
-  const terminatorRef = useRef<Cesium.Entity | null>(null);
+  const terminatorLayerRef = useRef<TerminatorLayer | null>(null);
+  const terminatorTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const onHeroDayChangeRef = useRef(onHeroDayChange);
   const onHeroCompleteRef = useRef(onHeroComplete);
   // Refs for stable closure access in event handlers
@@ -556,6 +560,10 @@ export default function CesiumGlobe({
       } catch {}
     });
 
+    const terminatorLayer = new TerminatorLayer();
+    terminatorLayer.init(viewer);
+    terminatorLayerRef.current = terminatorLayer;
+
     // ── Atmosphere & lighting — ISRO space-to-earth aesthetic ──
     viewer.scene.globe.enableLighting = false; // disable lighting so globe is always visible
     viewer.scene.globe.showGroundAtmosphere = true;
@@ -880,10 +888,14 @@ export default function CesiumGlobe({
         try { windLayerRef.current.destroy(); } catch {}
         windLayerRef.current = null;
       }
+      if (terminatorTimerRef.current) clearTimeout(terminatorTimerRef.current);
+      if (terminatorLayerRef.current) {
+        try { terminatorLayerRef.current.destroy(); } catch {}
+        terminatorLayerRef.current = null;
+      }
       viewer.destroy();
       viewerRef.current = null;
       extrude3DRef.current = null;
-      terminatorRef.current = null;
     };
   }, []);
 
@@ -1283,11 +1295,61 @@ export default function CesiumGlobe({
     });
   }, [isReady, show3D, gridCells, variable, colormap]);
 
-  // ── Day / Night Terminator Line (Feature 6) ────────────────────────────────
-  // DISABLED: This effect fires on every selectedDate change (every slider tick)
-  // and creates/removes entities rapidly, causing Cesium render loop crashes.
-  // The terminator polyline can also produce degenerate geometry near equinoxes.
-  // TODO: Re-enable with static terminator that only updates on manual date clicks.
+  // ── Day / Night Terminator Line + Nightside Lighting (Feature 6) ───────────
+  // Re-enabled after fixing why it was disabled: (1) this effect now
+  // debounces selectedDate changes (mirroring the heatmap effect below)
+  // instead of redrawing on every timeline-drag tick, which is what caused
+  // the render-loop crashes; (2) nightside darkening no longer uses a
+  // hand-rolled polygon covering the "night hemisphere" — a first attempt at
+  // that visibly blacked out nearly the entire view, because Cesium's
+  // polygon triangulation targets regional shapes, not planet-scale interior
+  // fills. Darkening is now done via the globe's own native per-pixel
+  // lighting (enableLighting + clock.currentTime), which is what that
+  // feature exists for and is guaranteed to shade the correct hemisphere.
+  useEffect(() => {
+    if (!isReady || !viewerRef.current) return;
+    const viewer = viewerRef.current;
+    const layer = terminatorLayerRef.current;
+
+    if (terminatorTimerRef.current) clearTimeout(terminatorTimerRef.current);
+
+    if (!showTerminator) {
+      layer?.clear();
+      viewer.scene.globe.enableLighting = false;
+      return;
+    }
+
+    terminatorTimerRef.current = setTimeout(() => {
+      if (viewer.isDestroyed()) return;
+      const date = selectedDate ?? new Date();
+
+      // Reference time for the sun direction, then enable per-pixel lighting.
+      viewer.clock.currentTime = Cesium.JulianDate.fromDate(date);
+      viewer.scene.globe.enableLighting = true;
+
+      layer?.update({
+        gridCells: [],
+        variable,
+        region,
+        forecastDay: 1,
+        terrainExaggeration,
+        colormap: colormap ?? 'imd_rain',
+        show3D,
+        showWind,
+        showContours: false,
+        showBoundaries: false,
+        showUncertainty: false,
+        scenarioData,
+        gibsDate: gibsDate ?? '',
+        selectedDate: date,
+        heatmapOpacity: 0.78,
+      });
+    }, 500);
+
+    return () => {
+      if (terminatorTimerRef.current) clearTimeout(terminatorTimerRef.current);
+    };
+  }, [isReady, showTerminator, selectedDate]);
 
   // ── Update scenario delta overlay (right half in split-screen) ─────────────
   useEffect(() => {
