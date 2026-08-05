@@ -699,9 +699,34 @@ class ClimatePreprocessor:
             for extra in ("number", "expver"):
                 if extra in da.coords:
                     da = da.drop_vars(extra)
-            # 12-hourly → daily mean.
-            da = da.resample(time="1D").mean()
-            frames.append(da)
+            # 12-hourly -> daily mean, via manual numpy groupby rather than
+            # xr.resample(). Measured on a real file (1990, 716 steps,
+            # 289x294): xr.resample(time="1D").mean() takes ~121s just to
+            # build (before .load() even runs), while load-then-numpy-groupby
+            # takes ~7s total -- a ~17x difference. Across 45 years that is
+            # the difference between roughly 90 minutes and 5 minutes, and a
+            # Western Ghats preprocess run stalled here for several minutes
+            # with CPU pegged before being investigated. xarray's resample
+            # appears to have per-call overhead independent of data size in
+            # this environment, mirroring the ~30x per-file overhead already
+            # found and fixed for OISST (see consolidate_oisst_yearly.py).
+            values = da.values  # (T, lat, lon), forces the actual read
+            times = da["time"].values
+            days = times.astype("datetime64[D]")
+            uniq_days, inv = np.unique(days, return_inverse=True)
+            out = np.zeros((len(uniq_days), *values.shape[1:]), dtype=np.float64)
+            counts = np.zeros(len(uniq_days), dtype=np.int64)
+            np.add.at(out, inv, values)
+            np.add.at(counts, inv, 1)
+            out /= counts[:, None, None]
+            daily = xr.DataArray(
+                out.astype("float32"),
+                dims=("time", *da.dims[1:]),
+                coords={"time": uniq_days, **{
+                    d: da.coords[d] for d in da.dims[1:] if d in da.coords
+                }},
+            )
+            frames.append(daily)
 
         if not frames:
             logger.warning(
