@@ -9,7 +9,7 @@ description = "VAYU climate digital twin backend and AI engine"
 requires-python = ">=3.13,<3.14"
 dependencies = [
   "alembic==1.18.4", "asyncpg==0.31.0", "awsiotsdk==1.26.0", "boto3==1.43.32",
-  "cartopy==0.25.0", "fastapi==0.137.2", "geoalchemy2==0.20.0", "h5py==3.16.0",
+  "cartopy==0.25.0", "dask==2024.11.2", "fastapi==0.137.2", "geoalchemy2==0.20.0", "h5py==3.16.0",
   "hiredis==3.4.0", "httpx==0.28.1", "imdlib==0.1.21", "matplotlib==3.11.0",
   "metpy==1.7.1", "netCDF4==1.7.4", "numpy==2.4.6", "paho-mqtt==2.1.0",
   "pandas==3.0.3", "pillow==12.2.0", "psycopg2-binary==2.9.12", "pydantic==2.13.4",

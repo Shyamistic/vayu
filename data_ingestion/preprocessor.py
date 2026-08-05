@@ -958,10 +958,27 @@ class ClimatePreprocessor:
     ) -> xr.Dataset | None:
         """Load NOAA OISST v2.1 daily SST, clipped and regridded to the target grid.
 
-        Expects per-day files named ``oisst-avhrr-v02r01.YYYYMMDD.nc`` (the format
-        produced by ``data/download_oisst_sst.py``), each a global 0.25 deg grid
-        with longitude in 0-360 convention. Longitude is converted to -180..180
-        before clipping since the preprocessor's region bounds use that convention.
+        Two file layouts are supported, checked per year (mirroring
+        ``_load_chirps``'s subsetted-vs-global preference):
+
+        * PREFERRED: one consolidated file per year, ``oisst-avhrr-v02r01.
+          YYYY_india.nc`` or ``oisst-avhrr-v02r01.YYYY.nc`` (produced by
+          ``scripts/consolidate_oisst_yearly.py``).
+        * FALLBACK: the raw per-day files as downloaded,
+          ``oisst-avhrr-v02r01.YYYYMMDD*.nc``.
+
+        The fallback exists for compatibility but should be avoided for large
+        date ranges: opening thousands of individual daily files (measured:
+        16,193 files for 1981-2025) is slow without dask installed, since
+        xarray has no lazy chunking to fall back on and builds the whole
+        concatenation eagerly in memory. A Western Ghats preprocess run
+        stalled on this step for 12+ minutes with CPU pegged before being
+        killed; consolidating to 45 yearly files first turned the same load
+        into 45 file opens.
+
+        Expects longitude in OISST's native 0-360 convention; it is converted
+        to -180..180 before clipping since the preprocessor's region bounds
+        use that convention.
 
         SST is a scalar field (not a directional/vector quantity like wind), so no
         component-alignment concerns apply here the way they do for uwnd/vwnd —
@@ -977,10 +994,23 @@ class ClimatePreprocessor:
         frames: list[xr.DataArray] = []
 
         for year in range(start_year, end_year + 1):
-            files = sorted(_glob.glob(str(oisst_path / f"oisst-avhrr-v02r01.{year}*.nc")))
+            yearly = (
+                sorted(_glob.glob(str(oisst_path / f"oisst-avhrr-v02r01.{year}_india.nc")))
+                or sorted(_glob.glob(str(oisst_path / f"oisst-avhrr-v02r01.{year}.nc")))
+            )
+            files = yearly or sorted(
+                _glob.glob(str(oisst_path / f"oisst-avhrr-v02r01.{year}*.nc"))
+            )
             if not files:
                 logger.debug("No OISST files for %d in %s", year, oisst_path)
                 continue
+            if not yearly and len(files) > 31:
+                logger.warning(
+                    "OISST %d: reading %d individual daily files (no consolidated "
+                    "yearly file found) — this is slow. Run "
+                    "scripts/consolidate_oisst_yearly.py first.",
+                    year, len(files),
+                )
             for f in files:
                 ds = xr.open_dataset(f)
                 if "sst" not in ds.data_vars:
@@ -989,7 +1019,8 @@ class ClimatePreprocessor:
                 da = ds["sst"]
                 if "zlev" in da.dims:
                     da = da.isel(zlev=0, drop=True)
-                frames.append(da)
+                frames.append(da.load())
+                ds.close()
 
         if not frames:
             logger.warning("No OISST files found in %s — insat_sst stays zero-filled", oisst_dir)
