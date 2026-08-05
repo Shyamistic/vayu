@@ -86,7 +86,7 @@ export default function ModelComparisonPanel({ variable, region }: Props) {
   const maxRmse = variable === 'rainfall' ? 20 : 10;
 
   return (
-    <div className="panel p-4 flex flex-col gap-3 w-80">
+    <div className="panel p-4 flex flex-col gap-3 w-full">
       <div className="flex items-center justify-between">
         <h2 className="text-white font-semibold text-sm">Model Comparison</h2>
         <span className="text-xs text-white/30 uppercase tracking-wide">{region.replace(/_/g, ' ')}</span>

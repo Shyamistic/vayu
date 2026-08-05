@@ -63,10 +63,15 @@ const VARIABLE_CONFIG = {
   temp_min: { label: 'Tmin',     unit: '°C',     min: 10, max: 35, extrudeScale: 0    },
 };
 
-/** Return CSS color string for heatmap canvas rendering — uses fluid-earth colormaps */
-function _heatmapColor(t: number, variable: VariableId, colormapId: ColormapId): string {
+/**
+ * Return CSS color string for heatmap canvas rendering — uses fluid-earth colormaps.
+ * `edgeFactor` (0–1) fades the cell toward transparent near the data domain's
+ * boundary so the overlay reads as a soft field rather than a pasted rectangle.
+ */
+function _heatmapColor(t: number, variable: VariableId, colormapId: ColormapId, edgeFactor = 1): string {
   if (variable === 'rainfall' && t < 0.04) return 'rgba(255,255,255,0)';
-  return mapColor(t, colormapId, variable === 'rainfall' && t < 0.05 ? 0 : 0.85);
+  const baseAlpha = variable === 'rainfall' && t < 0.05 ? 0 : 0.85;
+  return mapColor(t, colormapId, baseAlpha * edgeFactor);
 }
 
 /** Interpolate the IMD standard colormap for rainfall, perceptual colormaps for temperature */
@@ -143,6 +148,15 @@ interface CesiumGlobeProps {
   show3D?: boolean;         // 3D extruded rainfall columns
   selectedDate?: Date;      // for day/night terminator
   showWind?: boolean;       // toggle wind particle layer
+  mapMode?: '3d' | '2d';    // '2d' morphs to a top-down orthographic map focused on India
+  /** One-time auto-rotate + auto-play-forecast hero sequence (e.g. right after
+   *  the cinematic intro). Cancels immediately on any real user input and
+   *  hands off cleanly to the normal static, user-controlled camera. */
+  heroMode?: boolean;
+  /** Called periodically during hero mode to advance the forecast day (T+1..T+7). */
+  onHeroDayChange?: (day: number) => void;
+  /** Called once when the hero sequence ends — i.e. the user touched the globe. */
+  onHeroComplete?: () => void;
   regionFlyTrigger?: number; // increment to force fly-to even same region
   /** Changes whenever persistent UI changes the usable globe viewport. */
   viewportKey?: string;
@@ -165,6 +179,10 @@ export default function CesiumGlobe({
   show3D = false,
   selectedDate,
   showWind = true,
+  mapMode = '3d',
+  heroMode = false,
+  onHeroDayChange,
+  onHeroComplete,
   regionFlyTrigger,
   viewportKey,
 }: CesiumGlobeProps) {
@@ -177,6 +195,8 @@ export default function CesiumGlobe({
   const windLayerRef = useRef<WindLayer | null>(null);
   const extrude3DRef = useRef<Cesium.CustomDataSource | null>(null);
   const terminatorRef = useRef<Cesium.Entity | null>(null);
+  const onHeroDayChangeRef = useRef(onHeroDayChange);
+  const onHeroCompleteRef = useRef(onHeroComplete);
   // Refs for stable closure access in event handlers
   const gridCellsRef = useRef<GridCell[]>(gridCells);
   const onCellClickRef = useRef(onCellClick);
@@ -250,6 +270,114 @@ export default function CesiumGlobe({
       cancel: () => { setProgrammaticFlight(false); },
     });
   }, [setProgrammaticFlight]);
+
+  // ── 2D / 3D scene mode toggle ───────────────────────────────────────────────
+  // Cesium's built-in 2D/3D morph keeps every existing layer, entity, and
+  // interaction (heatmap, boundaries, wind particles, IoT pins) working
+  // unchanged — only the projection changes — so no separate map library or
+  // duplicate rendering path is needed for the 2D view.
+  useEffect(() => {
+    if (!isReady || !viewerRef.current) return;
+    const viewer = viewerRef.current;
+    if (viewer.isDestroyed()) return;
+
+    const flyToIndiaTopDown = (duration: number) => {
+      if (viewer.isDestroyed()) return;
+      viewer.camera.flyTo({
+        destination: Cesium.Rectangle.fromDegrees(
+          INDIA_OVERVIEW_BOUNDS.lonMin,
+          INDIA_OVERVIEW_BOUNDS.latMin,
+          INDIA_OVERVIEW_BOUNDS.lonMax,
+          INDIA_OVERVIEW_BOUNDS.latMax
+        ),
+        duration,
+      });
+    };
+
+    if (mapMode === '2d') {
+      if (viewer.scene.mode === Cesium.SceneMode.SCENE2D) {
+        flyToIndiaTopDown(1.0);
+      } else {
+        const removeListener = viewer.scene.morphComplete.addEventListener(() => {
+          removeListener();
+          flyToIndiaTopDown(0.0);
+        });
+        viewer.scene.morphTo2D(1.0);
+      }
+    } else if (viewer.scene.mode !== Cesium.SceneMode.SCENE3D) {
+      viewer.scene.morphTo3D(1.0);
+    }
+  }, [isReady, mapMode]);
+
+  // ── Hero auto-rotate + auto-play forecast (indefinite, cancels on user input) ─
+  // An ambient sequence — camera slowly spins over India while the forecast
+  // day cycles T+1..T+7 on repeat — meant to run right after the cinematic
+  // intro and for as long as nobody touches the globe. It never fights an
+  // in-progress programmatic flight, and stops the instant the user touches
+  // the globe, handing off to the normal static, fully user-controlled
+  // camera exactly as it works outside hero mode.
+  useEffect(() => {
+    if (!isReady || !viewerRef.current || !heroMode) return;
+    const viewer = viewerRef.current;
+    if (viewer.isDestroyed()) return;
+
+    const HERO_DAY_INTERVAL_MS = 1_400;
+    const ROTATE_TICK_MS = 50;
+    const ROTATE_RADIANS_PER_SEC = Cesium.Math.toRadians(2);
+
+    let lastTime = performance.now();
+    let day = 1;
+    // Driven by setInterval rather than requestAnimationFrame or
+    // viewer.clock.onTick: this app runs with clock.shouldAnimate = false
+    // (it's a data map, not a time-dynamic simulation) so onTick never fires
+    // automatically, and rAF is throttled/paused entirely in backgrounded
+    // tabs. A short setInterval isn't subject to either limitation and is
+    // more than smooth enough for a slow 2°/s ambient rotation.
+    const rotateTimer = window.setInterval(() => {
+      if (viewer.isDestroyed() || isCameraAnimatingRef.current) {
+        lastTime = performance.now();
+        return;
+      }
+      const now = performance.now();
+      const dt = Math.min(0.2, (now - lastTime) / 1000);
+      lastTime = now;
+      if (dt > 0) viewer.scene.camera.rotate(Cesium.Cartesian3.UNIT_Z, -ROTATE_RADIANS_PER_SEC * dt);
+    }, ROTATE_TICK_MS);
+
+    const dayTimer = window.setInterval(() => {
+      day = day >= 7 ? 1 : day + 1;
+      onHeroDayChangeRef.current?.(day);
+    }, HERO_DAY_INTERVAL_MS);
+
+    // Silent teardown — removes listeners/timers only. Runs on every
+    // dependency change (including React StrictMode's dev-mode double-invoke),
+    // which is NOT the same event as "the hero sequence actually finished" —
+    // that distinction matters because calling onHeroComplete here would let
+    // StrictMode's synthetic remount cancel the sequence before it ever ran.
+    const teardown = () => {
+      window.clearInterval(rotateTimer);
+      window.clearInterval(dayTimer);
+      canvas.removeEventListener('pointerdown', onUserInput);
+      canvas.removeEventListener('wheel', onUserInput);
+    };
+
+    // "complete" = the user actually touched the globe — the only path that
+    // ends hero mode now that it has no fixed duration.
+    let completed = false;
+    const complete = () => {
+      if (completed) return;
+      completed = true;
+      teardown();
+      onHeroCompleteRef.current?.();
+    };
+
+    const onUserInput = () => complete();
+    const canvas = viewer.scene.canvas;
+    canvas.addEventListener('pointerdown', onUserInput, { passive: true });
+    canvas.addEventListener('wheel', onUserInput, { passive: true });
+
+    return teardown;
+  }, [isReady, heroMode]);
 
   // ── IoT sensor pins and hover telemetry (Requirement 27) ──────────────────
   useEffect(() => {
@@ -370,6 +498,8 @@ export default function CesiumGlobe({
   useEffect(() => { onCellClickRef.current = onCellClick; }, [onCellClick]);
   useEffect(() => { onLongPressRef.current = onLongPress; }, [onLongPress]);
   useEffect(() => { onBackgroundClickRef.current = onBackgroundClick; }, [onBackgroundClick]);
+  useEffect(() => { onHeroDayChangeRef.current = onHeroDayChange; }, [onHeroDayChange]);
+  useEffect(() => { onHeroCompleteRef.current = onHeroComplete; }, [onHeroComplete]);
 
   // ── Initialize CesiumJS viewer ──────────────────────────────────────────────
   useEffect(() => {
@@ -976,14 +1106,21 @@ export default function CesiumGlobe({
         variable === 'rainfall' ? 'imd_rain' : variable === 'temp_max' ? 'plasma' : 'viridis'
       );
 
-      // Paint canvas
-      const scale = 4;
-      const canvas = document.createElement('canvas');
-      canvas.width = nLon * scale;
-      canvas.height = nLat * scale;
-      const ctx = canvas.getContext('2d');
-      if (!ctx) return;
+      // Paint a raw, one-pixel-per-cell raster first, then smooth-scale it
+      // up. Browser image scaling bilinearly (often bicubically) blends the
+      // colors *and* alpha between neighboring cells, so the discrete 0.25°
+      // grid reads as a continuous spatial field (Ventusky-style) instead
+      // of hard-edged blocks — with no per-point interpolation math needed.
+      const raw = document.createElement('canvas');
+      raw.width = nLon;
+      raw.height = nLat;
+      const rawCtx = raw.getContext('2d');
+      if (!rawCtx) return;
       const cfg = VARIABLE_CONFIG[variable];
+
+      // Feather the outer ~2 cells toward transparent so the domain boundary
+      // reads as a soft fade instead of a hard-edged rectangle.
+      const FEATHER_CELLS = 2;
 
       for (let latIdx = 0; latIdx < nLat; latIdx++) {
         for (let lonIdx = 0; lonIdx < nLon; lonIdx++) {
@@ -993,13 +1130,30 @@ export default function CesiumGlobe({
           if (cell) {
             const val = cell[variable] as number;
             const t = Math.max(0, Math.min(1, (val - cfg.min) / (cfg.max - cfg.min)));
-            ctx.fillStyle = _heatmapColor(t, variable, activeColormap);
+            const distToEdge = Math.min(latIdx, nLat - 1 - latIdx, lonIdx, nLon - 1 - lonIdx);
+            const edgeFactor = Math.min(1, (distToEdge + 0.5) / FEATHER_CELLS);
+            rawCtx.fillStyle = _heatmapColor(t, variable, activeColormap, edgeFactor);
           } else {
-            ctx.fillStyle = 'rgba(0,0,0,0)';
+            rawCtx.fillStyle = 'rgba(0,0,0,0)';
           }
-          ctx.fillRect(lonIdx * scale, latIdx * scale, scale, scale);
+          rawCtx.fillRect(lonIdx, latIdx, 1, 1);
         }
       }
+
+      // Cap the output canvas so very large regions (e.g. full India) don't
+      // produce an oversized texture — clamp the up-scale factor instead of
+      // using a fixed one.
+      const MAX_OUTPUT_PX = 2048;
+      const smoothScale = Math.max(4, Math.min(24, Math.floor(MAX_OUTPUT_PX / Math.max(nLon, nLat))));
+
+      const canvas = document.createElement('canvas');
+      canvas.width = nLon * smoothScale;
+      canvas.height = nLat * smoothScale;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return;
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = 'high';
+      ctx.drawImage(raw, 0, 0, canvas.width, canvas.height);
 
       const cellSize = 0.25;
       const west = lons[0] - cellSize / 2;
