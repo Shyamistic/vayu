@@ -443,6 +443,7 @@ class ClimatePreprocessor:
         era5_dir: str | None = None,
         chirps_dir: str | None = None,
         oisst_dir: str | None = None,
+        era5_lst_dir: str | None = None,
         start_year: int = 2010,
         end_year: int = 2025,
         normalization_fit_start_year: int | None = None,
@@ -582,10 +583,9 @@ class ClimatePreprocessor:
         # substitution must be stated in any manifest or report that cites this
         # feature — never presented as real INSAT-3D data.
         #
-        # insat_lst (land surface temperature) has NO substitute wired in. No
-        # public, no-registration LST source at daily/0.25 deg cadence was found;
-        # it remains zero-filled with `insat_lst_available=0` throughout (see
-        # DATA_ACQUISITION_TASKS.md section 2).
+        # insat_lst is filled from ERA5-Land skin temperature when
+        # *era5_lst_dir* is supplied (see step 9 below); without it the channel
+        # stays zero with `insat_lst_available=0`.
         if oisst_dir is not None:
             oisst = self._load_oisst_sst(oisst_dir, start_year, end_year)
             if oisst is not None:
@@ -603,7 +603,125 @@ class ClimatePreprocessor:
                     int(sst.notnull().any(dim=[d for d in sst.dims if d != "time"]).sum()),
                 )
 
+        # 9. Merge land-surface temperature into the insat_lst slot.
+        #
+        # DISCLOSURE: this is ERA5-Land skin temperature (`skt`), NOT INSAT-3D
+        # LST. MOSDAC access for the real 3RIMG_L2B_LST product was never
+        # approved (see DATA_ACQUISITION_TASKS.md section 2). ERA5-Land skin
+        # temperature is a documented, widely-used proxy for land surface
+        # temperature, but it is a reanalysis land-model diagnostic rather than
+        # a satellite thermal-infrared retrieval, and must be described as such
+        # in any manifest or report that cites this feature.
+        #
+        # ERA5-Land is land-only, so ocean cells arrive as NaN and end up with
+        # insat_lst=0 / insat_lst_available=0. That is correct rather than a
+        # defect: LST is a land quantity, and ocean is covered by insat_sst.
+        if era5_lst_dir is not None:
+            lst = self._load_era5_land_lst(era5_lst_dir, start_year, end_year)
+            if lst is not None:
+                lst_aligned = lst.reindex(
+                    time=normalized.time, method="nearest", tolerance="1D"
+                )
+                skt = lst_aligned["skt"]
+                normalized["insat_lst_available"] = xr.where(
+                    skt.notnull(), 1.0, 0.0
+                ).astype(np.float32)
+                normalized["insat_lst"] = skt.fillna(0.0).astype(np.float32)
+                logger.info(
+                    "Merged ERA5-Land skin temperature into 'insat_lst' slot "
+                    "(SUBSTITUTE for INSAT-3D LST — MOSDAC access not "
+                    "approved): %d days",
+                    int(skt.notnull().any(
+                        dim=[d for d in skt.dims if d != "time"]).sum()),
+                )
+
         return normalized, norm_params
+
+    def _load_era5_land_lst(
+        self,
+        era5_lst_dir: str,
+        start_year: int,
+        end_year: int,
+    ) -> xr.Dataset | None:
+        """Load ERA5-Land skin temperature, aggregate to daily, regrid to 0.25°.
+
+        Expects per-year files named ``era5_land_lst_india_YYYY.nc`` (the format
+        produced by ``scripts/download_era5_land_lst.py``) holding the ``skt``
+        variable on ERA5-Land's native 0.1° grid.
+
+        Two source-specific details are handled here:
+
+        * The files are **12-hourly** (06:00 and 18:00 UTC, roughly 11:30 and
+          23:30 IST — a day/night pair). The model consumes daily fields, so
+          these are averaged per calendar day. Note this makes the channel a
+          daily *mean* skin temperature, not a daytime maximum, so it is not
+          directly comparable to MODIS daytime LST.
+        * ``skt`` is in **kelvin**; it is converted to °C so the channel is on
+          the same scale as the IMD tmax/tmin and OISST insat_sst channels
+          before the shared normalization step sees it.
+
+        Coordinates are ``valid_time``/``latitude``/``longitude`` in CDS output
+        and are renamed to the ``time``/``lat``/``lon`` convention used
+        throughout this preprocessor.
+
+        Returns None (with a warning) if no files are found, matching the
+        graceful-degradation behaviour of ``_load_oisst_sst`` and
+        ``load_ncep_wind_at_850``.
+        """
+        import glob as _glob
+
+        lst_path = Path(era5_lst_dir)
+        frames: list[xr.DataArray] = []
+
+        for year in range(start_year, end_year + 1):
+            files = sorted(_glob.glob(str(lst_path / f"*{year}*.nc")))
+            if not files:
+                logger.debug("No ERA5-Land LST file for %d in %s", year, lst_path)
+                continue
+            ds = xr.open_dataset(files[0])
+            if "skt" not in ds.data_vars:
+                logger.warning(
+                    "ERA5-Land file %s has no 'skt' variable (has %s) — skipping",
+                    files[0], list(ds.data_vars),
+                )
+                continue
+            da = ds["skt"]
+            rename: dict[str, str] = {}
+            if "valid_time" in da.dims:
+                rename["valid_time"] = "time"
+            if "latitude" in da.dims:
+                rename["latitude"] = "lat"
+            if "longitude" in da.dims:
+                rename["longitude"] = "lon"
+            if rename:
+                da = da.rename(rename)
+            # Drop CDS singleton coords that would otherwise block concat.
+            for extra in ("number", "expver"):
+                if extra in da.coords:
+                    da = da.drop_vars(extra)
+            # 12-hourly → daily mean.
+            da = da.resample(time="1D").mean()
+            frames.append(da)
+
+        if not frames:
+            logger.warning(
+                "No ERA5-Land LST files found in %s — insat_lst stays zero-filled",
+                era5_lst_dir,
+            )
+            return None
+
+        merged = xr.concat(frames, dim="time").sortby("time")
+        # Kelvin → Celsius, matching tmax/tmin and insat_sst.
+        merged = merged - 273.15
+        merged.name = "skt"
+
+        lst_ds = xr.Dataset({"skt": merged}).sortby("lat").sortby("lon")
+        result = self._regrid_reanalysis_dataset(lst_ds, margin=5.0)
+        logger.info(
+            "ERA5-Land LST loaded: %d days, regridded to model grid",
+            len(result.time),
+        )
+        return result
 
     def load_ncep_wind_at_850(
         self,

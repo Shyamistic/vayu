@@ -139,6 +139,14 @@ def preprocess(
              "DISCLOSED SUBSTITUTE for INSAT-3D SST — MOSDAC access was never approved. "
              "See DATA_ACQUISITION_TASKS.md section 2.",
     ),
+    era5_lst_dir: Path | None = typer.Option(
+        None, "--era5-lst-dir",
+        help="Directory containing ERA5-Land skin-temperature files "
+             "(era5_land_lst_india_YYYY.nc). Fills the insat_lst feature slot as a "
+             "DISCLOSED SUBSTITUTE for INSAT-3D LST — MOSDAC access was never approved. "
+             "12-hourly input is averaged to daily and converted K->degC. "
+             "See DATA_ACQUISITION_TASKS.md section 2.",
+    ),
     normalization_fit_start_year: int = typer.Option(
         2010, "--normalization-fit-start-year", help="First year used to fit normalization statistics"
     ),
@@ -167,6 +175,7 @@ def preprocess(
         era5_dir=str(era5_dir) if era5_dir else None,
         chirps_dir=str(chirps_dir) if chirps_dir else None,
         oisst_dir=str(oisst_dir) if oisst_dir else None,
+        era5_lst_dir=str(era5_lst_dir) if era5_lst_dir else None,
         start_year=start_year,
         end_year=end_year,
         normalization_fit_start_year=normalization_fit_start_year,
