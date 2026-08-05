@@ -208,7 +208,7 @@ export default function CesiumGlobe({
   const onBackgroundClickRef = useRef(onBackgroundClick);
   const [isReady, setIsReady] = useState(false);
   const [statusMsg, setStatusMsg] = useState('Loading ISRO Earth View…');
-  const [coords, setCoords] = useState<{ lat: number; lon: number } | null>(null);
+  const [coords, setCoords] = useState<{ lat: number; lon: number; x: number; y: number } | null>(null);
   // Programmatic flights suppress post-zoom normalization until completion.
   const isCameraAnimatingRef = useRef(false);
   const zoomCenteringRef = useRef<PostZoomCenteringController | null>(null);
@@ -664,12 +664,22 @@ export default function CesiumGlobe({
           setCoords({
             lat: Cesium.Math.toDegrees(carto.latitude),
             lon: Cesium.Math.toDegrees(carto.longitude),
+            x: movement.endPosition.x,
+            y: movement.endPosition.y,
           });
+        } else {
+          setCoords(null);
         }
       } catch {
         // pickPosition can throw when depth buffer isn't ready
       }
     }, Cesium.ScreenSpaceEventType.MOUSE_MOVE);
+
+    // Cesium's MOUSE_MOVE only fires while the cursor is over the canvas, so
+    // without this the last hovered coordinate stays pinned on screen
+    // indefinitely once the user moves on to other panels/controls.
+    const onCanvasPointerLeave = () => setCoords(null);
+    viewer.scene.canvas.addEventListener('pointerleave', onCanvasPointerLeave);
 
     // ── Inspect gestures: click and touch long-press use the same robust picker ──
     const inspectAt = (
@@ -884,6 +894,7 @@ export default function CesiumGlobe({
       if (zoomCenteringRef.current === zoomCentering) zoomCenteringRef.current = null;
       if (resizeCompletionRef.current === resizeCompletion) resizeCompletionRef.current = null;
       handler.destroy();
+      viewer.scene.canvas.removeEventListener('pointerleave', onCanvasPointerLeave);
       if (windLayerRef.current) {
         try { windLayerRef.current.destroy(); } catch {}
         windLayerRef.current = null;
@@ -1430,11 +1441,14 @@ export default function CesiumGlobe({
 
       {/* ── ISRO branding HUD (top-left) ── REMOVED — App.tsx header handles branding */}
 
-      {/* ── Coordinate display (below header with gap) ── */}
+      {/* ── Coordinate tooltip (follows cursor while over the globe) ── */}
       {isReady && coords && (
-        <div className="absolute top-[85px] left-1/2 -translate-x-1/2 z-10 pointer-events-none">
+        <div
+          className="absolute z-10 pointer-events-none"
+          style={{ left: coords.x + 16, top: coords.y + 16 }}
+        >
           <div className="px-3 py-1.5 rounded bg-black/50 backdrop-blur-sm border border-white/10">
-            <span className="text-green-300/70 font-mono text-xs">
+            <span className="text-green-300/70 font-mono text-xs whitespace-nowrap">
               {coords.lat >= 0 ? coords.lat.toFixed(4) + '°N' : (-coords.lat).toFixed(4) + '°S'}
               {' '}
               {coords.lon >= 0 ? coords.lon.toFixed(4) + '°E' : (-coords.lon).toFixed(4) + '°W'}
