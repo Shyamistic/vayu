@@ -710,6 +710,29 @@ class ClimatePreprocessor:
             # appears to have per-call overhead independent of data size in
             # this environment, mirroring the ~30x per-file overhead already
             # found and fixed for OISST (see consolidate_oisst_yearly.py).
+            # Clip to this region (+margin for the later bilinear regrid)
+            # BEFORE concatenating across all 45 years. The source files
+            # cover the FULL INDIA domain (289x294 at 0.1 deg) by design, so
+            # each region can reuse the same download -- but concatenating
+            # that full extent across 45 years before regridding builds a
+            # single ~5.16 GiB float32 array (16303, 289, 294) and OOM'd a
+            # real Western Ghats run (MemoryError, 289x294 grid, 16303 days).
+            # CHIRPS/OISST both clip per-file already; this loader did not.
+            margin = 5.0
+            lat_dim = "lat" if "lat" in da.dims else da.dims[1]
+            lon_dim = "lon" if "lon" in da.dims else da.dims[2]
+            lat_vals = da[lat_dim].values
+            lat_ascending = lat_vals[0] < lat_vals[-1]
+            lat_slice = (
+                slice(self.lat_min - margin, self.lat_max + margin)
+                if lat_ascending
+                else slice(self.lat_max + margin, self.lat_min - margin)
+            )
+            da = da.sel(
+                {lat_dim: lat_slice,
+                 lon_dim: slice(self.lon_min - margin, self.lon_max + margin)}
+            )
+
             values = da.values  # (T, lat, lon), forces the actual read
             times = da["time"].values
             days = times.astype("datetime64[D]")
@@ -727,6 +750,7 @@ class ClimatePreprocessor:
                 }},
             )
             frames.append(daily)
+            ds.close()
 
         if not frames:
             logger.warning(
