@@ -26,6 +26,10 @@ rainfall. That is expected: preprocess_imd() already regrids temperature to
 0.25 deg as its first step (regrid_to_target), so raw native-resolution files
 are the correct input, not a bug to fix here.
 
+Also note IMD uses TWO DIFFERENT missing-value sentinels depending on
+variable: rainfall uses -999.0, temperature uses 99.9. Both are masked to NaN
+below (imdlib.get_xarray() does not do this itself).
+
 Usage:
     python scripts/merge_imd_history.py --start 1981 --end 2025 --grd-dir D:/vayu_data/imd_history --out D:/vayu_data/imd_merged
 """
@@ -37,6 +41,7 @@ import time
 from pathlib import Path
 
 import imdlib
+import numpy as np
 
 
 def already_have(grd_dir: Path, var: str, year: int) -> bool:
@@ -86,15 +91,19 @@ def merge_and_save(var: str, start: int, end: int, grd_dir: Path, out_dir: Path)
     imd_obj = imdlib.open_data(var, start, end, fn_format="yearwise", file_dir=str(grd_dir))
     ds = imd_obj.get_xarray()
 
-    # imdlib.get_xarray() does NOT convert IMD's -999.0 missing-value sentinel
-    # to NaN (verified: a 2020-2022 rain smoke test came back with min=-999.0
-    # and 0% NaN). data_ingestion/downloader.py's own hand-rolled .grd parser
-    # does this conversion, but imdlib.open_data() bypasses that code path
-    # entirely, and nothing downstream in preprocess_imd() expects a -999
-    # sentinel. Left unconverted, -999 would corrupt regridding, quality
-    # control and normalization statistics.
+    # imdlib.get_xarray() does NOT convert IMD's missing-value sentinels to
+    # NaN. Rainfall uses -999.0 (verified: a 2020-2022 rain smoke test came
+    # back with min=-999.0, 0% NaN). Temperature uses A DIFFERENT sentinel,
+    # 99.9 -- verified on the real 1981-2025 tmax merge: 9,964,608 of
+    # 15,794,996 values (63%!) were exactly 99.9, all of them the only values
+    # above 55 degC anywhere in the file. data_ingestion/downloader.py's own
+    # hand-rolled .grd parser only knows about -999 and would have missed this
+    # too. Left unconverted, either sentinel would corrupt regridding, quality
+    # control and normalization statistics -- 99.9 especially so, since it is
+    # a plausible-looking positive number rather than an obvious flag.
+    sentinel = -999.0 if var == "rain" else 99.9
     for dv in ds.data_vars:
-        ds[dv] = ds[dv].where(ds[dv] != -999.0)
+        ds[dv] = ds[dv].where(~np.isclose(ds[dv], sentinel, atol=1e-3))
 
     # imdlib names the rainfall variable 'rain'; the rest of this project's
     # pipeline (preprocess_imd, IMDDownloader) expects 'rainfall'/'tmax'/'tmin'.

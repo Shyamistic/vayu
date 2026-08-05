@@ -9,6 +9,7 @@ shows where any real predictive signal lives.
 """
 from __future__ import annotations
 
+import glob as _glob
 import sys
 
 import numpy as np
@@ -18,11 +19,24 @@ from ai_engine.windowed_dataset import build_dense_region_tensor
 REGIONS = ["western_ghats", "north_east_india", "indo_gangetic_plain", "central_india"]
 
 
-def paths(region: str):
+def paths(region: str, processed_root: str = "data"):
+    """Locate the normalized dataset for *region* without assuming a year range.
+
+    The output filename encodes the preprocess --start-year/--end-year (e.g.
+    normalized_1981-2025.nc), which changes as more history is added, so this
+    globs rather than hardcoding 2010-2025.
+    """
+    proc_dir = f"{processed_root}/processed_{region}_v2"
+    matches = sorted(_glob.glob(f"{proc_dir}/normalized_*.nc"))
+    if not matches:
+        raise FileNotFoundError(f"No normalized_*.nc found in {proc_dir}")
+    if len(matches) > 1:
+        print(f"  (note: {len(matches)} normalized_*.nc found in {proc_dir}, "
+              f"using most recent: {matches[-1]})")
     return (
-        f"data/processed_{region}_v2/normalized_2010-2025.nc",
-        f"data/static_{region}/elevation.nc",
-        f"data/static_{region}/lsm.nc",
+        matches[-1],
+        f"{processed_root}/static_{region}/elevation.nc",
+        f"{processed_root}/static_{region}/lsm.nc",
     )
 
 
