@@ -1,10 +1,12 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import * as Cesium from 'cesium';
 import {
   dayOfYear,
   solarDeclination,
   subSolarLongitude,
   computeSubSolarPoint,
   computeTerminatorPoints,
+  computeNightsidePositions,
   TerminatorLayer,
 } from './TerminatorLayer';
 import type { LayerState } from '../types';
@@ -158,6 +160,60 @@ describe('TerminatorLayer — Solar Position Utilities', () => {
       }
     });
   });
+
+  describe('computeNightsidePositions', () => {
+    // Regression coverage for the bug that originally forced this layer to
+    // be disabled: an earlier version re-sorted terminator points by an
+    // invalid atan2(latDelta, lonDelta) "angle" relative to the anti-solar
+    // point, which could reorder them into a self-intersecting polygon. The
+    // fix is to not re-sort — the input order (from computeTerminatorPoints)
+    // is already a valid angular sweep.
+
+    it('preserves the input point count', () => {
+      const points = computeTerminatorPoints(23.44, -45.0, 72);
+      const positions = computeNightsidePositions(points);
+      expect(positions).toHaveLength(72);
+    });
+
+    it('does not reorder points — output[i] matches input[i]', () => {
+      const points = computeTerminatorPoints(10.0, 60.0, 24);
+      const positions = computeNightsidePositions(points);
+
+      points.forEach((p, i) => {
+        const expected = Cesium.Cartesian3.fromDegrees(p.lon, p.lat);
+        expect(positions[i].x).toBeCloseTo(expected.x, 3);
+        expect(positions[i].y).toBeCloseTo(expected.y, 3);
+        expect(positions[i].z).toBeCloseTo(expected.z, 3);
+      });
+    });
+
+    it('produces a simple (non-self-intersecting) ring: consecutive points stay angularly adjacent', () => {
+      // For a valid sweep, the angular step between consecutive points
+      // (as seen from Earth's center) should be small and roughly uniform.
+      // A bad sort would produce large, irregular jumps instead.
+      const numPoints = 72;
+      const points = computeTerminatorPoints(23.44, 0.0, numPoints);
+      const positions = computeNightsidePositions(points);
+      const expectedStepRad = (2 * Math.PI) / numPoints;
+
+      for (let i = 0; i < positions.length; i++) {
+        const a = positions[i];
+        const b = positions[(i + 1) % positions.length];
+        const dot = Cesium.Cartesian3.dot(
+          Cesium.Cartesian3.normalize(a, new Cesium.Cartesian3()),
+          Cesium.Cartesian3.normalize(b, new Cesium.Cartesian3())
+        );
+        const angleBetween = Math.acos(Math.max(-1, Math.min(1, dot)));
+        // Generous tolerance for the ellipsoid round-trip, but a bad sort
+        // would blow well past this (jumps toward the opposite side of the ring).
+        expect(angleBetween).toBeLessThan(expectedStepRad * 3);
+      }
+    });
+
+    it('handles an empty input without throwing', () => {
+      expect(computeNightsidePositions([])).toEqual([]);
+    });
+  });
 });
 
 // ── TerminatorLayer Class Tests ──────────────────────────────────────────────
@@ -201,8 +257,9 @@ describe('TerminatorLayer — LayerPlugin interface', () => {
 
     layer.update(state);
 
-    // Should add terminator line + nightside polygon = 2 entities
-    expect(mockViewer.entities.add).toHaveBeenCalledTimes(2);
+    // Renders the terminator line only — nightside darkening is handled by
+    // CesiumGlobe's native globe lighting, not an entity here.
+    expect(mockViewer.entities.add).toHaveBeenCalledTimes(1);
   });
 
   it('update skips redundant redraws for same date', () => {
@@ -213,8 +270,8 @@ describe('TerminatorLayer — LayerPlugin interface', () => {
     layer.update(state);
     layer.update(state); // Same date — should skip
 
-    // Only 2 entities (one batch), not 4
-    expect(mockViewer.entities.add).toHaveBeenCalledTimes(2);
+    // Only 1 entity (one render), not 2
+    expect(mockViewer.entities.add).toHaveBeenCalledTimes(1);
   });
 
   it('update re-renders when date changes', () => {
@@ -230,10 +287,10 @@ describe('TerminatorLayer — LayerPlugin interface', () => {
     layer.update(state1);
     layer.update(state2);
 
-    // First render + clear + second render: add called 4 times total
-    expect(mockViewer.entities.add).toHaveBeenCalledTimes(4);
-    // Remove called to clear old entities before re-render
-    expect(mockViewer.entities.remove).toHaveBeenCalledTimes(2);
+    // First render + second render: add called 2 times total
+    expect(mockViewer.entities.add).toHaveBeenCalledTimes(2);
+    // Remove called once to clear the old entity before re-render
+    expect(mockViewer.entities.remove).toHaveBeenCalledTimes(1);
   });
 
   it('destroy removes all entities and clears state', () => {
@@ -245,7 +302,7 @@ describe('TerminatorLayer — LayerPlugin interface', () => {
     layer.update(state);
     layer.destroy();
 
-    expect(mockViewer.entities.remove).toHaveBeenCalledTimes(2);
+    expect(mockViewer.entities.remove).toHaveBeenCalledTimes(1);
   });
 
   it('does nothing when viewer is not initialized', () => {

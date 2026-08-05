@@ -1,9 +1,13 @@
 /**
- * TerminatorLayer — Day/Night terminator and sun position visualization.
+ * TerminatorLayer — Day/Night terminator line and sun position math.
  *
- * Computes solar position from the selected date/time and renders:
- * - A polyline along the terminator boundary (great circle separating day/night)
- * - A semi-transparent dark polygon covering the nightside (0.3× ambient)
+ * Computes solar position from the selected date/time and renders a
+ * polyline along the terminator boundary (great circle separating
+ * day/night). Nightside darkening itself is handled separately by
+ * CesiumGlobe via the globe's own native per-pixel lighting
+ * (scene.globe.enableLighting + clock.currentTime) — rendering an entire
+ * hemisphere as a single Cesium polygon isn't reliable, since its
+ * triangulation targets regional shapes, not planet-scale interior fills.
  *
  * Synchronizes with timeline changes via the selectedDate in LayerState.
  *
@@ -17,9 +21,6 @@ import type { LayerPlugin, LayerState } from '../types';
 
 /** Number of points to approximate the terminator circle */
 const TERMINATOR_POINTS = 72;
-
-/** Nightside overlay opacity — 0.3× ambient means 70% darkening */
-const NIGHTSIDE_OPACITY = 0.7;
 
 /** Terminator line color — a subtle cyan/blue glow */
 const TERMINATOR_LINE_COLOR = new Cesium.Color(0.4, 0.8, 1.0, 0.9);
@@ -161,49 +162,24 @@ export function computeTerminatorPoints(
 
 /**
  * Generate the nightside polygon positions.
- * The nightside is the hemisphere opposite the sub-solar point.
- * We approximate it as a spherical cap polygon using the terminator points
- * plus the anti-solar point.
+ * The nightside is the hemisphere opposite the sub-solar point, bounded by
+ * the terminator circle.
+ *
+ * `computeTerminatorPoints` already emits points in a consistent angular
+ * sweep order around the sun-orthogonal axis (angle = 2π·i/numPoints), so
+ * they trace a valid, non-self-intersecting polygon boundary as-is. An
+ * earlier version re-sorted them by `atan2(latDelta, lonDelta)` relative to
+ * the anti-solar point — not a valid spherical angle (it mixes a latitude
+ * delta and a longitude delta as if they were Cartesian y/x) — which could
+ * produce a self-intersecting ("bowtie") polygon depending on where the
+ * anti-solar point fell. That was the actual source of the "degenerate
+ * geometry" that originally forced this layer to be disabled; the fix is to
+ * not re-sort at all.
  */
-function computeNightsidePositions(
-  terminatorPoints: Array<{ lat: number; lon: number }>,
-  subSolarLat: number,
-  subSolarLon: number
+export function computeNightsidePositions(
+  terminatorPoints: Array<{ lat: number; lon: number }>
 ): Cesium.Cartesian3[] {
-  // Anti-solar point (opposite side of Earth from the sun)
-  const antiLat = -subSolarLat;
-  let antiLon = subSolarLon + 180;
-  if (antiLon > 180) antiLon -= 360;
-
-  // Sort terminator points by angle around the anti-solar point for proper polygon winding
-  const sortedPoints = [...terminatorPoints].sort((a, b) => {
-    const angleA = Math.atan2(
-      a.lat - antiLat,
-      normalizeAngleDiff(a.lon, antiLon)
-    );
-    const angleB = Math.atan2(
-      b.lat - antiLat,
-      normalizeAngleDiff(b.lon, antiLon)
-    );
-    return angleA - angleB;
-  });
-
-  // Convert to Cartesian3 positions (at globe surface)
-  const positions: Cesium.Cartesian3[] = sortedPoints.map((p) =>
-    Cesium.Cartesian3.fromDegrees(p.lon, p.lat)
-  );
-
-  return positions;
-}
-
-/**
- * Normalize angle difference for sorting.
- */
-function normalizeAngleDiff(lon: number, refLon: number): number {
-  let diff = lon - refLon;
-  while (diff > 180) diff -= 360;
-  while (diff < -180) diff += 360;
-  return diff;
+  return terminatorPoints.map((p) => Cesium.Cartesian3.fromDegrees(p.lon, p.lat));
 }
 
 // ── TerminatorLayer Class ────────────────────────────────────────────────────
@@ -218,7 +194,6 @@ export class TerminatorLayer implements LayerPlugin {
 
   private viewer: Cesium.Viewer | null = null;
   private terminatorEntity: Cesium.Entity | null = null;
-  private nightsideEntity: Cesium.Entity | null = null;
   private lastDateMs = 0; // Track last update to avoid redundant redraws
 
   // ── Lifecycle ────────────────────────────────────────────────────────────
@@ -250,16 +225,30 @@ export class TerminatorLayer implements LayerPlugin {
       TERMINATOR_POINTS
     );
 
-    // Render terminator line
+    // Render terminator line only. Nightside darkening is handled by
+    // CesiumGlobe via the globe's own native per-pixel lighting
+    // (scene.globe.enableLighting + clock.currentTime) rather than a
+    // polygon fill here — rendering an entire hemisphere as a single
+    // Cesium polygon isn't reliable (its triangulation targets regional
+    // shapes, not planet-scale interior fills — it visibly picked the
+    // wrong/degenerate region and blacked out nearly the whole view).
+    // computeNightsidePositions/renderNightsideOverlay are kept as tested
+    // pure math but are no longer called from the live render path.
     this.renderTerminatorLine(terminatorPoints);
-
-    // Render nightside overlay
-    this.renderNightsideOverlay(terminatorPoints, subSolar.lat, subSolar.lon);
   }
 
   destroy(): void {
     this.clearEntities();
     this.viewer = null;
+    this.lastDateMs = 0;
+  }
+
+  /**
+   * Remove rendered entities without releasing the viewer reference — used
+   * to hide the layer (e.g. a UI toggle) without a full destroy/re-init cycle.
+   */
+  clear(): void {
+    this.clearEntities();
     this.lastDateMs = 0;
   }
 
@@ -292,36 +281,6 @@ export class TerminatorLayer implements LayerPlugin {
     });
   }
 
-  /**
-   * Render the nightside as a semi-transparent dark polygon covering the
-   * hemisphere opposite the sun. Achieves the 0.3× ambient brightness effect.
-   */
-  private renderNightsideOverlay(
-    terminatorPoints: Array<{ lat: number; lon: number }>,
-    subSolarLat: number,
-    subSolarLon: number
-  ): void {
-    if (!this.viewer) return;
-
-    const nightsidePositions = computeNightsidePositions(
-      terminatorPoints,
-      subSolarLat,
-      subSolarLon
-    );
-
-    if (nightsidePositions.length < 3) return;
-
-    this.nightsideEntity = this.viewer.entities.add({
-      polygon: {
-        hierarchy: new Cesium.PolygonHierarchy(nightsidePositions),
-        material: new Cesium.ColorMaterialProperty(
-          new Cesium.Color(0.0, 0.0, 0.0, NIGHTSIDE_OPACITY)
-        ),
-        classificationType: Cesium.ClassificationType.BOTH,
-      },
-    });
-  }
-
   // ── Cleanup ────────────────────────────────────────────────────────────────
 
   private clearEntities(): void {
@@ -330,11 +289,6 @@ export class TerminatorLayer implements LayerPlugin {
     if (this.terminatorEntity) {
       this.viewer.entities.remove(this.terminatorEntity);
       this.terminatorEntity = null;
-    }
-
-    if (this.nightsideEntity) {
-      this.viewer.entities.remove(this.nightsideEntity);
-      this.nightsideEntity = null;
     }
   }
 }
