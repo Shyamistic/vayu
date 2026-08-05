@@ -81,6 +81,74 @@ FLOORS = {
 
 EPOCHS = "25"
 
+# Kaggle clones this branch. ai_engine/verification.py and
+# ai_engine/windowed_dataset.py do not exist on main, so cloning the default
+# branch would silently train the superseded code. Change to 'main' once this
+# branch is merged.
+BRANCH = "fix/rain-collapse-v3"
+
+
+def mount_cell(region: str) -> str:
+    ck = "wg_main" if region == "western_ghats" else "{REGION}_main"
+    ck_expr = f"f'{{REPO_DIR}}/checkpoints/{ck}'"
+    return f'''# -- Mount project code and locate dataset ---------------------------------
+import sys, os
+from pathlib import Path
+
+REGION = '{region}'
+REPO_DIR = '/kaggle/working/isro'
+PROCESSED_DIR = f'{{REPO_DIR}}/data/processed_{{REGION}}'
+CHECKPOINT_DIR = {ck_expr}
+
+# The 1981-2025 training path needs code that is NOT on the default branch:
+# ai_engine/verification.py and ai_engine/windowed_dataset.py do not exist on
+# main, and the v3 rainfall loss fixes plus the re-measured BASELINE_INIT are
+# also branch-only. Cloning the default branch would silently train the old
+# code and produce the previous R2_rain ~ 0 result. Pin the branch explicitly.
+BRANCH = '{BRANCH}'
+
+if os.path.exists(f'{{REPO_DIR}}/.git'):
+    os.system(f'git -C {{REPO_DIR}} fetch origin {{BRANCH}}')
+    os.system(f'git -C {{REPO_DIR}} checkout {{BRANCH}}')
+    os.system(f'git -C {{REPO_DIR}} reset --hard origin/{{BRANCH}}')
+else:
+    os.system(f'rm -rf {{REPO_DIR}}')
+    os.system(
+        f'git clone --branch {{BRANCH}} --single-branch '
+        f'https://github.com/Shyamistic/vayu.git {{REPO_DIR}}'
+    )
+
+os.chdir(REPO_DIR)
+sys.path.insert(0, REPO_DIR)
+print('Working dir:', os.getcwd())
+os.system('git log --oneline -1')
+
+# Fail fast if the clone predates the branch-only modules, rather than dying
+# later inside the trainer with an opaque ImportError.
+for _need in ('ai_engine/verification.py', 'ai_engine/windowed_dataset.py'):
+    if not os.path.exists(f'{{REPO_DIR}}/{{_need}}'):
+        raise RuntimeError(
+            f'{{_need}} missing - the clone is not on branch {{BRANCH}}. '
+            'Training would run the superseded code path.'
+        )
+print('Branch-only modules present')
+
+# Filenames for the 1981-2025 rebuild (the 2010-2025 names no longer exist).
+NORMALIZED_FILE = 'normalized_1981-2025.nc'
+NORM_PARAMS_FILE = 'norm_params_1981-2025.nc'
+
+# NOTE: these must be created AFTER the clone/rm -rf above, since they are
+# nested inside REPO_DIR and would otherwise be wiped out.
+os.makedirs(CHECKPOINT_DIR, exist_ok=True)
+os.makedirs(PROCESSED_DIR, exist_ok=True)
+
+root = Path('/kaggle/input')
+_seen = sorted({{p.name for p in root.rglob('*') if p.is_file()}})
+print(f'{{len(_seen)}} file(s) visible under /kaggle/input:')
+for _n in _seen:
+    print('   ', _n)
+'''
+
 
 def staging_cell(region: str) -> str:
     return f'''# -- Stage bundle files (resilient to multi-folder Kaggle datasets) --------
@@ -401,19 +469,7 @@ def patch(region: str, dry_run: bool) -> bool:
             print(f"  could not locate {label} cell in {nb_name}")
             return False
 
-    # Mount cell: inject the 1981-2025 filenames so every later cell shares them.
-    mount_src = "".join(cells[idx_mount]["source"])
-    if "NORMALIZED_FILE" not in mount_src:
-        mount_src = mount_src.replace(
-            "print('Working dir:', os.getcwd())",
-            "print('Working dir:', os.getcwd())\n\n"
-            "# Filenames for the 1981-2025 rebuild (the 2010-2025 names are gone).\n"
-            "NORMALIZED_FILE = 'normalized_1981-2025.nc'\n"
-            "NORM_PARAMS_FILE = 'norm_params_1981-2025.nc'",
-            1,
-        )
-    mount_src = mount_src.replace("2010-2025", "1981-2025")
-    set_source(idx_mount, mount_src)
+    set_source(idx_mount, mount_cell(region))
 
     set_source(idx_stage, staging_cell(region))
     set_source(idx_smoke, smoke_cell(region))
