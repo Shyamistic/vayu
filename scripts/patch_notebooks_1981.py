@@ -81,11 +81,12 @@ FLOORS = {
 
 EPOCHS = "25"
 
-# Kaggle clones this branch. ai_engine/verification.py and
-# ai_engine/windowed_dataset.py do not exist on main, so cloning the default
-# branch would silently train the superseded code. Change to 'main' once this
-# branch is merged.
-BRANCH = "fix/rain-collapse-v3"
+# Kaggle clones this branch. Now 'main': fix/rain-collapse-v3 was fast-forward
+# merged into main (26ddd4e) together with the teammate's frontend work, so main
+# is the single source of truth and does contain ai_engine/verification.py and
+# ai_engine/windowed_dataset.py. The guard in the mount cell still checks for
+# those files, so a stale clone fails loudly rather than training old code.
+BRANCH = "main"
 
 
 def mount_cell(region: str) -> str:
