@@ -945,6 +945,10 @@ export default function App() {
           {state.viewMode === 'scenario' && (
             <WhatIfStudio
               initialRegion={state.selectedRegion}
+              // Coverage is a runtime fact, so the studio's region control is
+              // driven by what the backend actually has bundles for rather than
+              // by a hardcoded list that can go stale.
+              availableRegions={health?.real_data_regions}
               onResult={handleWhatIfResult}
               onReset={handleScenarioReset}
             />

@@ -41,6 +41,7 @@ Data gotchas this module handles explicitly
 from __future__ import annotations
 
 import logging
+import threading
 from dataclasses import dataclass, field
 from functools import lru_cache
 from pathlib import Path
@@ -489,7 +490,22 @@ def _extract_series(
     year_range: tuple[int, int] | None,
     weights: np.ndarray,
 ) -> _FieldSeries:
-    """Reduce one NetCDF variable to per-year regional and per-cell means."""
+    """Reduce one NetCDF variable to per-year regional and per-cell means.
+
+    Reads and reduces ONE SEASON AT A TIME rather than materializing the whole
+    calendar window.
+
+    The previous implementation pulled every in-window day into a single float64
+    block and then produced roughly five more arrays of that same size (the
+    availability mask, the denormalized product, the clip, and the `np.where`
+    that recombined them). For the 0.5 deg full-India bundle an `annual` window is
+    16,436 days x 4,288 cells x 8 bytes = 564 MB per array, and
+    :func:`compute_sensitivity` calls this twice (predictor and response), so the
+    peak ran to several GB and the process was killed before it could answer.
+    Since every day is ultimately collapsed into a per-year mean, none of that
+    needs to be resident at once: reducing per season-year bounds the peak to a
+    single season (~13 MB at 0.5 deg) and leaves the returned values identical.
+    """
     import pandas as pd
 
     if var not in ds.data_vars:
@@ -508,48 +524,66 @@ def _extract_series(
         )
 
     time_idx = np.flatnonzero(in_window)
-    block = ds[var].isel(time=time_idx).values.astype(np.float64)
-    n_time = block.shape[0]
-    block = block.reshape(n_time, -1)
-
-    # Mask gap-filled days. Satellite channels store 0.0 where retrieval failed,
-    # which would pull a 28 degC SST mean toward zero if averaged in.
-    flag_name = f"{var}_available"
-    if flag_name in ds.data_vars:
-        flag = ds[flag_name].isel(time=time_idx).values.astype(np.float64).reshape(n_time, -1)
-        block = np.where(flag > 0.5, block, np.nan)
-
-    block = _denormalize(var, block, norm_params)
-
-    lo_clamp, hi_clamp = PHYSICAL_CLAMPS.get(var, (-np.inf, np.inf))
-    if var not in RAW_UNIT_VARS or f"{var}_mean" in norm_params:
-        block = np.where(np.isfinite(block), np.clip(block, lo_clamp, hi_clamp), np.nan)
-
     season_years = season_year[time_idx]
     unique_years = np.unique(season_years)
 
-    n_cells = block.shape[1]
+    # Gap-filled days are stored as 0.0 with a companion availability flag, which
+    # would otherwise pull a 28 degC SST mean toward zero.
+    flag_name = f"{var}_available"
+    has_flag = flag_name in ds.data_vars
+
+    lo_clamp, hi_clamp = PHYSICAL_CLAMPS.get(var, (-np.inf, np.inf))
+    should_clamp = var not in RAW_UNIT_VARS or f"{var}_mean" in norm_params
+
+    n_cells = int(np.prod(ds[var].shape[1:]))
+
     regional = np.full(unique_years.shape[0], np.nan)
     per_cell = np.full((unique_years.shape[0], n_cells), np.nan)
     valid_days = np.zeros(unique_years.shape[0], dtype=np.int64)
 
     w = weights / np.nansum(weights) if np.nansum(weights) > 0 else weights
+    finite_w = np.isfinite(w)
 
     for i, year in enumerate(unique_years):
-        rows = season_years == year
-        chunk = block[rows]
+        rows = time_idx[season_years == year]
+        if rows.size == 0:
+            continue
+
+        with NETCDF_LOCK:
+            chunk = ds[var].isel(time=rows).values.astype(np.float64).reshape(rows.size, -1)
+            if has_flag:
+                flag = ds[flag_name].isel(time=rows).values.reshape(rows.size, -1)
+            else:
+                flag = None
+
+        if flag is not None:
+            # In place, so the mask does not cost another array of chunk size.
+            chunk[flag <= 0.5] = np.nan
+            del flag
+
+        chunk = _denormalize(var, chunk, norm_params)
+
+        if should_clamp:
+            # np.clip propagates NaN, so this matches the previous
+            # "clip where finite, else NaN" behaviour without a second copy.
+            np.clip(chunk, lo_clamp, hi_clamp, out=chunk)
+
         finite = np.isfinite(chunk)
         if not finite.any():
             continue
         # Any day with at least one valid cell counts toward coverage.
         valid_days[i] = int(finite.any(axis=1).sum())
+        del finite
+
         with np.errstate(invalid="ignore"):
             per_cell[i] = np.nanmean(chunk, axis=0)
             # Cosine-latitude weighted so a 0.5 deg full-India mean is not biased
             # toward the Himalaya, where cells cover less ground.
             cell_means = per_cell[i]
-            ok = np.isfinite(cell_means) & np.isfinite(w)
+            ok = np.isfinite(cell_means) & finite_w
             regional[i] = float(np.sum(cell_means[ok] * w[ok]) / np.sum(w[ok])) if ok.any() else np.nan
+
+        del chunk
 
     return _FieldSeries(
         years=unique_years,
@@ -567,11 +601,29 @@ def _area_weights(lats: np.ndarray, n_lon: int) -> np.ndarray:
     return np.repeat(cos_lat, n_lon)
 
 
-@lru_cache(maxsize=32)
+#: Serializes every NetCDF/HDF5 open and read in this process.
+#:
+#: The libhdf5 that netCDF4 links against is normally built without thread
+#: safety, and FastAPI runs these endpoints through `asyncio.to_thread`, so a
+#: sensitivity fit and a prediction can touch the library concurrently. That
+#: raised "NetCDF: HDF error" mid-request, and because the callers treat a read
+#: failure as "no real data" the endpoint then answered with a synthetic grid
+#: under HTTP 200 - a wrong answer wearing a correct one's clothes.
+#: `backend.main` binds its own `_netcdf_lock` to this object so both modules
+#: serialize against the same lock rather than two independent ones.
+NETCDF_LOCK = threading.Lock()
+
+
+#: Bounded deliberately. Every entry is an open handle whose HDF5 chunk cache
+#: grows with the variables actually read, and the full-India bundle is a 900 MB
+#: file, so a large cache is a slow memory leak rather than a speed-up. Two is
+#: enough to keep a predictor/response pair of one region warm.
+@lru_cache(maxsize=2)
 def _open_dataset(path: str) -> Any:
     import xarray as xr
 
-    return xr.open_dataset(path)
+    with NETCDF_LOCK:
+        return xr.open_dataset(path)
 
 
 # ── Public entry point ────────────────────────────────────────────────────────
@@ -1192,3 +1244,869 @@ def _build_hotspots(
         }
         for idx in order
     ]
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# Historical climatology over a calendar range
+# ══════════════════════════════════════════════════════════════════════════════
+#
+# "Historical mean rainfall according to range": the observed mean of one
+# variable over a recurring calendar window, per year and as a long-term mean,
+# with the interannual spread and a linear trend.
+#
+# This is deliberately separate from compute_sensitivity. The sensitivity fit
+# answers "how does R move with T"; this answers "what is R, actually", which is
+# the number a reader needs before any projection means anything. It is also the
+# baseline the What-If before/after cards are compared against, so it must come
+# from the same denormalized, availability-masked, coverage-filtered pipeline
+# rather than a second implementation that could drift from it.
+
+
+@dataclass
+class YearValue:
+    """One year's observed mean of a variable over the calendar window."""
+
+    year: int
+    value: float
+    anomaly: float
+    anomaly_percent: float
+    valid_days: int
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "year": int(self.year),
+            "value": _f(self.value),
+            "anomaly": _f(self.anomaly),
+            "anomaly_percent": _f(self.anomaly_percent),
+            "valid_days": int(self.valid_days),
+        }
+
+
+@dataclass
+class ClimatologyResult:
+    """Observed mean of one variable over a recurring calendar window."""
+
+    region: str
+    variable: str
+    window: CalendarWindow
+    unit: str
+
+    #: Long-term mean across the retained years.
+    mean: float
+    #: Interannual standard deviation (spread between years, not within a year).
+    std: float
+    #: Standard error of the long-term mean.
+    sem: float
+    ci95_low: float
+    ci95_high: float
+    #: Driest and wettest retained year, which is what a reader looks for first.
+    min_value: float
+    min_year: int | None
+    max_value: float
+    max_year: int | None
+    median: float
+    n_years: int
+    year_first: int
+    year_last: int
+
+    #: Least-squares trend on the annual means, reported per decade because a
+    #: per-year slope on rainfall is too small to read.
+    trend_per_decade: float
+    trend_p_value: float
+    trend_r_squared: float
+    trend_significant: bool
+
+    per_year: list[YearValue]
+    #: Per-cell long-term mean, row-major to match ClimateGraphBuilder ordering.
+    cell_mean: list[float]
+    lats: list[float]
+    lons: list[float]
+    excluded_years: list[int]
+    #: Area-integrated volume for accumulating variables (rainfall only).
+    volume_km3: float | None
+    area_km2: float
+    provenance: dict[str, Any] = field(default_factory=dict)
+
+    def to_dict(self, include_cells: bool = True) -> dict[str, Any]:
+        payload: dict[str, Any] = {
+            "region": self.region,
+            "variable": self.variable,
+            "season": self.window.name,
+            "season_label": self.window.label,
+            "unit": self.unit,
+            "summary": {
+                "mean": _f(self.mean),
+                "std": _f(self.std),
+                "sem": _f(self.sem),
+                "ci95_low": _f(self.ci95_low),
+                "ci95_high": _f(self.ci95_high),
+                "median": _f(self.median),
+                "min_value": _f(self.min_value),
+                "min_year": self.min_year,
+                "max_value": _f(self.max_value),
+                "max_year": self.max_year,
+                "n_years": int(self.n_years),
+                "year_first": int(self.year_first),
+                "year_last": int(self.year_last),
+            },
+            "trend": {
+                "per_decade": _f(self.trend_per_decade),
+                "unit": f"{self.unit} per decade",
+                "p_value": _f(self.trend_p_value),
+                "r_squared": _f(self.trend_r_squared),
+                "significant": bool(self.trend_significant),
+            },
+            "integral": {
+                "volume_km3": _f(self.volume_km3),
+                "area_km2": _f(self.area_km2),
+                "definition": (
+                    "area integral of the per-cell mean over the length of the "
+                    "calendar window"
+                ),
+            },
+            "per_year": [p.to_dict() for p in self.per_year],
+            "excluded_years": [int(y) for y in self.excluded_years],
+            "provenance": self.provenance,
+        }
+        if include_cells:
+            payload |= {
+                "lats": [_f(v) for v in self.lats],
+                "lons": [_f(v) for v in self.lons],
+                "cell_mean": [_f(v) for v in self.cell_mean],
+            }
+        return payload
+
+
+def compute_climatology(
+    dataset_path: str | Path,
+    norm_params_path: str | Path | None = None,
+    *,
+    region: str = "unknown",
+    variable: str = "rainfall",
+    season: str = "jjas",
+    window: CalendarWindow | None = None,
+    year_range: tuple[int, int] | None = None,
+) -> ClimatologyResult:
+    """Observed mean of ``variable`` over a recurring calendar window.
+
+    Args:
+        dataset_path: ``normalized_*.nc`` for the region.
+        norm_params_path: companion ``norm_params_*.nc``; derived when omitted.
+        variable: request-facing variable id (``rainfall``, ``tmax``, ...).
+        season: preset name; ignored when ``window`` is given.
+        window: explicit calendar range, overriding ``season``.
+        year_range: inclusive ``(start_year, end_year)`` filter.
+
+    Returns:
+        A :class:`ClimatologyResult` with the long-term mean, the per-year
+        series, the interannual spread, and a per-decade trend.
+    """
+    dataset_path = str(dataset_path)
+    if norm_params_path is None:
+        candidate = Path(dataset_path.replace("normalized_", "norm_params_"))
+        norm_params_path = candidate if candidate.exists() else None
+
+    var = resolve_variable(variable)
+    win = window or CalendarWindow.from_preset(season)
+
+    ds = _open_dataset(dataset_path)
+    norm_params = _load_norm_params(Path(norm_params_path) if norm_params_path else None)
+
+    lats = np.asarray(ds.lat.values, dtype=np.float64)
+    lons = np.asarray(ds.lon.values, dtype=np.float64)
+    weights = _area_weights(lats, lons.shape[0])
+
+    series = _extract_series(ds, var, win, norm_params, year_range, weights)
+
+    # Drop under-covered seasons on the same rule the sensitivity fit uses, so a
+    # partial first satellite season cannot masquerade as a full observation.
+    best_coverage = int(series.valid_days.max(initial=0))
+    threshold = MIN_COVERAGE_FRACTION * best_coverage
+    keep = (series.valid_days >= threshold) & np.isfinite(series.regional)
+
+    excluded_years = [int(y) for y in series.years[~keep]]
+    years = series.years[keep]
+    values = series.regional[keep]
+    valid_days = series.valid_days[keep]
+    cells = series.per_cell[keep]
+
+    if years.shape[0] < 1:
+        raise ValueError(
+            f"No usable year for {region}/{var} over {win.label}: every season "
+            f"fell below {MIN_COVERAGE_FRACTION:.0%} of the best-covered year"
+        )
+
+    mean = float(np.nanmean(values))
+    # ddof=1: these years are a sample of the climate, not the whole population.
+    std = float(np.nanstd(values, ddof=1)) if years.shape[0] > 1 else 0.0
+    n = int(years.shape[0])
+    sem = std / np.sqrt(n) if n > 0 else float("nan")
+    half = t_critical_95(n - 1) * sem if n > 1 else float("nan")
+
+    finite_vals = np.isfinite(values)
+    min_i = int(np.argmin(np.where(finite_vals, values, np.inf))) if finite_vals.any() else None
+    max_i = int(np.argmax(np.where(finite_vals, values, -np.inf))) if finite_vals.any() else None
+
+    # Trend on the annual means. Centred on the mean year so the intercept is
+    # interpretable and the fit is numerically stable.
+    if n >= 3:
+        slope, _, r2, p_val, _ = fit_ols(years.astype(np.float64) - float(np.mean(years)), values)
+        trend_decade = slope * 10.0
+    else:
+        slope, r2, p_val = float("nan"), float("nan"), float("nan")
+        trend_decade = float("nan")
+
+    with np.errstate(invalid="ignore"):
+        cell_mean = np.nanmean(cells, axis=0)
+
+    areas = cell_areas_km2(lats, lons)
+    ok_cells = np.isfinite(cell_mean) & np.isfinite(areas)
+    area_km2 = float(np.sum(areas[ok_cells])) if ok_cells.any() else float("nan")
+
+    # Volume only makes sense for an accumulating flux. mm/day over the window
+    # length, converted to km depth, times km^2.
+    volume_km3: float | None = None
+    if var in {"rainfall", "chirps_rain"} and ok_cells.any():
+        days = _window_length_days(win)
+        depth_km = cell_mean[ok_cells] * days * 1e-6   # mm/day -> km
+        volume_km3 = float(np.sum(depth_km * areas[ok_cells]))
+
+    per_year = [
+        YearValue(
+            year=int(years[i]),
+            value=float(values[i]),
+            anomaly=float(values[i] - mean),
+            anomaly_percent=float(100.0 * (values[i] - mean) / mean) if mean else float("nan"),
+            valid_days=int(valid_days[i]),
+        )
+        for i in range(n)
+    ]
+
+    return ClimatologyResult(
+        region=region,
+        variable=var,
+        window=win,
+        unit=series.unit,
+        mean=mean,
+        std=std,
+        sem=sem,
+        ci95_low=mean - half,
+        ci95_high=mean + half,
+        min_value=float(values[min_i]) if min_i is not None else float("nan"),
+        min_year=int(years[min_i]) if min_i is not None else None,
+        max_value=float(values[max_i]) if max_i is not None else float("nan"),
+        max_year=int(years[max_i]) if max_i is not None else None,
+        median=float(np.nanmedian(values)),
+        n_years=n,
+        year_first=int(years.min()),
+        year_last=int(years.max()),
+        trend_per_decade=trend_decade,
+        trend_p_value=p_val,
+        trend_r_squared=r2,
+        trend_significant=bool(np.isfinite(p_val) and p_val < 0.05),
+        per_year=per_year,
+        cell_mean=cell_mean.tolist(),
+        lats=lats.tolist(),
+        lons=lons.tolist(),
+        excluded_years=excluded_years,
+        volume_km3=volume_km3,
+        area_km2=area_km2,
+        provenance={
+            "dataset": Path(dataset_path).name,
+            "norm_params": Path(norm_params_path).name if norm_params_path else None,
+            "denormalized": bool(norm_params) or var in RAW_UNIT_VARS,
+            "masked_by_availability": f"{var}_available" in ds.data_vars,
+            "area_weighting": "cos(latitude)",
+            "min_coverage_fraction": MIN_COVERAGE_FRACTION,
+            "reduction": "mean of daily values within the window, per year",
+            "grid_shape": [int(lats.shape[0]), int(lons.shape[0])],
+            "source": (
+                "observations (IMD gridded + CHIRPS + NOAA OISST + NCEP), 1981-2025"
+            ),
+        },
+    )
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# Conditional probability of the response given the predictor
+# ══════════════════════════════════════════════════════════════════════════════
+#
+# P(R = x | T = t) and P(R > x +/- dx | T = t +/- dt).
+#
+# The regression alone gives a single expected value per temperature. That is not
+# enough to answer "how likely is a wet season", which needs the spread around
+# the line, not just the line. The conditional density here is the OLS
+# *prediction* distribution: centred on the fitted value, with a standard
+# deviation that combines the residual scatter with the uncertainty in the fitted
+# line itself, so a temperature far outside the observed range correctly produces
+# a wider distribution rather than a confidently wrong one.
+#
+# The observed histogram is returned alongside it on purpose. A Gaussian is an
+# assumption, and seasonal-mean rainfall is only roughly symmetric; showing the
+# empirical distribution next to the parametric one lets a reader see where the
+# assumption is doing work.
+
+
+@dataclass
+class DensityCurve:
+    """A conditional density of the response at one predictor value."""
+
+    id: str
+    label: str
+    predictor_value: float
+    predictor_anomaly: float
+    mean: float
+    sigma: float
+    values: list[float]
+    density: list[float]
+    #: Central 95 % interval of this conditional distribution.
+    ci95_low: float
+    ci95_high: float
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "id": self.id,
+            "label": self.label,
+            "predictor_value": _f(self.predictor_value),
+            "predictor_anomaly": _f(self.predictor_anomaly),
+            "mean": _f(self.mean),
+            "sigma": _f(self.sigma),
+            "ci95_low": _f(self.ci95_low),
+            "ci95_high": _f(self.ci95_high),
+            "values": [_f(v) for v in self.values],
+            "density": [_f(v) for v in self.density],
+        }
+
+
+@dataclass
+class ExceedanceProbability:
+    """P(R > threshold | predictor), with the tolerance-induced range."""
+
+    threshold: float
+    threshold_tolerance: float
+    predictor_tolerance: float
+    baseline_probability: float
+    scenario_probability: float
+    probability_low: float
+    probability_high: float
+    probability_change: float
+    #: Fraction of observed years that actually exceeded the threshold.
+    observed_frequency: float
+    observed_exceedances: int
+    observed_years: int
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "threshold": _f(self.threshold),
+            "threshold_tolerance": _f(self.threshold_tolerance),
+            "predictor_tolerance": _f(self.predictor_tolerance),
+            "baseline_probability": _f(self.baseline_probability),
+            "scenario_probability": _f(self.scenario_probability),
+            "probability_low": _f(self.probability_low),
+            "probability_high": _f(self.probability_high),
+            "probability_change": _f(self.probability_change),
+            "observed_frequency": _f(self.observed_frequency),
+            "observed_exceedances": int(self.observed_exceedances),
+            "observed_years": int(self.observed_years),
+            "definition": (
+                "P(R > threshold | predictor), from the OLS prediction "
+                "distribution; low/high span the supplied threshold and "
+                "predictor tolerances"
+            ),
+        }
+
+
+@dataclass
+class ConditionalDistributionResult:
+    """Baseline and shifted conditional densities plus exceedance probability."""
+
+    region: str
+    window: CalendarWindow
+    predictor: str
+    response: str
+    predictor_unit: str
+    response_unit: str
+    delta_predictor: float
+    residual_sigma: float
+    baseline: DensityCurve
+    scenario: DensityCurve
+    #: Observed values as a histogram, for comparison with the parametric curve.
+    histogram_edges: list[float]
+    histogram_counts: list[int]
+    observed_values: list[float]
+    exceedance: ExceedanceProbability | None
+    caveats: list[str]
+    provenance: dict[str, Any] = field(default_factory=dict)
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "region": self.region,
+            "season": self.window.name,
+            "season_label": self.window.label,
+            "predictor": self.predictor,
+            "response": self.response,
+            "predictor_unit": self.predictor_unit,
+            "response_unit": self.response_unit,
+            "delta_predictor": _f(self.delta_predictor),
+            "residual_sigma": _f(self.residual_sigma),
+            "curves": [self.baseline.to_dict(), self.scenario.to_dict()],
+            "empirical": {
+                "histogram_edges": [_f(v) for v in self.histogram_edges],
+                "histogram_counts": [int(v) for v in self.histogram_counts],
+                "values": [_f(v) for v in self.observed_values],
+                "n": len(self.observed_values),
+            },
+            "exceedance": self.exceedance.to_dict() if self.exceedance else None,
+            "caveats": self.caveats,
+            "provenance": self.provenance,
+        }
+
+
+def conditional_distribution(
+    result: SensitivityResult,
+    *,
+    delta_predictor: float = 2.0,
+    threshold: float | None = None,
+    threshold_tolerance: float = 0.0,
+    predictor_tolerance: float = 0.0,
+    n_grid: int = 161,
+) -> ConditionalDistributionResult:
+    """Conditional density of the response at the baseline and shifted predictor.
+
+    Args:
+        result: a fitted :class:`SensitivityResult`.
+        delta_predictor: predictor change for the shifted curve, in predictor units.
+        threshold: response level for the exceedance probability. Defaults to the
+            observed climatology, which reads as "chance of a wetter-than-normal
+            season".
+        threshold_tolerance: +/- tolerance on the threshold (``dx``).
+        predictor_tolerance: +/- tolerance on the predictor (``dt``).
+        n_grid: number of points in the returned density curves.
+
+    Returns:
+        A :class:`ConditionalDistributionResult`.
+    """
+    from scipy import stats
+
+    fit = result.fit
+    x = np.array([p.predictor_anomaly for p in result.points], dtype=np.float64)
+    y = np.array([p.response_value for p in result.points], dtype=np.float64)
+    residuals = np.array([p.residual for p in result.points], dtype=np.float64)
+
+    n = int(x.shape[0])
+    if n < 3:
+        raise ValueError("Need at least 3 fitted years to form a conditional distribution")
+
+    dof = n - 2
+    # Residual standard deviation of the fit: the scatter of observed seasons
+    # around the regression line, which is what makes the conditional spread.
+    sigma_resid = float(np.sqrt(np.sum(residuals ** 2) / dof))
+    mean_x = float(np.mean(x))
+    sxx = float(np.sum((x - mean_x) ** 2))
+    t_crit = t_critical_95(dof)
+
+    def _sigma_at(anomaly: float) -> float:
+        """Prediction standard deviation at a predictor anomaly.
+
+        The 1/n and (a-xbar)^2/Sxx terms are the uncertainty in the fitted line;
+        they grow with distance from the observed mean, so extrapolating to +4 degC
+        widens the distribution instead of pretending the line is exact.
+        """
+        if sxx <= 0:
+            return sigma_resid
+        leverage = 1.0 + 1.0 / n + ((anomaly - mean_x) ** 2) / sxx
+        return sigma_resid * float(np.sqrt(max(leverage, 0.0)))
+
+    baseline_anomaly = 0.0
+    scenario_anomaly = float(delta_predictor)
+
+    mu_base = float(fit.predict(baseline_anomaly))
+    mu_scen = float(fit.predict(scenario_anomaly))
+    sd_base = _sigma_at(baseline_anomaly)
+    sd_scen = _sigma_at(scenario_anomaly)
+
+    # Grid spans both curves plus the observed range, so neither is clipped.
+    lo_candidates = [mu_base - 4 * sd_base, mu_scen - 4 * sd_scen, float(np.min(y))]
+    hi_candidates = [mu_base + 4 * sd_base, mu_scen + 4 * sd_scen, float(np.max(y))]
+    grid_lo, grid_hi = min(lo_candidates), max(hi_candidates)
+    # Rainfall cannot be negative; clamping the axis avoids drawing a density over
+    # impossible values, and the caveat below records that the tail was truncated.
+    truncated = False
+    if fit.response in {"rainfall", "chirps_rain"} and grid_lo < 0.0:
+        grid_lo = 0.0
+        truncated = True
+    if grid_hi <= grid_lo:
+        grid_hi = grid_lo + 1.0
+    grid = np.linspace(grid_lo, grid_hi, int(max(n_grid, 11)))
+
+    def _curve(cid: str, label: str, anomaly: float, mu: float, sd: float) -> DensityCurve:
+        half = t_crit * sd
+        return DensityCurve(
+            id=cid,
+            label=label,
+            predictor_value=fit.predictor_climatology + anomaly,
+            predictor_anomaly=anomaly,
+            mean=mu,
+            sigma=sd,
+            values=grid.tolist(),
+            density=stats.norm.pdf(grid, loc=mu, scale=sd).tolist() if sd > 0 else [],
+            ci95_low=mu - half,
+            ci95_high=mu + half,
+        )
+
+    unit = fit.predictor_unit or ""
+    baseline_curve = _curve(
+        "baseline",
+        f"Observed baseline ({fit.predictor_climatology:.2f} {unit})".strip(),
+        baseline_anomaly, mu_base, sd_base,
+    )
+    scenario_curve = _curve(
+        "scenario",
+        f"At {delta_predictor:+.2f} {unit}".strip(),
+        scenario_anomaly, mu_scen, sd_scen,
+    )
+
+    # Exceedance probability, including the tolerance band the mentor's
+    # P(R > x +/- dx | T = t +/- dt) asks for.
+    exceedance: ExceedanceProbability | None = None
+    thr = fit.response_climatology if threshold is None else float(threshold)
+    if np.isfinite(thr) and sd_scen > 0 and sd_base > 0:
+        dx = abs(float(threshold_tolerance))
+        dt = abs(float(predictor_tolerance))
+        # A predictor tolerance moves the mean by |slope| * dt in either
+        # direction regardless of the slope's sign.
+        mu_spread = abs(fit.slope) * dt
+        p_base = float(stats.norm.sf(thr, loc=mu_base, scale=sd_base))
+        p_scen = float(stats.norm.sf(thr, loc=mu_scen, scale=sd_scen))
+        # Most exceedance-friendly corner: lowest threshold, highest mean.
+        p_high = float(stats.norm.sf(thr - dx, loc=mu_scen + mu_spread, scale=sd_scen))
+        p_low = float(stats.norm.sf(thr + dx, loc=mu_scen - mu_spread, scale=sd_scen))
+        observed_hits = int(np.sum(y > thr))
+        exceedance = ExceedanceProbability(
+            threshold=thr,
+            threshold_tolerance=dx,
+            predictor_tolerance=dt,
+            baseline_probability=p_base,
+            scenario_probability=p_scen,
+            probability_low=min(p_low, p_high),
+            probability_high=max(p_low, p_high),
+            probability_change=p_scen - p_base,
+            observed_frequency=observed_hits / n if n else float("nan"),
+            observed_exceedances=observed_hits,
+            observed_years=n,
+        )
+
+    counts, edges = np.histogram(y, bins=min(12, max(4, n // 3)))
+
+    caveats: list[str] = [
+        "The conditional spread is the OLS prediction distribution: residual "
+        "scatter plus the uncertainty in the fitted line, so it widens away from "
+        "the observed predictor range.",
+        f"Normality is assumed. The observed histogram (n={n}) is returned "
+        "alongside so the assumption can be checked rather than trusted.",
+    ]
+    if truncated:
+        caveats.append(
+            f"{fit.response} cannot be negative, so the density axis is clamped at "
+            "zero; a Gaussian would otherwise place mass on impossible values."
+        )
+    if not fit.significant:
+        caveats.append(
+            f"The underlying slope is not significant (p={fit.p_value:.3g}), so the "
+            "shift between the two curves is weakly constrained."
+        )
+    observed_span = float(np.max(np.abs(x))) if x.size else 0.0
+    if abs(delta_predictor) > observed_span:
+        caveats.append(
+            f"A {delta_predictor:+.2f} {unit} change exceeds the largest observed "
+            f"anomaly ({observed_span:.2f} {unit}), so the shifted curve extrapolates."
+        )
+
+    return ConditionalDistributionResult(
+        region=result.region,
+        window=result.window,
+        predictor=fit.predictor,
+        response=fit.response,
+        predictor_unit=fit.predictor_unit,
+        response_unit=fit.response_unit,
+        delta_predictor=float(delta_predictor),
+        residual_sigma=sigma_resid,
+        baseline=baseline_curve,
+        scenario=scenario_curve,
+        histogram_edges=edges.tolist(),
+        histogram_counts=counts.tolist(),
+        observed_values=y.tolist(),
+        exceedance=exceedance,
+        caveats=caveats,
+        provenance={
+            **result.provenance,
+            "distribution": "Gaussian OLS prediction distribution",
+            "dof": dof,
+            "residual_sigma": _f(sigma_resid),
+        },
+    )
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# Dual-baseline split: older vs newer record, each fitted independently
+# ══════════════════════════════════════════════════════════════════════════════
+#
+# The single 1981-2025 slope assumes the rainfall-temperature relationship has
+# been constant for 45 years. If it has not, that slope is an average of two
+# different regimes and a projection built on it is anchored to a baseline that no
+# longer exists. Splitting the record and fitting each half separately is what
+# makes that testable: if the two slopes differ significantly, the newer one is
+# the honest basis for projecting forward and the difference is itself a result.
+
+
+#: Year that begins the "new" baseline. 2000 splits the 1981-2025 record into a
+#: 19-year and a 26-year half, which keeps both fits above the ~15-year minimum
+#: where an interannual regression starts to mean anything.
+DEFAULT_BASELINE_SPLIT_YEAR = 2000
+
+
+@dataclass
+class BaselineEpochFit:
+    """One half of the record, fitted on its own."""
+
+    id: str
+    label: str
+    year_start: int
+    year_end: int
+    fit: RegressionFit
+    response_mean: float
+    predictor_mean: float
+    n_years: int
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "id": self.id,
+            "label": self.label,
+            "year_start": int(self.year_start),
+            "year_end": int(self.year_end),
+            "fit": self.fit.to_dict(),
+            "response_mean": _f(self.response_mean),
+            "predictor_mean": _f(self.predictor_mean),
+            "n_years": int(self.n_years),
+        }
+
+
+@dataclass
+class BaselineComparisonResult:
+    """Older vs newer baseline, with a significance test on the slope change."""
+
+    region: str
+    window: CalendarWindow
+    predictor: str
+    response: str
+    split_year: int
+    older: BaselineEpochFit
+    newer: BaselineEpochFit
+
+    slope_delta: float
+    slope_delta_se: float
+    slope_delta_ci95_low: float
+    slope_delta_ci95_high: float
+    slope_delta_p_value: float
+    slope_changed_significantly: bool
+
+    response_mean_delta: float
+    response_mean_delta_percent: float
+    predictor_mean_delta: float
+
+    #: Per-cell slope difference (newer minus older), row-major.
+    cell_slope_delta: list[float]
+    lats: list[float]
+    lons: list[float]
+
+    caveats: list[str]
+    provenance: dict[str, Any] = field(default_factory=dict)
+
+    def to_dict(self, include_cells: bool = True) -> dict[str, Any]:
+        payload: dict[str, Any] = {
+            "region": self.region,
+            "season": self.window.name,
+            "season_label": self.window.label,
+            "predictor": self.predictor,
+            "response": self.response,
+            "split_year": int(self.split_year),
+            "older": self.older.to_dict(),
+            "newer": self.newer.to_dict(),
+            "difference": {
+                "slope_delta": _f(self.slope_delta),
+                "slope_delta_se": _f(self.slope_delta_se),
+                "slope_delta_ci95_low": _f(self.slope_delta_ci95_low),
+                "slope_delta_ci95_high": _f(self.slope_delta_ci95_high),
+                "slope_delta_p_value": _f(self.slope_delta_p_value),
+                "slope_changed_significantly": bool(self.slope_changed_significantly),
+                "slope_unit": self.older.fit.slope_unit,
+                "response_mean_delta": _f(self.response_mean_delta),
+                "response_mean_delta_percent": _f(self.response_mean_delta_percent),
+                "predictor_mean_delta": _f(self.predictor_mean_delta),
+                "definition": "newer baseline minus older baseline",
+            },
+            "caveats": self.caveats,
+            "provenance": self.provenance,
+        }
+        if include_cells:
+            payload |= {
+                "lats": [_f(v) for v in self.lats],
+                "lons": [_f(v) for v in self.lons],
+                "cell_slope_delta": [_f(v) for v in self.cell_slope_delta],
+            }
+        return payload
+
+
+def compare_baselines(
+    dataset_path: str | Path,
+    norm_params_path: str | Path | None = None,
+    *,
+    region: str = "unknown",
+    predictor: str = "tmax",
+    response: str = "rainfall",
+    season: str = "jjas",
+    window: CalendarWindow | None = None,
+    split_year: int = DEFAULT_BASELINE_SPLIT_YEAR,
+    year_range: tuple[int, int] | None = None,
+) -> BaselineComparisonResult:
+    """Fit ``response`` on ``predictor`` separately either side of ``split_year``.
+
+    Args:
+        split_year: first year of the newer baseline. The older baseline ends the
+            year before.
+        year_range: optional outer bound applied to both halves.
+
+    Returns:
+        A :class:`BaselineComparisonResult` carrying both fits and a two-sided
+        test on the difference of slopes.
+    """
+    from scipy import stats
+
+    lo_bound = year_range[0] if year_range else 1800
+    hi_bound = year_range[1] if year_range else 2200
+    if not (lo_bound < split_year <= hi_bound):
+        raise ValueError(
+            f"split_year {split_year} must fall inside the requested range "
+            f"{lo_bound}-{hi_bound}"
+        )
+
+    common = dict(
+        norm_params_path=norm_params_path,
+        region=region,
+        predictor=predictor,
+        response=response,
+        season=season,
+        window=window,
+    )
+    older_result = compute_sensitivity(
+        dataset_path, year_range=(lo_bound, split_year - 1), **common
+    )
+    newer_result = compute_sensitivity(
+        dataset_path, year_range=(split_year, hi_bound), **common
+    )
+
+    older = BaselineEpochFit(
+        id="older",
+        label=f"Older baseline ({older_result.provenance['year_first']}-"
+              f"{older_result.provenance['year_last']})",
+        year_start=int(older_result.provenance["year_first"]),
+        year_end=int(older_result.provenance["year_last"]),
+        fit=older_result.fit,
+        response_mean=older_result.fit.response_climatology,
+        predictor_mean=older_result.fit.predictor_climatology,
+        n_years=older_result.fit.n,
+    )
+    newer = BaselineEpochFit(
+        id="newer",
+        label=f"New baseline ({newer_result.provenance['year_first']}-"
+              f"{newer_result.provenance['year_last']})",
+        year_start=int(newer_result.provenance["year_first"]),
+        year_end=int(newer_result.provenance["year_last"]),
+        fit=newer_result.fit,
+        response_mean=newer_result.fit.response_climatology,
+        predictor_mean=newer_result.fit.predictor_climatology,
+        n_years=newer_result.fit.n,
+    )
+
+    # Difference of two independent slopes. The halves share no years, so the
+    # standard errors add in quadrature.
+    slope_delta = newer.fit.slope - older.fit.slope
+    se_delta = float(np.sqrt(newer.fit.std_err ** 2 + older.fit.std_err ** 2))
+    dof = max(newer.n_years + older.n_years - 4, 1)
+    t_crit = t_critical_95(dof)
+    half = t_crit * se_delta if np.isfinite(se_delta) else float("nan")
+    if np.isfinite(se_delta) and se_delta > 0:
+        t_stat = slope_delta / se_delta
+        p_delta = float(2.0 * stats.t.sf(abs(t_stat), dof))
+    else:
+        p_delta = float("nan")
+
+    mean_delta = newer.response_mean - older.response_mean
+    mean_delta_pct = (
+        100.0 * mean_delta / older.response_mean if older.response_mean else float("nan")
+    )
+
+    older_cells = np.asarray(older_result.cell_slope, dtype=np.float64)
+    newer_cells = np.asarray(newer_result.cell_slope, dtype=np.float64)
+    if older_cells.shape == newer_cells.shape:
+        cell_delta = newer_cells - older_cells
+    else:
+        cell_delta = np.full(newer_cells.shape, np.nan)
+
+    changed = bool(np.isfinite(p_delta) and p_delta < 0.05)
+    caveats: list[str] = []
+    if changed:
+        caveats.append(
+            "The two slopes differ significantly, so the 1981-2025 single-slope "
+            "sensitivity averages two regimes; the newer baseline is the better "
+            "basis for projecting forward."
+        )
+    else:
+        caveats.append(
+            "The slope difference is not statistically significant "
+            f"(p={p_delta:.3g}), so the record does not demonstrate a change in "
+            "sensitivity; the split is shown for completeness."
+        )
+    if min(older.n_years, newer.n_years) < 15:
+        caveats.append(
+            f"One half has only {min(older.n_years, newer.n_years)} usable years. "
+            "Interannual regressions on fewer than about 15 years carry wide "
+            "confidence intervals."
+        )
+    caveats.append(
+        "Splitting the record halves the sample in each fit, so both slopes are "
+        "less precisely estimated than the full-record slope."
+    )
+
+    return BaselineComparisonResult(
+        region=region,
+        window=older_result.window,
+        predictor=older.fit.predictor,
+        response=older.fit.response,
+        split_year=int(split_year),
+        older=older,
+        newer=newer,
+        slope_delta=slope_delta,
+        slope_delta_se=se_delta,
+        slope_delta_ci95_low=slope_delta - half,
+        slope_delta_ci95_high=slope_delta + half,
+        slope_delta_p_value=p_delta,
+        slope_changed_significantly=changed,
+        response_mean_delta=mean_delta,
+        response_mean_delta_percent=mean_delta_pct,
+        predictor_mean_delta=newer.predictor_mean - older.predictor_mean,
+        cell_slope_delta=cell_delta.tolist(),
+        lats=newer_result.lats,
+        lons=newer_result.lons,
+        caveats=caveats,
+        provenance={
+            **newer_result.provenance,
+            "method": (
+                "two independent OLS fits either side of the split year; "
+                "difference tested with a two-sided t on pooled standard errors"
+            ),
+            "split_year": int(split_year),
+            "older_years": [older.year_start, older.year_end],
+            "newer_years": [newer.year_start, newer.year_end],
+        },
+    )

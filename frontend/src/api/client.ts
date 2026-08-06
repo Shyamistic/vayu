@@ -3,6 +3,10 @@
  */
 
 import type {
+  BaselineComparisonResponse,
+  ClimatologyResponse,
+  DistributionResponse,
+  ForecastSummaryResponse,
   GridCell,
   HealthResponse,
   HistoricalRecord,
@@ -148,6 +152,144 @@ export async function runWhatIf(request: WhatIfRequest): Promise<WhatIfResponse>
   });
 }
 
+/**
+ * Observed historical mean of a variable over a calendar range.
+ *
+ * No offline fallback, for the same reason as {@link fetchSensitivity}: this is
+ * the measured baseline every projection is expressed against, so a fabricated
+ * value here would silently rebase the whole analysis.
+ */
+export async function fetchClimatology(params: {
+  region: string;
+  variable: 'rainfall' | 'tmax' | 'tmin' | 'sst' | 'lst';
+  season: SeasonId;
+  windowStart?: string;
+  windowEnd?: string;
+  startYear?: number;
+  endYear?: number;
+  includeCells?: boolean;
+}): Promise<ClimatologyResponse> {
+  const q = new URLSearchParams({
+    region: params.region,
+    variable: params.variable,
+    season: params.season,
+    include_cells: String(params.includeCells ?? false),
+  });
+  if (params.windowStart && params.windowEnd) {
+    q.set('window_start', params.windowStart);
+    q.set('window_end', params.windowEnd);
+  }
+  if (params.startYear) q.set('start_year', String(params.startYear));
+  if (params.endYear) q.set('end_year', String(params.endYear));
+
+  return apiFetch<ClimatologyResponse>(`/api/climatology?${q.toString()}`);
+}
+
+/**
+ * Conditional density of the response given the predictor.
+ *
+ * Returns P(R = x | T = t) as two overlaid curves plus
+ * P(R > x +/- dx | T = t +/- dt) as an exceedance probability. No offline
+ * fallback: invented probabilities are worse than an absent panel.
+ */
+export async function fetchDistribution(params: {
+  region: string;
+  predictor: PredictorId;
+  response?: string;
+  season: SeasonId;
+  delta: number;
+  threshold?: number;
+  thresholdTolerance?: number;
+  predictorTolerance?: number;
+  windowStart?: string;
+  windowEnd?: string;
+  startYear?: number;
+  endYear?: number;
+}): Promise<DistributionResponse> {
+  const q = new URLSearchParams({
+    region: params.region,
+    predictor: params.predictor,
+    response: params.response ?? 'rainfall',
+    season: params.season,
+    delta: String(params.delta),
+  });
+  // `threshold` is deliberately only sent when defined: omitting it lets the
+  // backend default to the observed climatology, which is a more meaningful
+  // reference than any constant this client could pick.
+  if (params.threshold !== undefined) q.set('threshold', String(params.threshold));
+  if (params.thresholdTolerance !== undefined) {
+    q.set('threshold_tolerance', String(params.thresholdTolerance));
+  }
+  if (params.predictorTolerance !== undefined) {
+    q.set('predictor_tolerance', String(params.predictorTolerance));
+  }
+  if (params.windowStart && params.windowEnd) {
+    q.set('window_start', params.windowStart);
+    q.set('window_end', params.windowEnd);
+  }
+  if (params.startYear) q.set('start_year', String(params.startYear));
+  if (params.endYear) q.set('end_year', String(params.endYear));
+
+  return apiFetch<DistributionResponse>(`/api/distribution?${q.toString()}`);
+}
+
+/**
+ * Fit the sensitivity separately either side of `splitYear`.
+ *
+ * Answers whether the older and newer halves of the record share one dR/dT, so a
+ * shifted baseline surfaces as a tested result rather than being averaged away.
+ */
+export async function fetchBaselineComparison(params: {
+  region: string;
+  predictor: PredictorId;
+  response?: string;
+  season: SeasonId;
+  splitYear?: number;
+  windowStart?: string;
+  windowEnd?: string;
+  startYear?: number;
+  endYear?: number;
+  includeCells?: boolean;
+}): Promise<BaselineComparisonResponse> {
+  const q = new URLSearchParams({
+    region: params.region,
+    predictor: params.predictor,
+    response: params.response ?? 'rainfall',
+    season: params.season,
+    include_cells: String(params.includeCells ?? false),
+  });
+  if (params.splitYear) q.set('split_year', String(params.splitYear));
+  if (params.windowStart && params.windowEnd) {
+    q.set('window_start', params.windowStart);
+    q.set('window_end', params.windowEnd);
+  }
+  if (params.startYear) q.set('start_year', String(params.startYear));
+  if (params.endYear) q.set('end_year', String(params.endYear));
+
+  return apiFetch<BaselineComparisonResponse>(
+    `/api/baseline-comparison?${q.toString()}`,
+  );
+}
+
+/**
+ * Aggregate the T+1..T+7 forecast against the observed climatology.
+ *
+ * The backend refuses to synthesise this from mock grids (it 503s when real
+ * inference is unavailable), so there is no fallback to add here either.
+ */
+export async function fetchForecastSummary(params: {
+  date: string;
+  region: string;
+  season?: SeasonId;
+}): Promise<ForecastSummaryResponse> {
+  const q = new URLSearchParams({
+    date: params.date,
+    region: params.region,
+    season: params.season ?? 'jjas',
+  });
+  return apiFetch<ForecastSummaryResponse>(`/api/forecast-summary?${q.toString()}`);
+}
+
 // ── Historical ────────────────────────────────────────────────────────────────
 
 export async function fetchHistorical(params: {
@@ -200,22 +342,32 @@ export async function fetchMetrics(
       `/api/metrics?${q.toString()}`,
     );
   } catch {
-    // Load from static mock metrics when backend is offline
+    // Offline demo path. Marked, on purpose.
+    //
+    // This used to end in a hardcoded literal — plausible R²/RMSE/MAE values
+    // with `eval_period: '2021-2023'` — returned with no indication it was
+    // invented. Skill scores are the one thing on screen a reviewer is most
+    // likely to take at face value, so an unmarked fabrication here is the
+    // worst of the fallbacks: it reads as a real evaluation of the model.
+    //
+    // The fixture file is still served (it is a real precomputed evaluation) but
+    // both branches now stamp `source_model = 'mock'` so the UI can label it,
+    // exactly as fetchPrediction does with `model_version`.
     console.info('[VAYU] Backend offline — loading demo metrics');
     const res = await fetch('/mock_metrics.json');
     if (res.ok) {
       const all = await res.json();
       if (all[variable]) {
-        return all[variable] as MetricsResponse;
+        return { ...(all[variable] as MetricsResponse), source_model: 'mock' };
       }
     }
-    // Final fallback — hardcoded realistic values
-    const fallback: Record<VariableId, MetricsResponse> = {
-      rainfall: { variable: 'rainfall', region, eval_period: '2021-2023', r2_score: 0.125, rmse: 8.3, mae: 5.1, skill_score: 0.15 },
-      temp_max: { variable: 'temp_max', region, eval_period: '2021-2023', r2_score: 0.823, rmse: 1.4, mae: 1.0, skill_score: 0.82 },
-      temp_min: { variable: 'temp_min', region, eval_period: '2021-2023', r2_score: 0.79, rmse: 1.3, mae: 0.9, skill_score: 0.78 },
-    };
-    return fallback[variable];
+    // No fixture available either. Refuse rather than invent: an absent metric
+    // is recoverable, a fabricated one is not.
+    throw new Error(
+      `Metrics for ${variable} are unavailable: the backend could not be reached and no ` +
+        `precomputed evaluation is bundled. No estimated skill score is substituted, because ` +
+        `an invented R² is indistinguishable from a measured one.`,
+    );
   }
 }
 

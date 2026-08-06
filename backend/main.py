@@ -25,8 +25,10 @@ import base64
 import json
 import logging
 import os
+import threading
 import time
 import uuid
+from collections import OrderedDict
 from contextlib import asynccontextmanager
 from datetime import UTC, date, datetime
 from pathlib import Path
@@ -45,16 +47,23 @@ from ai_engine.climate_model import VayuClimateModel
 from ai_engine.config import ModelConfig, PilotRegion
 from backend.cache import CacheClient
 from backend.database import DatabaseClient
+from backend.enkf import assimilate, build_ensemble, fuse_gaussian
 from backend.evidence_ingestion import LiveReplayIngestionAdapter
 from backend.openmeteo_client import OpenMeteoClient, get_openmeteo
 from backend.pipeline import start_pipeline, stop_pipeline, get_pipeline
 from backend.iot_subscriber import start_iot_subscriber, get_latest_readings, get_latest_reading
 from backend.sensitivity import (
+    DEFAULT_BASELINE_SPLIT_YEAR,
+    NETCDF_LOCK,
     SEASON_PRESETS,
     VARIABLE_ALIASES,
     CalendarWindow,
+    ClimatologyResult,
     SensitivityResult,
+    compare_baselines,
+    compute_climatology,
     compute_sensitivity,
+    conditional_distribution,
     project_scenario,
 )
 from data_ingestion.graph_builder import ClimateGraphBuilder
@@ -77,8 +86,17 @@ _twin_engine: TwinEngine | None = None
 _iot_task: asyncio.Task | None = None  # background IoT DB-writer task
 
 #: Loaded per-region checkpoints, keyed by region id. Populated lazily so a
-#: region nobody has requested yet never pays the torch.load() cost.
-_region_models: dict[str, VayuClimateModel] = {}
+#: region nobody has requested yet never pays the torch.load() cost, and bounded
+#: so serving every region in turn does not accumulate every checkpoint in memory
+#: (see MAX_CACHED_REGIONS).
+_region_models: "OrderedDict[str, VayuClimateModel]" = OrderedDict()
+
+
+def _evict_region_models() -> None:
+    """Bound the loaded-checkpoint cache to MAX_CACHED_REGIONS entries."""
+    while len(_region_models) > MAX_CACHED_REGIONS:
+        region, _ = _region_models.popitem(last=False)
+        logger.info("Evicted cached checkpoint for region '%s'", region)
 
 #: Region id -> checkpoint directory, checked before falling back to the single
 #: global MODEL_PATH checkpoint. Every region here was trained separately (see
@@ -112,6 +130,7 @@ def _get_region_model(region: str) -> VayuClimateModel | None:
         return _model
 
     if region in _region_models:
+        _region_models.move_to_end(region)
         return _region_models[region]
 
     if not Path(checkpoint_path).exists():
@@ -381,6 +400,43 @@ class WhatIfRequest(BaseModel):
         if (v or "").strip().lower() not in SEASON_PRESETS:
             raise ValueError(f"must be one of {sorted(SEASON_PRESETS)}")
         return v.strip().lower()
+
+
+class AssimilationSource(BaseModel):
+    """One variable's forecast value and its stated uncertainty."""
+
+    variable: str = Field(description="rainfall | temp_max | temp_min | tmean | custom")
+    unit: str = Field("", description="Physical unit, for labelling only")
+    model_value: float
+    model_sigma: float = Field(gt=0, description="Forecast standard deviation")
+    observed_value: float
+    observed_sigma: float = Field(gt=0, description="Observation standard deviation")
+
+
+class AssimilationRequest(BaseModel):
+    """Fuse forecast values with observations via the Kalman update.
+
+    Supplying `correlation` switches from independent per-variable scalar fusion
+    to a full Ensemble Kalman Filter, which is the only way an observation of one
+    variable can correct another.
+    """
+
+    sources: list[AssimilationSource] = Field(min_length=1, max_length=12)
+    correlation: list[list[float]] | None = Field(
+        None,
+        description=(
+            "Optional prior correlation matrix between the variables, "
+            "n x n matching `sources`. Enables cross-variable correction."
+        ),
+    )
+    n_members: int = Field(
+        128, ge=2, le=4096, description="Ensemble size when running the EnKF"
+    )
+    inflation: float = Field(
+        1.0, gt=0.0, le=10.0, description="Prior spread inflation factor"
+    )
+    seed: int | None = Field(0, description="RNG seed, for reproducible analyses")
+    include_members: bool = False
 
 
 class ScenarioSummaryItem(BaseModel):
@@ -858,8 +914,62 @@ def _mock_grid_cells(n_cells: int = 50, seed_date: date | None = None) -> list[G
 
 # ── Real inference from NetCDF data ────────────────────────────────────────────
 
-_dataset_cache: dict[str, "xr.Dataset"] = {}
-_graph_builder_cache: dict[str, "ClimateGraphBuilder"] = {}
+#: Per-region inference state. These are BOUNDED on purpose.
+#:
+#: Each entry is expensive: a loaded checkpoint, a ClimateGraphBuilder holding the
+#: full edge list, and an open NetCDF handle with its chunk cache. Left unbounded,
+#: walking through every region in one session accumulates all of them and the
+#: task is OOM-killed (exit 137) mid-request, which surfaces to the client as an
+#: intermittent 502 rather than as an out-of-memory condition.
+#:
+#: Set to 1, not 2: measured in production, visiting 3 distinct regions in quick
+#: succession (western_ghats, then two more while the first pair was still
+#: cached) was enough to exceed 4096 MiB even after the event-loop fix. The
+#: full_india bundle alone is a 900 MB NetCDF file, and an open xarray handle's
+#: HDF5 chunk cache grows with the variables actually read, so "two regions
+#: cached" was not a fixed cost — it scaled with which two. Keeping exactly one
+#: live trades away fast back-and-forth region comparison for a memory ceiling
+#: that holds regardless of which regions are visited.
+MAX_CACHED_REGIONS = 1
+
+_dataset_cache: "OrderedDict[str, xr.Dataset]" = OrderedDict()
+_graph_builder_cache: "OrderedDict[str, ClimateGraphBuilder]" = OrderedDict()
+
+#: Serializes all NetCDF open/read access.
+#:
+#: The libhdf5 that netCDF4 links against is typically built WITHOUT thread
+#: safety, while FastAPI dispatches sync endpoint handlers onto a worker
+#: threadpool. Two threads touching different open files was enough to raise
+#: "NetCDF: HDF error" mid-request, and because `_get_real_predictions` swallows
+#: exceptions and returns None, the endpoint then quietly served a synthetic grid
+#: with HTTP 200 — a wrong answer that looks like a right one. Serializing the
+#: reads costs little (inference is the bottleneck, and the task runs a single
+#: uvicorn worker) and removes the corruption entirely.
+#:
+#: Bound to the lock in backend.sensitivity rather than being a second, separate
+#: Lock. /api/predict and /api/sensitivity both reach HDF5 from worker threads, so
+#: two independent locks would each be internally consistent while still allowing
+#: one endpoint's read to race the other's - which is the exact failure this
+#: guards against.
+_netcdf_lock = NETCDF_LOCK
+
+
+def _evict_to_limit(
+    cache: "OrderedDict[str, Any]", limit: int = MAX_CACHED_REGIONS, *, closes: bool = False
+) -> None:
+    """Trim `cache` to `limit` entries, dropping least-recently-used first.
+
+    `closes` is for caches whose values hold an OS resource (an open NetCDF
+    handle); those are closed explicitly rather than left for the garbage
+    collector, so file descriptors are not leaked across evictions.
+    """
+    while len(cache) > limit:
+        _, evicted = cache.popitem(last=False)
+        if closes:
+            try:
+                evicted.close()
+            except Exception:  # pragma: no cover - best-effort cleanup
+                logger.debug("Failed to close evicted cache entry", exc_info=True)
 
 #: Root holding one `processed_<region>/` directory per region. Overridable so a
 #: container can mount or download the bundles anywhere.
@@ -1044,15 +1154,18 @@ def _get_real_predictions(target_date: date, region: str, lead_day: int) -> list
     if not ds_path:
         return None
 
-    # Load/cache dataset
-    if ds_path not in _dataset_cache:
-        try:
-            _dataset_cache[ds_path] = xr.open_dataset(ds_path)
-        except Exception as exc:
-            logger.warning("Failed to load dataset %s: %s", ds_path, exc)
-            return None
+    # Load/cache dataset under the HDF5 lock (see _netcdf_lock).
+    with _netcdf_lock:
+        if ds_path in _dataset_cache:
+            _dataset_cache.move_to_end(ds_path)
+        else:
+            try:
+                _dataset_cache[ds_path] = xr.open_dataset(ds_path)
+            except Exception as exc:
+                logger.warning("Failed to load dataset %s: %s", ds_path, exc)
+                return None
 
-    ds = _dataset_cache[ds_path]
+        ds = _dataset_cache[ds_path]
 
     # Get graph builder for this dataset, built on the REAL warped DEM and
     # land-sea mask. Passing these was missing, so every served prediction ran on
@@ -1061,12 +1174,21 @@ def _get_real_predictions(target_date: date, region: str, lead_day: int) -> list
     # Keyed by dataset AND rasters: two regions can share a bundle (pilot aliases
     # western_ghats) while a raster path change must still rebuild the graph.
     builder_key = f"{ds_path}|{elevation_path}|{lsm_path}"
-    if builder_key not in _graph_builder_cache:
+    if builder_key in _graph_builder_cache:
+        _graph_builder_cache.move_to_end(builder_key)
+    else:
         _graph_builder_cache[builder_key] = ClimateGraphBuilder.from_dataset(
             ds, elevation_path=elevation_path, land_sea_mask_path=lsm_path,
         )
 
     builder = _graph_builder_cache[builder_key]
+
+    # Trim after inserting, and only once the current entries are in use, so the
+    # region being served is never the one evicted. The dataset cache owns open
+    # file handles, hence closes=True.
+    _evict_to_limit(_graph_builder_cache)
+    _evict_to_limit(_dataset_cache, closes=True)
+    _evict_region_models()
 
     # Find the time index for the target date (we need 30 days ending at target_date)
     try:
@@ -1094,9 +1216,11 @@ def _get_real_predictions(target_date: date, region: str, lead_day: int) -> list
         logger.warning("Date indexing failed: %s", exc)
         return None
 
-    # Build sequence graph
+    # Build sequence graph. This is the heavy NetCDF read (a 30-day window across
+    # every variable) and must hold the HDF5 lock for the same reason the open does.
     try:
-        seq_graph = builder.build_sequence_graph(ds, start_idx, input_window)
+        with _netcdf_lock:
+            seq_graph = builder.build_sequence_graph(ds, start_idx, input_window)
 
         # The v1 model (vayu_best (3).pt) expects 11 features.
         # The graph builder now produces 17 features.
@@ -1235,8 +1359,14 @@ async def predict(
     if cached:
         return JSONResponse(content=cached, headers={"X-Cache": "HIT"})
 
-    # Try real model inference first
-    grid_cells = _get_real_predictions(target_date, region, lead_day)
+    # Try real model inference first. Offloaded to a thread: this is a
+    # synchronous NetCDF read + GNN forward pass that can run for seconds, and
+    # the task runs a single uvicorn worker (see the Dockerfile CMD comment on
+    # why), so calling it inline blocks every other request on this event loop
+    # — including /health, which the ALB polls and uses to kill "unhealthy"
+    # tasks. That produced 502/504s under concurrent load even though the
+    # container itself was fine.
+    grid_cells = await asyncio.to_thread(_get_real_predictions, target_date, region, lead_day)
     data_source = "model"
 
     # Fall back to mock if real inference unavailable
@@ -1612,6 +1742,396 @@ async def run_what_if(request: WhatIfRequest):
     return JSONResponse(content=payload)
 
 
+def _load_climatology(
+    region: str,
+    variable: str,
+    window: CalendarWindow,
+    year_range: tuple[int, int] | None,
+) -> "ClimatologyResult":
+    """Compute (and cache) an observed climatology, mapping failures to HTTP errors."""
+    ds_path = _resolve_dataset_path(region)
+    if not ds_path:
+        raise HTTPException(
+            503,
+            f"No normalized dataset available for region '{region}'. The historical "
+            f"mean is read from the observed record and cannot be synthesised.",
+        )
+
+    cache_key = (
+        "climatology", ds_path, region, variable,
+        window.month_start, window.day_start, window.month_end, window.day_end,
+        window.name, year_range,
+    )
+    cached = _sensitivity_cache.get(cache_key)
+    if cached is not None:
+        return cached
+
+    try:
+        result = compute_climatology(
+            ds_path,
+            region=region,
+            variable=variable,
+            window=window,
+            year_range=year_range,
+        )
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from exc
+    except Exception as exc:
+        logger.exception("Climatology computation failed for %s", region)
+        raise HTTPException(500, f"Climatology computation failed: {exc}") from exc
+
+    if len(_sensitivity_cache) > 24:
+        _sensitivity_cache.pop(next(iter(_sensitivity_cache)))
+    _sensitivity_cache[cache_key] = result
+    return result
+
+
+@app.get("/api/climatology", tags=["Sensitivity"])
+async def get_climatology(
+    region: str = Query("western_ghats", description="Region id"),
+    variable: str = Query("rainfall", description="rainfall | tmax | tmin | sst | lst"),
+    season: str = Query("jjas", description="annual | jjas | mam | on | djf"),
+    window_start: str | None = Query(None, description="Calendar range start, MM-DD"),
+    window_end: str | None = Query(None, description="Calendar range end, MM-DD"),
+    start_year: int | None = Query(None, ge=1900, le=2100),
+    end_year: int | None = Query(None, ge=1900, le=2100),
+    include_cells: bool = Query(True, description="Include the per-cell mean field"),
+):
+    """Observed historical mean of a variable over a calendar range.
+
+    This is the "historical mean rainfall according to range" figure: the
+    long-term observed mean, the year-by-year series with anomalies, the
+    interannual spread, the driest and wettest years, and a per-decade trend.
+    Everything is read from the same denormalized, availability-masked,
+    coverage-filtered pipeline the sensitivity fit uses, so the baseline shown
+    here is exactly the baseline a What-If projection is applied to.
+    """
+    region = _sensitivity_region(region)
+    window = _build_window(season, window_start, window_end)
+    year_range = (start_year, end_year) if start_year and end_year else None
+    if year_range and year_range[0] > year_range[1]:
+        raise HTTPException(400, "start_year must not exceed end_year")
+
+    if (variable or "").strip().lower() not in VARIABLE_ALIASES:
+        raise HTTPException(400, f"variable must be one of {sorted(VARIABLE_ALIASES)}")
+
+    result = await asyncio.to_thread(
+        _load_climatology, region, variable, window, year_range
+    )
+    return JSONResponse(content=result.to_dict(include_cells=include_cells))
+
+
+@app.get("/api/distribution", tags=["Sensitivity"])
+async def get_distribution(
+    region: str = Query("western_ghats", description="Region id"),
+    predictor: str = Query("tmax", description="tmax | tmin | sst | lst"),
+    response: str = Query("rainfall", description="rainfall | tmax | tmin"),
+    season: str = Query("jjas", description="annual | jjas | mam | on | djf"),
+    delta: float = Query(2.0, ge=-10.0, le=10.0, description="Predictor change, own units"),
+    threshold: float | None = Query(
+        None, description="Response level for the exceedance probability; defaults to climatology"
+    ),
+    threshold_tolerance: float = Query(0.0, ge=0.0, description="+/- tolerance on the threshold (dx)"),
+    predictor_tolerance: float = Query(0.0, ge=0.0, description="+/- tolerance on the predictor (dt)"),
+    window_start: str | None = Query(None, description="Calendar range start, MM-DD"),
+    window_end: str | None = Query(None, description="Calendar range end, MM-DD"),
+    start_year: int | None = Query(None, ge=1900, le=2100),
+    end_year: int | None = Query(None, ge=1900, le=2100),
+):
+    """Conditional probability of the response given the predictor.
+
+    Returns the two overlaid densities — the observed baseline and the shifted
+    state — that answer ``P(R = x | T = t)``, plus ``P(R > x +/- dx | T = t +/- dt)``
+    as an exceedance probability with the range induced by both tolerances. The
+    observed histogram is returned alongside the parametric curves so the
+    normality assumption can be inspected rather than taken on trust.
+    """
+    region = _sensitivity_region(region)
+    window = _build_window(season, window_start, window_end)
+    year_range = (start_year, end_year) if start_year and end_year else None
+    if year_range and year_range[0] > year_range[1]:
+        raise HTTPException(400, "start_year must not exceed end_year")
+
+    result = await asyncio.to_thread(
+        _load_sensitivity, region, predictor, response, window, year_range
+    )
+    try:
+        dist = await asyncio.to_thread(
+            conditional_distribution,
+            result,
+            delta_predictor=delta,
+            threshold=threshold,
+            threshold_tolerance=threshold_tolerance,
+            predictor_tolerance=predictor_tolerance,
+        )
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from exc
+    return JSONResponse(content=dist.to_dict())
+
+
+@app.get("/api/baseline-comparison", tags=["Sensitivity"])
+async def get_baseline_comparison(
+    region: str = Query("western_ghats", description="Region id"),
+    predictor: str = Query("tmax", description="tmax | tmin | sst | lst"),
+    response: str = Query("rainfall", description="rainfall | tmax | tmin"),
+    season: str = Query("jjas", description="annual | jjas | mam | on | djf"),
+    split_year: int = Query(
+        DEFAULT_BASELINE_SPLIT_YEAR, ge=1900, le=2100,
+        description="First year of the newer baseline",
+    ),
+    window_start: str | None = Query(None, description="Calendar range start, MM-DD"),
+    window_end: str | None = Query(None, description="Calendar range end, MM-DD"),
+    start_year: int | None = Query(None, ge=1900, le=2100),
+    end_year: int | None = Query(None, ge=1900, le=2100),
+    include_cells: bool = Query(False, description="Include the per-cell slope difference"),
+):
+    """Fit the sensitivity separately on the older and newer halves of the record.
+
+    A single 1981-2025 slope assumes the relationship has not changed. This splits
+    the record at ``split_year``, fits each half independently, and tests the
+    difference of slopes, so a shifted baseline shows up as a result instead of
+    being averaged away.
+    """
+    region = _sensitivity_region(region)
+    window = _build_window(season, window_start, window_end)
+    year_range = (start_year, end_year) if start_year and end_year else None
+    if year_range and year_range[0] > year_range[1]:
+        raise HTTPException(400, "start_year must not exceed end_year")
+
+    ds_path = _resolve_dataset_path(region)
+    if not ds_path:
+        raise HTTPException(
+            503, f"No normalized dataset available for region '{region}'."
+        )
+
+    cache_key = (
+        "baselines", ds_path, region, predictor, response,
+        window.month_start, window.day_start, window.month_end, window.day_end,
+        window.name, split_year, year_range,
+    )
+    cached = _sensitivity_cache.get(cache_key)
+    if cached is None:
+        try:
+            cached = await asyncio.to_thread(
+                compare_baselines,
+                ds_path,
+                region=region,
+                predictor=predictor,
+                response=response,
+                window=window,
+                split_year=split_year,
+                year_range=year_range,
+            )
+        except ValueError as exc:
+            raise HTTPException(422, str(exc)) from exc
+        except Exception as exc:
+            logger.exception("Baseline comparison failed for %s", region)
+            raise HTTPException(500, f"Baseline comparison failed: {exc}") from exc
+        if len(_sensitivity_cache) > 24:
+            _sensitivity_cache.pop(next(iter(_sensitivity_cache)))
+        _sensitivity_cache[cache_key] = cached
+
+    return JSONResponse(content=cached.to_dict(include_cells=include_cells))
+
+
+@app.post("/api/assimilate", tags=["Assimilation"])
+async def run_assimilation(request: AssimilationRequest):
+    """Fuse forecast values with observations, weighted by their uncertainties.
+
+    With no `correlation` supplied each variable is fused independently using the
+    exact scalar product-of-Gaussians identity. With a correlation matrix the
+    request is routed through a stochastic Ensemble Kalman Filter so an
+    observation of one variable also corrects the others through their prior
+    cross-covariance.
+
+    Both paths report the Kalman gain, the innovation and its normalised
+    magnitude, so a disagreement larger than the stated error bars can explain is
+    visible rather than silently averaged away.
+    """
+    names = [s.variable for s in request.sources]
+    n = len(names)
+
+    scalar = [
+        fuse_gaussian(
+            s.model_value, s.model_sigma, s.observed_value, s.observed_sigma,
+            variable=s.variable, unit=s.unit,
+        )
+        for s in request.sources
+    ]
+    payload: dict[str, Any] = {
+        "mode": "independent_gaussian_fusion",
+        "variables": [f.to_dict() for f in scalar],
+    }
+
+    if request.correlation is not None:
+        corr = np.asarray(request.correlation, dtype=np.float64)
+        if corr.shape != (n, n):
+            raise HTTPException(
+                400, f"correlation must be {n}x{n} to match the {n} sources supplied"
+            )
+        if not np.allclose(corr, corr.T, atol=1e-8):
+            raise HTTPException(400, "correlation matrix must be symmetric")
+        if not np.allclose(np.diag(corr), 1.0, atol=1e-8):
+            raise HTTPException(400, "correlation matrix must have 1.0 on the diagonal")
+
+        try:
+            ensemble = await asyncio.to_thread(
+                build_ensemble,
+                np.array([s.model_value for s in request.sources]),
+                np.array([s.model_sigma for s in request.sources]),
+                request.n_members,
+                correlation=corr,
+                seed=request.seed,
+            )
+            enkf = await asyncio.to_thread(
+                assimilate,
+                ensemble,
+                np.array([s.observed_value for s in request.sources]),
+                np.array([s.observed_sigma for s in request.sources]),
+                state_names=names,
+                inflation=request.inflation,
+                seed=request.seed,
+                keep_members=request.include_members,
+            )
+        except ValueError as exc:
+            raise HTTPException(422, str(exc)) from exc
+
+        payload["mode"] = "ensemble_kalman_filter"
+        payload["enkf"] = enkf.to_dict(include_members=request.include_members)
+
+    return JSONResponse(content=payload)
+
+
+#: Variables the 7-day summary reports, mapped to their climatology counterpart.
+_SUMMARY_VARIABLES = {"rainfall": "rainfall", "temp_max": "tmax", "temp_min": "tmin"}
+
+
+@app.get("/api/forecast-summary", tags=["Prediction"])
+async def get_forecast_summary(
+    target_date: date = Query(..., alias="date", description="Anchor date (YYYY-MM-DD)"),
+    region: str = Query("western_ghats", description="Region id"),
+    season: str = Query("jjas", description="Season used for the climatological baseline"),
+):
+    """Aggregate the T+1..T+7 forecast and compare it against the observed record.
+
+    This is the "30 days in, 7 days out" panel: the model consumes a 30-day input
+    window and this collapses its seven daily outputs into the figures a reader
+    actually wants - accumulated 7-day rainfall, and mean Tmax, Tmin and Tmean -
+    each expressed as a departure from the observed climatology for the same
+    calendar window.
+
+    Tmean is reported as (Tmax + Tmin) / 2. That is the standard daily-mean
+    convention for gridded station products such as IMD, and it is stated here
+    because it is NOT the same as the mean of sub-daily temperatures.
+    """
+    if target_date < date(1951, 1, 1) or target_date > date(2025, 12, 31):
+        raise HTTPException(400, "Date must be between 1951-01-01 and 2025-12-31")
+    region = _sensitivity_region(region)
+    window = _build_window(season, None, None)
+
+    cache_key = f"forecast-summary:{target_date}:{region}:{season}"
+    cached = _cache and await _cache.get(cache_key)
+    if cached:
+        return JSONResponse(content=cached, headers={"X-Cache": "HIT"})
+
+    t_start = time.time()
+    per_day: list[dict[str, Any]] = []
+    for lead in range(1, 8):
+        cells = await asyncio.to_thread(
+            _get_real_predictions, target_date, region, lead
+        )
+        if not cells:
+            raise HTTPException(
+                503,
+                f"Real inference unavailable for region '{region}'. The 7-day "
+                f"summary is not synthesised from mock grids.",
+            )
+        rain = float(np.mean([c.rainfall for c in cells]))
+        tmax = float(np.mean([c.temp_max for c in cells]))
+        tmin = float(np.mean([c.temp_min for c in cells]))
+        per_day.append({
+            "lead_day": lead,
+            "rainfall_mm": round(rain, 3),
+            "temp_max_c": round(tmax, 3),
+            "temp_min_c": round(tmin, 3),
+            "temp_mean_c": round((tmax + tmin) / 2.0, 3),
+            "n_cells": len(cells),
+        })
+
+    rain_total = float(np.sum([d["rainfall_mm"] for d in per_day]))
+    tmax_mean = float(np.mean([d["temp_max_c"] for d in per_day]))
+    tmin_mean = float(np.mean([d["temp_min_c"] for d in per_day]))
+    tmean_mean = float(np.mean([d["temp_mean_c"] for d in per_day]))
+
+    # Climatological baseline from the observed record, so every delta is against
+    # a measured reference rather than another model run.
+    baselines: dict[str, Any] = {}
+    for key, clim_var in _SUMMARY_VARIABLES.items():
+        try:
+            clim = await asyncio.to_thread(
+                _load_climatology, region, clim_var, window, None
+            )
+            baselines[key] = {"mean": clim.mean, "unit": clim.unit, "n_years": clim.n_years}
+        except HTTPException:
+            baselines[key] = None
+
+    def _delta(value: float, key: str) -> float | None:
+        base = baselines.get(key)
+        return round(value - base["mean"], 3) if base else None
+
+    clim_tmax = baselines.get("temp_max")
+    clim_tmin = baselines.get("temp_min")
+    clim_tmean = (
+        (clim_tmax["mean"] + clim_tmin["mean"]) / 2.0
+        if clim_tmax and clim_tmin else None
+    )
+    clim_rain = baselines.get("rainfall")
+
+    payload = {
+        "region": region,
+        "anchor_date": str(target_date),
+        "season": window.name,
+        "season_label": window.label,
+        "input_window_days": 30,
+        "forecast_days": 7,
+        "per_day": per_day,
+        "aggregate": {
+            "rainfall_total_mm": round(rain_total, 3),
+            "rainfall_mean_mm_per_day": round(rain_total / 7.0, 3),
+            "temp_max_mean_c": round(tmax_mean, 3),
+            "temp_min_mean_c": round(tmin_mean, 3),
+            "temp_mean_c": round(tmean_mean, 3),
+            "diurnal_range_c": round(tmax_mean - tmin_mean, 3),
+        },
+        "anomaly_vs_climatology": {
+            "delta_rainfall_mm_per_day": _delta(rain_total / 7.0, "rainfall"),
+            "delta_rainfall_total_mm": (
+                round(rain_total - clim_rain["mean"] * 7.0, 3) if clim_rain else None
+            ),
+            "delta_tmax_c": _delta(tmax_mean, "temp_max"),
+            "delta_tmin_c": _delta(tmin_mean, "temp_min"),
+            "delta_tmean_c": (
+                round(tmean_mean - clim_tmean, 3) if clim_tmean is not None else None
+            ),
+            "climatology": baselines,
+            "climatology_tmean_c": (
+                round(clim_tmean, 3) if clim_tmean is not None else None
+            ),
+        },
+        "provenance": {
+            "forecast_source": "VAYU per-region checkpoint, real NetCDF inference",
+            "baseline_source": "observed 1981-2025 record for the same calendar window",
+            "tmean_definition": "(Tmax + Tmin) / 2, the IMD daily-mean convention",
+            "model_version": os.getenv("MODEL_VERSION", "1.0.0"),
+        },
+        "computation_time_s": round(time.time() - t_start, 3),
+    }
+
+    if _cache:
+        await _cache.set(cache_key, payload, ttl=3600)
+    return JSONResponse(content=payload)
+
+
 @app.get("/api/twin/state", response_model=TwinStateResponse, tags=["Digital Twin"])
 async def get_twin_state():
     """Return the latest digital twin climate state."""
@@ -1700,9 +2220,13 @@ async def get_historical(
     records = []
     if ds_path and Path(ds_path).exists():
         try:
-            if ds_path not in _dataset_cache:
-                _dataset_cache[ds_path] = xr.open_dataset(ds_path)
-            ds = _dataset_cache[ds_path]
+            with _netcdf_lock:
+                if ds_path in _dataset_cache:
+                    _dataset_cache.move_to_end(ds_path)
+                else:
+                    _dataset_cache[ds_path] = xr.open_dataset(ds_path)
+                ds = _dataset_cache[ds_path]
+                _evict_to_limit(_dataset_cache, closes=True)
 
             var_map = {"rainfall": "rainfall", "temp_max": "tmax", "temp_min": "tmin"}
             nc_var = var_map.get(variable, "rainfall")
@@ -1959,8 +2483,9 @@ async def get_climate_tile(
         if pred_cached and "grid_cells" in pred_cached:
             grid_cells_raw = pred_cached["grid_cells"]
         else:
-            # Try real inference
-            gc = _get_real_predictions(target_date, region, lead_day)
+            # Try real inference. See predict() for why this must not block
+            # the event loop under a single-worker deployment.
+            gc = await asyncio.to_thread(_get_real_predictions, target_date, region, lead_day)
             if gc:
                 grid_cells_raw = [c.model_dump() for c in gc]
             else:
@@ -2394,7 +2919,10 @@ async def generate_report(body: ReportRequest):
     if cached_prediction:
         grid_cells = [GridCell(**c) for c in cached_prediction.get("grid_cells", [])]
     else:
-        raw_cells = _get_real_predictions(target_date, body.region, body.lead_day)
+        # See predict() for why this runs off the event loop.
+        raw_cells = await asyncio.to_thread(
+            _get_real_predictions, target_date, body.region, body.lead_day
+        )
         grid_cells = raw_cells if raw_cells else _mock_grid_cells(50, seed_date=target_date)
 
     # Build bulletin title
@@ -2749,7 +3277,8 @@ async def get_validation(
         station_name = station_id
 
     # ── 2. Get VAYU prediction for the nearest grid cell ─────────────────────
-    grid_cells = _get_real_predictions(target_date, region, lead_day)
+    # See predict() for why this runs off the event loop.
+    grid_cells = await asyncio.to_thread(_get_real_predictions, target_date, region, lead_day)
     if grid_cells is None:
         grid_cells = _mock_grid_cells(50, seed_date=target_date)
 
@@ -2910,7 +3439,8 @@ async def nwp_comparison(
     vayu_tmin: list[float] = []
     vayu_times: list[str] = []
     for lead in range(1, forecast_days + 1):
-        cells = _get_real_predictions(ref_date, "pilot", lead)
+        # See predict() for why this runs off the event loop.
+        cells = await asyncio.to_thread(_get_real_predictions, ref_date, "pilot", lead)
         if cells is None:
             cells = _mock_grid_cells(50, seed_date=ref_date)
         nearest = min(cells, key=lambda c: (c.lat - lat) ** 2 + (c.lon - lon) ** 2)

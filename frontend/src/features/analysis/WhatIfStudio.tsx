@@ -49,20 +49,36 @@ import {
   fmtSigned,
   PREDICTORS,
   predictorById,
-  REGION_LABELS,
   regionLabel,
   SEASONS,
 } from './whatIfFormat';
 
 const WhatIfRegressionChart = lazy(() => import('./WhatIfRegressionChart'));
+// Lazy so the studio's first paint does not pull in three more charting panels.
+const ClimatologyPanel = lazy(() => import('./ClimatologyPanel'));
+const DistributionPanel = lazy(() => import('./DistributionPanel'));
+const BaselineSplitPanel = lazy(() => import('./BaselineSplitPanel'));
 
-/** Regions with a built normalized bundle. full_india omitted: the 0.5° grid
- *  bundle is not part of the 1981 rebuild the sensitivity fit reads. */
-const REGIONS = [
+/**
+ * Regions offered when the caller does not pass `availableRegions`.
+ *
+ * This is a last-resort default, NOT an allowlist. It previously omitted
+ * `full_india` on the grounds that "the 0.5° grid bundle is not part of the 1981
+ * rebuild" — that is no longer true (`processed_full_india_05` ships
+ * `normalized_1981-2025.nc` with matching norm params, and the fit returns
+ * n=45), and the omission actively misled: a user selecting "All India" in the
+ * header had their choice silently rewritten to Indo-Gangetic Plain.
+ *
+ * Coverage is a runtime fact, so prefer `/health.real_data_regions`. The backend
+ * validates the region against its own dataset map and 503s when a bundle is
+ * genuinely missing, which is the honest place for that decision to live.
+ */
+const DEFAULT_REGIONS = [
   'western_ghats',
   'north_east_india',
   'indo_gangetic_plain',
   'central_india',
+  'full_india',
 ] as const;
 
 const RECORD_FIRST_YEAR = 1981;
@@ -71,6 +87,12 @@ const RECORD_LAST_YEAR = 2025;
 export interface WhatIfStudioProps {
   /** Region currently selected elsewhere in the app, used as the initial value. */
   initialRegion?: string;
+  /**
+   * Regions the backend reports real data for (`/health.real_data_regions`).
+   * Falls back to {@link DEFAULT_REGIONS} when absent so the panel still works
+   * before /health resolves.
+   */
+  availableRegions?: string[];
   /** Notifies the host when a projection completes, e.g. to drive the split globe. */
   onResult?: (result: WhatIfResponse) => void;
   onReset?: () => void;
@@ -80,13 +102,27 @@ type RangeMode = 'season' | 'custom';
 
 export default function WhatIfStudio({
   initialRegion,
+  availableRegions,
   onResult,
   onReset,
 }: WhatIfStudioProps) {
+  // Sorted for a stable control order regardless of the order /health returns.
+  const regions = useMemo(() => {
+    const list = availableRegions?.length
+      ? [...availableRegions]
+      : [...DEFAULT_REGIONS];
+    const order = DEFAULT_REGIONS as readonly string[];
+    return list.sort((a, b) => {
+      const ia = order.indexOf(a);
+      const ib = order.indexOf(b);
+      return (ia === -1 ? order.length : ia) - (ib === -1 ? order.length : ib);
+    });
+  }, [availableRegions]);
+
   const [region, setRegion] = useState<string>(
-    initialRegion && (REGIONS as readonly string[]).includes(initialRegion)
+    initialRegion && regions.includes(initialRegion)
       ? initialRegion
-      : 'indo_gangetic_plain',
+      : regions[0] ?? 'indo_gangetic_plain',
   );
   const [predictor, setPredictor] = useState<PredictorId>('tmax');
   const [season, setSeason] = useState<SeasonId>('jjas');
@@ -214,9 +250,9 @@ export default function WhatIfStudio({
       <section className="flex flex-col gap-4" aria-label="Analysis configuration">
         <Field label="Region">
           <div className="grid grid-cols-2 gap-1.5">
-            {REGIONS.map((r) => (
+            {regions.map((r) => (
               <Choice key={r} active={region === r} onClick={() => { setRegion(r); setResult(null); }}>
-                {REGION_LABELS[r]}
+                {regionLabel(r)}
               </Choice>
             ))}
           </div>
@@ -579,7 +615,49 @@ export default function WhatIfStudio({
           </p>
         </>
       )}
+
+      {/* ── Supporting observed analytics ─────────────────────────────────────
+          Independent of the projection above and driven by the same controls, so
+          the measured baseline is on screen whether or not a What-If has been
+          run. Each fetches on demand: the baseline split runs two more full
+          regressions and the 0.5 deg full-India grid takes tens of seconds, so
+          firing all three on mount would make the panel feel broken. The
+          climatology is the exception — it is the reference every other number
+          is quoted against, so it loads itself. */}
+      <div className="flex flex-col gap-4 border-t border-foreground/10 pt-4">
+        <Suspense fallback={<PanelFallback label="analysis panel" />}>
+          <ClimatologyPanel
+            region={region}
+            season={season}
+            variable="rainfall"
+            windowStart={rangeMode === 'custom' ? windowStart : undefined}
+            windowEnd={rangeMode === 'custom' ? windowEnd : undefined}
+            startYear={startYear}
+            endYear={endYear}
+            autoLoad
+          />
+        </Suspense>
+        <Suspense fallback={<PanelFallback label="distribution panel" />}>
+          <DistributionPanel
+            region={region}
+            predictor={predictor}
+            season={season}
+            delta={delta}
+          />
+        </Suspense>
+        <Suspense fallback={<PanelFallback label="baseline split panel" />}>
+          <BaselineSplitPanel region={region} predictor={predictor} season={season} />
+        </Suspense>
+      </div>
     </div>
+  );
+}
+
+function PanelFallback({ label }: { label: string }) {
+  return (
+    <p className="text-xs text-foreground/35" role="status">
+      Loading {label}…
+    </p>
   );
 }
 
