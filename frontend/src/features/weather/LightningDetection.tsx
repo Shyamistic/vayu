@@ -316,8 +316,8 @@ const OutlookBar: React.FC<{ outlook: SevereWeatherOutlook }> = ({ outlook }) =>
           return (
             <div key={risk} style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '11px' }}>
               <span style={{ width: '10px', height: '10px', borderRadius: '2px', background: riskColor(risk), display: 'inline-block' }} />
-              <span style={{ color: 'rgba(255,255,255,0.6)' }}>{riskLabel(risk)}</span>
-              <span style={{ color: 'rgba(255,255,255,0.9)', fontWeight: 600 }}>{count}</span>
+              <span style={{ color: 'rgba(var(--fg-rgb),var(--fg-a6))' }}>{riskLabel(risk)}</span>
+              <span style={{ color: 'rgba(var(--fg-rgb),var(--fg-a75))', fontWeight: 600 }}>{count}</span>
             </div>
           );
         })}
@@ -328,11 +328,11 @@ const OutlookBar: React.FC<{ outlook: SevereWeatherOutlook }> = ({ outlook }) =>
 
 /** Single thunderstorm-prone cell row */
 const ThunderstormCellRow: React.FC<{ cell: ThunderstormCell; rank: number }> = ({ cell, rank }) => (
-  <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-    <td style={{ padding: '4px 8px', textAlign: 'center', color: 'rgba(255,255,255,0.35)', fontSize: '11px' }}>
+  <tr style={{ borderBottom: '1px solid rgba(var(--fg-rgb),var(--fg-a05))' }}>
+    <td style={{ padding: '4px 8px', textAlign: 'center', color: 'rgba(var(--fg-rgb),var(--fg-a3))', fontSize: '11px' }}>
       {rank}
     </td>
-    <td style={{ padding: '4px 8px', fontSize: '11px', color: 'rgba(255,255,255,0.75)', whiteSpace: 'nowrap' }}>
+    <td style={{ padding: '4px 8px', fontSize: '11px', color: 'rgba(var(--fg-rgb),var(--fg-a75))', whiteSpace: 'nowrap' }}>
       {cell.lat.toFixed(2)}°N, {cell.lon.toFixed(2)}°E
     </td>
     <td style={{ padding: '4px 8px', textAlign: 'right', fontSize: '11px', fontWeight: 600, color: '#fbbf24' }}>
@@ -352,7 +352,7 @@ const LightningStrikesList: React.FC<{ strikes: LightningStrike[] }> = ({ strike
   const now = Date.now();
   if (strikes.length === 0) {
     return (
-      <p style={{ fontSize: '12px', color: 'rgba(255,255,255,0.4)', textAlign: 'center', margin: '8px 0' }}>
+      <p style={{ fontSize: '12px', color: 'rgba(var(--fg-rgb),var(--fg-a4))', textAlign: 'center', margin: '8px 0' }}>
         No lightning strike data available
       </p>
     );
@@ -375,20 +375,20 @@ const LightningStrikesList: React.FC<{ strikes: LightningStrike[] }> = ({ strike
               alignItems: 'center',
               gap: '8px',
               padding: '3px 0',
-              borderBottom: '1px solid rgba(255,255,255,0.04)',
+              borderBottom: '1px solid rgba(var(--fg-rgb),var(--fg-a05))',
               fontSize: '11px',
             }}
           >
             <span style={{ fontSize: '13px', animation: 'lightning-flash 1.5s ease-in-out infinite' }}>
               {isCG ? (isNegative ? '⚡' : '🔼') : '☁️'}
             </span>
-            <span style={{ color: 'rgba(255,255,255,0.55)', whiteSpace: 'nowrap' }}>
+            <span style={{ color: 'rgba(var(--fg-rgb),var(--fg-a6))', whiteSpace: 'nowrap' }}>
               {s.lat.toFixed(1)}°N {s.lon.toFixed(1)}°E
             </span>
             <span style={{ fontWeight: 600, color: isCG ? '#fbbf24' : '#93c5fd' }}>
               {s.peakCurrentKA > 0 ? '+' : ''}{s.peakCurrentKA} kA
             </span>
-            <span style={{ color: 'rgba(255,255,255,0.35)', marginLeft: 'auto', whiteSpace: 'nowrap' }}>
+            <span style={{ color: 'rgba(var(--fg-rgb),var(--fg-a3))', marginLeft: 'auto', whiteSpace: 'nowrap' }}>
               {ageLabel}
             </span>
           </div>
@@ -503,7 +503,7 @@ export const LightningDetection: React.FC<LightningDetectionProps> = ({
           style={{
             fontSize: 'var(--font-heading-sm, 18px)',
             fontWeight: 600,
-            color: 'rgba(255,255,255,0.95)',
+            color: 'rgba(var(--fg-rgb),var(--fg-a75))',
             margin: '0 0 var(--space-md, 12px) 0',
             display: 'flex',
             alignItems: 'center',
@@ -512,7 +512,7 @@ export const LightningDetection: React.FC<LightningDetectionProps> = ({
         >
           <LightningIcon size={20} animate={severeCount > 0} />
           Lightning &amp; Thunderstorm Detection
-          <span style={{ marginLeft: 'auto', fontSize: '12px', fontWeight: 400, color: 'rgba(255,255,255,0.4)' }}>
+          <span style={{ marginLeft: 'auto', fontSize: '12px', fontWeight: 400, color: 'rgba(var(--fg-rgb),var(--fg-a4))' }}>
             {hasData ? `${thunderstormCells.length} cells analysed` : 'No data'}
           </span>
         </h3>
@@ -532,9 +532,9 @@ export const LightningDetection: React.FC<LightningDetectionProps> = ({
               style={{
                 padding: '4px 12px',
                 borderRadius: '6px',
-                border: activeTab === tab ? '1px solid rgba(251,191,36,0.7)' : '1px solid rgba(255,255,255,0.12)',
+                border: activeTab === tab ? '1px solid rgba(251,191,36,0.7)' : '1px solid rgba(var(--fg-rgb),var(--fg-a12))',
                 background: activeTab === tab ? 'rgba(251,191,36,0.12)' : 'transparent',
-                color: activeTab === tab ? '#fbbf24' : 'rgba(255,255,255,0.5)',
+                color: activeTab === tab ? '#fbbf24' : 'rgba(var(--fg-rgb),var(--fg-a4))',
                 fontSize: '12px',
                 fontWeight: 600,
                 cursor: 'pointer',
@@ -553,7 +553,7 @@ export const LightningDetection: React.FC<LightningDetectionProps> = ({
               <>
                 {/* Max risk badge */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px' }}>
-                  <span style={{ fontSize: '12px', color: 'rgba(255,255,255,0.5)' }}>Max risk today:</span>
+                  <span style={{ fontSize: '12px', color: 'rgba(var(--fg-rgb),var(--fg-a4))' }}>Max risk today:</span>
                   <RiskBadge risk={outlook.maxRisk} />
                   <span style={{ marginLeft: 'auto', fontSize: '11px', color: '#fbbf24' }}>
                     {outlook.thunderstormProneCells} Thunderstorm Prone
@@ -581,8 +581,8 @@ export const LightningDetection: React.FC<LightningDetectionProps> = ({
                                 textAlign: i < 2 ? 'left' : 'center',
                                 fontSize: '11px',
                                 fontWeight: 600,
-                                color: 'rgba(255,255,255,0.5)',
-                                borderBottom: '1px solid rgba(255,255,255,0.1)',
+                                color: 'rgba(var(--fg-rgb),var(--fg-a4))',
+                                borderBottom: '1px solid rgba(var(--fg-rgb),var(--fg-a1))',
                                 whiteSpace: 'nowrap',
                               }}
                             >
@@ -606,10 +606,10 @@ export const LightningDetection: React.FC<LightningDetectionProps> = ({
                               transition: 'background 150ms ease',
                             }}
                           >
-                            <td style={{ padding: '4px 8px', textAlign: 'center', color: 'rgba(255,255,255,0.35)', fontSize: '11px' }}>
+                            <td style={{ padding: '4px 8px', textAlign: 'center', color: 'rgba(var(--fg-rgb),var(--fg-a3))', fontSize: '11px' }}>
                               {idx + 1}
                             </td>
-                            <td style={{ padding: '4px 8px', fontSize: '11px', color: 'rgba(255,255,255,0.75)', whiteSpace: 'nowrap' }}>
+                            <td style={{ padding: '4px 8px', fontSize: '11px', color: 'rgba(var(--fg-rgb),var(--fg-a75))', whiteSpace: 'nowrap' }}>
                               {cell.lat.toFixed(2)}°N, {cell.lon.toFixed(2)}°E
                             </td>
                             <td style={{ padding: '4px 8px', textAlign: 'right', fontSize: '11px', fontWeight: 600, color: '#fbbf24' }}>
@@ -627,13 +627,13 @@ export const LightningDetection: React.FC<LightningDetectionProps> = ({
                     </table>
                   </div>
                 ) : (
-                  <p style={{ fontSize: '12px', color: 'rgba(255,255,255,0.4)', textAlign: 'center', margin: '16px 0' }}>
+                  <p style={{ fontSize: '12px', color: 'rgba(var(--fg-rgb),var(--fg-a4))', textAlign: 'center', margin: '16px 0' }}>
                     No cells exceed the 1500 J/kg CAPE threshold
                   </p>
                 )}
               </>
             ) : (
-              <p style={{ fontSize: '12px', color: 'rgba(255,255,255,0.4)', textAlign: 'center', margin: '24px 0' }}>
+              <p style={{ fontSize: '12px', color: 'rgba(var(--fg-rgb),var(--fg-a4))', textAlign: 'center', margin: '24px 0' }}>
                 Load grid data to compute CAPE estimates
               </p>
             )}
@@ -644,7 +644,7 @@ export const LightningDetection: React.FC<LightningDetectionProps> = ({
         {activeTab === 'strikes' && (
           <div role="tabpanel" aria-label="Live Lightning Strikes">
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px' }}>
-              <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.4)' }}>
+              <span style={{ fontSize: '11px', color: 'rgba(var(--fg-rgb),var(--fg-a4))' }}>
                 {lightningStrikes ? 'Live data' : 'Demo data — connect external API for live strikes'}
               </span>
               <span

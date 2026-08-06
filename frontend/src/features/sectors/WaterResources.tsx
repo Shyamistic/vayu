@@ -436,7 +436,7 @@ const FillBar: React.FC<{ fillFraction: number; tier: StorageTier; safeThreshold
   return (
     <div
       style={{ position: 'relative', height: '10px', borderRadius: '5px',
-               background: 'rgba(255,255,255,0.08)', overflow: 'hidden' }}
+               background: 'rgba(var(--fg-rgb),var(--fg-a08))', overflow: 'hidden' }}
       aria-label={`Storage: ${pct.toFixed(0)}%`}
     >
       <div
@@ -477,11 +477,11 @@ const ReservoirRow: React.FC<ReservoirRowProps> = ({ status, isSelected, onSelec
       style={{
         cursor: 'pointer',
         borderLeft: isSelected ? `3px solid ${color}` : '3px solid transparent',
-        background: isSelected ? 'rgba(255,255,255,0.06)' : 'transparent',
+        background: isSelected ? 'rgba(var(--fg-rgb),var(--fg-a05))' : 'transparent',
         transition: 'background 120ms ease',
       }}
-      onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.04)'; }}
-      onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = isSelected ? 'rgba(255,255,255,0.06)' : 'transparent'; }}
+      onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = 'rgba(var(--fg-rgb),var(--fg-a05))'; }}
+      onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = isSelected ? 'rgba(var(--fg-rgb),var(--fg-a05))' : 'transparent'; }}
     >
       <td style={{ padding: '5px 8px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
@@ -491,10 +491,10 @@ const ReservoirRow: React.FC<ReservoirRowProps> = ({ status, isSelected, onSelec
             </span>
           )}
           <div>
-            <div style={{ color: 'rgba(255,255,255,0.9)', fontWeight: 500, fontSize: '12px' }}>
+            <div style={{ color: 'rgba(var(--fg-rgb),var(--fg-a75))', fontWeight: 500, fontSize: '12px' }}>
               {reservoir.name}
             </div>
-            <div style={{ color: 'rgba(255,255,255,0.35)', fontSize: '10px' }}>
+            <div style={{ color: 'rgba(var(--fg-rgb),var(--fg-a3))', fontSize: '10px' }}>
               {reservoir.river} · {reservoir.state}
             </div>
           </div>
@@ -506,7 +506,7 @@ const ReservoirRow: React.FC<ReservoirRowProps> = ({ status, isSelected, onSelec
           {(fillFraction * 100).toFixed(0)}% — {STORAGE_TIER_LABELS[storageTier]}
         </div>
       </td>
-      <td style={{ padding: '5px 8px', textAlign: 'right', fontSize: '11px', color: 'rgba(255,255,255,0.6)' }}>
+      <td style={{ padding: '5px 8px', textAlign: 'right', fontSize: '11px', color: 'rgba(var(--fg-rgb),var(--fg-a6))' }}>
         {currentStorageMCM.toFixed(0)}
       </td>
       <td style={{ padding: '5px 8px', textAlign: 'right', fontSize: '11px', color }}>
@@ -551,9 +551,9 @@ const WaterBalanceChart: React.FC<{ balanceDays: WaterBalanceDay[] }> = ({ balan
         return (
           <g key={frac}>
             <line x1={PAD.left} y1={y} x2={PAD.left + innerW} y2={y}
-              stroke="rgba(255,255,255,0.06)" strokeWidth="1" />
+              stroke="rgba(var(--fg-rgb),var(--fg-a05))" strokeWidth="1" />
             <text x={PAD.left - 4} y={y + 4} textAnchor="end"
-              fontSize="8" fill="rgba(255,255,255,0.35)">
+              fontSize="8" fill="rgba(var(--fg-rgb),var(--fg-a3))">
               {(maxVal * frac).toFixed(0)}
             </text>
           </g>
@@ -598,7 +598,7 @@ const WaterBalanceChart: React.FC<{ balanceDays: WaterBalanceDay[] }> = ({ balan
               y={H - 4}
               textAnchor="middle"
               fontSize="8"
-              fill="rgba(255,255,255,0.4)"
+              fill="rgba(var(--fg-rgb),var(--fg-a4))"
             >
               D{d.day}
             </text>
@@ -608,9 +608,9 @@ const WaterBalanceChart: React.FC<{ balanceDays: WaterBalanceDay[] }> = ({ balan
 
       {/* Legend */}
       <rect x={PAD.left} y={H - 14} width={8} height={6} fill="#3b82f6" rx={1} />
-      <text x={PAD.left + 10} y={H - 9} fontSize="8" fill="rgba(255,255,255,0.55)">Precip</text>
+      <text x={PAD.left + 10} y={H - 9} fontSize="8" fill="rgba(var(--fg-rgb),var(--fg-a6))">Precip</text>
       <rect x={PAD.left + 52} y={H - 14} width={8} height={6} fill="#f97316" rx={1} />
-      <text x={PAD.left + 62} y={H - 9} fontSize="8" fill="rgba(255,255,255,0.55)">PET</text>
+      <text x={PAD.left + 62} y={H - 9} fontSize="8" fill="rgba(var(--fg-rgb),var(--fg-a6))">PET</text>
     </svg>
   );
 };
@@ -728,7 +728,7 @@ export const WaterResources: React.FC<WaterResourcesProps> = ({
           }}
         >
           <span style={{ fontSize: '16px', flexShrink: 0, marginTop: '1px' }}>🚨</span>
-          <span style={{ fontSize: '12px', color: 'rgba(255,255,255,0.9)', lineHeight: 1.5 }}>
+          <span style={{ fontSize: '12px', color: 'rgba(var(--fg-rgb),var(--fg-a75))', lineHeight: 1.5 }}>
             {adv.message}
           </span>
         </div>
@@ -738,7 +738,7 @@ export const WaterResources: React.FC<WaterResourcesProps> = ({
       <GlassPanel padding="md" className="water-resources-panel">
         {/* Header */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
-          <h3 style={{ fontSize: '18px', fontWeight: 600, color: 'rgba(255,255,255,0.95)', margin: 0,
+          <h3 style={{ fontSize: '18px', fontWeight: 600, color: 'rgba(var(--fg-rgb),var(--fg-a75))', margin: 0,
                        display: 'flex', alignItems: 'center', gap: '8px' }}>
             💧 Water Resources Dashboard
           </h3>
@@ -779,13 +779,13 @@ export const WaterResources: React.FC<WaterResourcesProps> = ({
         <div style={{ overflowY: 'auto', maxHeight: '280px', marginBottom: '12px' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}
                  aria-label="Reservoir storage levels">
-            <thead style={{ position: 'sticky', top: 0, background: 'rgba(6,10,22,0.95)', zIndex: 1 }}>
+            <thead style={{ position: 'sticky', top: 0, background: 'rgba(var(--panel-bg-rgb),0.95)', zIndex: 1 }}>
               <tr>
                 {['Reservoir', 'Storage Level', 'Current (MCM)', '7-Day Predicted (MCM)'].map((h, i) => (
                   <th key={h} scope="col" style={{
                     padding: '5px 8px', textAlign: i < 2 ? 'left' : 'right',
-                    fontSize: '10px', fontWeight: 600, color: 'rgba(255,255,255,0.45)',
-                    borderBottom: '1px solid rgba(255,255,255,0.08)', whiteSpace: 'nowrap',
+                    fontSize: '10px', fontWeight: 600, color: 'rgba(var(--fg-rgb),var(--fg-a4))',
+                    borderBottom: '1px solid rgba(var(--fg-rgb),var(--fg-a08))', whiteSpace: 'nowrap',
                   }}>{h}</th>
                 ))}
               </tr>
@@ -814,9 +814,9 @@ export const WaterResources: React.FC<WaterResourcesProps> = ({
               marginBottom: '12px',
             }}
           >
-            <div style={{ fontSize: '15px', fontWeight: 600, color: 'rgba(255,255,255,0.95)', marginBottom: '6px' }}>
+            <div style={{ fontSize: '15px', fontWeight: 600, color: 'rgba(var(--fg-rgb),var(--fg-a75))', marginBottom: '6px' }}>
               {selectedStatus.reservoir.name}
-              <span style={{ marginLeft: '8px', fontSize: '11px', color: 'rgba(255,255,255,0.4)', fontWeight: 400 }}>
+              <span style={{ marginLeft: '8px', fontSize: '11px', color: 'rgba(var(--fg-rgb),var(--fg-a4))', fontWeight: 400 }}>
                 Capacity: {selectedStatus.reservoir.capacityMCM.toLocaleString()} MCM
               </span>
             </div>
@@ -827,7 +827,7 @@ export const WaterResources: React.FC<WaterResourcesProps> = ({
                 { label: 'Predicted fill',  value: `${(selectedStatus.fillFraction * 100).toFixed(1)}%`, color: STORAGE_TIER_COLORS[selectedStatus.storageTier] },
               ].map(({ label, value, color }) => (
                 <div key={label} style={{ fontSize: '11px' }}>
-                  <div style={{ color: 'rgba(255,255,255,0.4)' }}>{label}</div>
+                  <div style={{ color: 'rgba(var(--fg-rgb),var(--fg-a4))' }}>{label}</div>
                   <div style={{ color, fontWeight: 600 }}>{value}</div>
                 </div>
               ))}
@@ -837,12 +837,12 @@ export const WaterResources: React.FC<WaterResourcesProps> = ({
 
         {/* ── Water Balance Chart (Req 56.3) ── */}
         <div>
-          <div style={{ fontSize: '12px', fontWeight: 500, color: 'rgba(255,255,255,0.6)',
+          <div style={{ fontSize: '12px', fontWeight: 500, color: 'rgba(var(--fg-rgb),var(--fg-a6))',
                         marginBottom: '8px' }}>
             7-Day Water Balance — Precipitation vs ET₀ (mm day⁻¹)
           </div>
           <WaterBalanceChart balanceDays={balanceDays} />
-          <div style={{ fontSize: '10px', color: 'rgba(255,255,255,0.3)', marginTop: '4px' }}>
+          <div style={{ fontSize: '10px', color: 'rgba(var(--fg-rgb),var(--fg-a3))', marginTop: '4px' }}>
             ET₀ via FAO-56 Penman-Monteith
           </div>
         </div>

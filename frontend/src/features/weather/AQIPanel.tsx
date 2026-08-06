@@ -437,7 +437,7 @@ const AQILegend: React.FC = () => (
           alignItems: 'center',
           gap: '4px',
           fontSize: '10px',
-          color: 'rgba(255,255,255,0.7)',
+          color: 'rgba(var(--fg-rgb),var(--fg-a7))',
         }}
       >
         <span
@@ -482,7 +482,7 @@ const AlertBanner: React.FC<{ alert: AQIAlert }> = ({ alert }) => {
           AQI {alert.aqi} — {alert.category}
         </span>
         <br />
-        <span style={{ color: 'rgba(255,255,255,0.65)' }}>{alert.message}</span>
+        <span style={{ color: 'rgba(var(--fg-rgb),var(--fg-a7))' }}>{alert.message}</span>
       </div>
     </div>
   );
@@ -498,12 +498,12 @@ const PollutantRow: React.FC<{
 }> = ({ label, value, unit, subIndex, isDominant }) => {
   const bp = getAQIBreakpoint(subIndex);
   return (
-    <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-      <td style={{ padding: '4px 8px', color: 'rgba(255,255,255,0.65)', fontSize: '12px' }}>
+    <tr style={{ borderBottom: '1px solid rgba(var(--fg-rgb),var(--fg-a05))' }}>
+      <td style={{ padding: '4px 8px', color: 'rgba(var(--fg-rgb),var(--fg-a7))', fontSize: '12px' }}>
         {isDominant && <span aria-label="dominant pollutant" title="Dominant pollutant">⬥ </span>}
         {label}
       </td>
-      <td style={{ padding: '4px 8px', textAlign: 'right', fontSize: '12px', color: 'rgba(255,255,255,0.85)' }}>
+      <td style={{ padding: '4px 8px', textAlign: 'right', fontSize: '12px', color: 'rgba(var(--fg-rgb),var(--fg-a75))' }}>
         {value.toFixed(1)} {unit}
       </td>
       <td style={{ padding: '4px 8px', textAlign: 'right', fontSize: '12px' }}>
@@ -544,7 +544,7 @@ const AQICellDetail: React.FC<{ cell: AQIGridCell }> = ({ cell }) => {
     }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
         <div>
-          <span style={{ fontSize: '13px', color: 'rgba(255,255,255,0.55)' }}>
+          <span style={{ fontSize: '13px', color: 'rgba(var(--fg-rgb),var(--fg-a6))' }}>
             {cell.lat.toFixed(2)}°N, {cell.lon.toFixed(2)}°E
           </span>
         </div>
@@ -561,8 +561,8 @@ const AQICellDetail: React.FC<{ cell: AQIGridCell }> = ({ cell }) => {
               <th key={h} scope="col" style={{
                 padding: '4px 8px',
                 textAlign: h === 'Pollutant' ? 'left' : 'right',
-                fontSize: '11px', color: 'rgba(255,255,255,0.4)',
-                borderBottom: '1px solid rgba(255,255,255,0.08)',
+                fontSize: '11px', color: 'rgba(var(--fg-rgb),var(--fg-a4))',
+                borderBottom: '1px solid rgba(var(--fg-rgb),var(--fg-a08))',
               }}>{h}</th>
             ))}
           </tr>
@@ -606,18 +606,18 @@ const WindAQICorrelationPanel: React.FC<{ data: WindAQICorrelation[] }> = ({ dat
 
   return (
     <div style={{
-      background: 'rgba(255,255,255,0.03)',
-      border: '1px solid rgba(255,255,255,0.08)',
+      background: 'rgba(var(--fg-rgb),var(--fg-a05))',
+      border: '1px solid rgba(var(--fg-rgb),var(--fg-a08))',
       borderRadius: '8px',
       padding: '12px',
       marginTop: '12px',
     }}>
-      <h4 style={{ fontSize: '13px', fontWeight: 600, color: 'rgba(255,255,255,0.8)', margin: '0 0 8px 0' }}>
+      <h4 style={{ fontSize: '13px', fontWeight: 600, color: 'rgba(var(--fg-rgb),var(--fg-a75))', margin: '0 0 8px 0' }}>
         🌬️ Wind–AQI Dispersion Correlation
       </h4>
       <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
         <div style={{ fontSize: '12px' }}>
-          <span style={{ color: 'rgba(255,255,255,0.45)' }}>Pearson r: </span>
+          <span style={{ color: 'rgba(var(--fg-rgb),var(--fg-a4))' }}>Pearson r: </span>
           <span style={{
             fontWeight: 700,
             color: r < -0.3 ? '#22c55e' : r > 0.3 ? '#ef4444' : '#94a3b8',
@@ -626,15 +626,15 @@ const WindAQICorrelationPanel: React.FC<{ data: WindAQICorrelation[] }> = ({ dat
           </span>
         </div>
         <div style={{ fontSize: '12px' }}>
-          <span style={{ color: 'rgba(255,255,255,0.45)' }}>Avg Wind: </span>
-          <span style={{ color: 'rgba(255,255,255,0.85)' }}>{meanWind.toFixed(1)} m/s</span>
+          <span style={{ color: 'rgba(var(--fg-rgb),var(--fg-a4))' }}>Avg Wind: </span>
+          <span style={{ color: 'rgba(var(--fg-rgb),var(--fg-a75))' }}>{meanWind.toFixed(1)} m/s</span>
         </div>
         <div style={{ fontSize: '12px' }}>
-          <span style={{ color: 'rgba(255,255,255,0.45)' }}>Avg AQI: </span>
+          <span style={{ color: 'rgba(var(--fg-rgb),var(--fg-a4))' }}>Avg AQI: </span>
           <span style={{ color: aqiToColor(meanAQI), fontWeight: 600 }}>{Math.round(meanAQI)}</span>
         </div>
       </div>
-      <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.5)', margin: '6px 0 0 0', fontStyle: 'italic' }}>
+      <p style={{ fontSize: '11px', color: 'rgba(var(--fg-rgb),var(--fg-a4))', margin: '6px 0 0 0', fontStyle: 'italic' }}>
         {interpretation}
       </p>
 
@@ -657,7 +657,7 @@ const WindAQICorrelationPanel: React.FC<{ data: WindAQICorrelation[] }> = ({ dat
           );
         })}
       </div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: 'rgba(255,255,255,0.3)', marginTop: '2px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: 'rgba(var(--fg-rgb),var(--fg-a3))', marginTop: '2px' }}>
         <span>Lowest wind →</span>
         <span>← Highest wind</span>
       </div>
@@ -775,7 +775,7 @@ export const AQIPanel: React.FC<AQIPanelProps> = ({
             <AlertBanner key={`${alert.lat}-${alert.lon}-${i}`} alert={alert} />
           ))}
           {alerts.length > 3 && (
-            <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.4)', marginBottom: '6px', textAlign: 'center' }}>
+            <div style={{ fontSize: '11px', color: 'rgba(var(--fg-rgb),var(--fg-a4))', marginBottom: '6px', textAlign: 'center' }}>
               +{alerts.length - 3} more alerts
             </div>
           )}
@@ -786,7 +786,7 @@ export const AQIPanel: React.FC<AQIPanelProps> = ({
       <GlassPanel padding="md" className="aqi-panel__main">
         {/* Header */}
         <h3 style={{
-          fontSize: '18px', fontWeight: 600, color: 'rgba(255,255,255,0.95)',
+          fontSize: '18px', fontWeight: 600, color: 'rgba(var(--fg-rgb),var(--fg-a75))',
           margin: '0 0 12px 0', display: 'flex', alignItems: 'center', gap: '8px',
         }}>
           🌫️ Air Quality Index
@@ -796,7 +796,7 @@ export const AQIPanel: React.FC<AQIPanelProps> = ({
               DEMO
             </span>
           )}
-          <span style={{ marginLeft: 'auto', fontSize: '12px', fontWeight: 400, color: 'rgba(255,255,255,0.4)' }}>
+          <span style={{ marginLeft: 'auto', fontSize: '12px', fontWeight: 400, color: 'rgba(var(--fg-rgb),var(--fg-a4))' }}>
             {loading ? 'Loading…' : `${aqiCells.length} points`}
           </span>
         </h3>
@@ -818,11 +818,11 @@ export const AQIPanel: React.FC<AQIPanelProps> = ({
               { label: 'Unhealthy',   value: `${stats.unhealthyCount}/${stats.total}`, color: '#ef4444' },
             ].map(({ label, value, color }) => (
               <div key={label} style={{
-                background: 'rgba(255,255,255,0.04)', borderRadius: '6px',
+                background: 'rgba(var(--fg-rgb),var(--fg-a05))', borderRadius: '6px',
                 padding: '8px', textAlign: 'center',
               }}>
                 <div style={{ fontSize: '18px', fontWeight: 700, color }}>{value}</div>
-                <div style={{ fontSize: '10px', color: 'rgba(255,255,255,0.4)', marginTop: '2px' }}>{label}</div>
+                <div style={{ fontSize: '10px', color: 'rgba(var(--fg-rgb),var(--fg-a4))', marginTop: '2px' }}>{label}</div>
               </div>
             ))}
           </div>
@@ -843,8 +843,8 @@ export const AQIPanel: React.FC<AQIPanelProps> = ({
                       padding: '6px 8px',
                       textAlign: i === 0 ? 'left' : 'center',
                       fontSize: '11px', fontWeight: 600,
-                      color: 'rgba(255,255,255,0.5)',
-                      borderBottom: '1px solid rgba(255,255,255,0.1)',
+                      color: 'rgba(var(--fg-rgb),var(--fg-a4))',
+                      borderBottom: '1px solid rgba(var(--fg-rgb),var(--fg-a1))',
                     }}>{h}</th>
                   ))}
                 </tr>
@@ -863,12 +863,12 @@ export const AQIPanel: React.FC<AQIPanelProps> = ({
                         aria-selected={isSelected}
                         style={{
                           cursor: 'pointer',
-                          background: isSelected ? 'rgba(255,255,255,0.08)' : idx % 2 === 0 ? 'rgba(255,255,255,0.02)' : 'transparent',
+                          background: isSelected ? 'rgba(var(--fg-rgb),var(--fg-a08))' : idx % 2 === 0 ? 'rgba(var(--fg-rgb),var(--fg-a05))' : 'transparent',
                           borderLeft: isSelected ? `3px solid ${bp.color}` : '3px solid transparent',
                           transition: 'background 150ms ease',
                         }}
                       >
-                        <td style={{ padding: '4px 8px', color: 'rgba(255,255,255,0.65)' }}>
+                        <td style={{ padding: '4px 8px', color: 'rgba(var(--fg-rgb),var(--fg-a7))' }}>
                           {cell.lat.toFixed(1)}°N {cell.lon.toFixed(1)}°E
                         </td>
                         <td style={{ padding: '4px 8px', textAlign: 'center' }}>
@@ -884,7 +884,7 @@ export const AQIPanel: React.FC<AQIPanelProps> = ({
                           {cell.category === 'Unhealthy for Sensitive Groups' ? 'USG' : cell.category}
                         </td>
                         <td style={{ padding: '4px 8px', textAlign: 'center', fontSize: '11px',
-                          color: 'rgba(255,255,255,0.55)', textTransform: 'uppercase' }}>
+                          color: 'rgba(var(--fg-rgb),var(--fg-a6))', textTransform: 'uppercase' }}>
                           {cell.dominantPollutant.replace('_', '')}
                         </td>
                       </tr>

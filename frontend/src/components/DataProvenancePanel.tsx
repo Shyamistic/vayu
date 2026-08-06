@@ -3,7 +3,7 @@ import { Database, Satellite, Globe, GitBranch } from 'lucide-react';
 export default function DataProvenancePanel() {
   return (
     <div className="panel p-4 flex flex-col gap-4 w-full">
-      <h2 className="text-white font-semibold text-sm flex items-center gap-2">
+      <h2 className="text-foreground font-semibold text-sm flex items-center gap-2">
         <Database size={14} className="text-vayu-accent" />
         Data Provenance
       </h2>
@@ -12,7 +12,7 @@ export default function DataProvenancePanel() {
       <div className="flex flex-col gap-1.5">
         <div className="flex items-center gap-2">
           <Globe size={12} className="text-vayu-blue" />
-          <span className="text-xs font-medium text-white/80">IMD Gridded Data</span>
+          <span className="text-xs font-medium text-foreground/80">IMD Gridded Data</span>
         </div>
         <div className="pl-5 flex flex-col gap-1">
           <ProvRow label="Rainfall" value="0.25°×0.25° · 1901–2025 · Daily" />
@@ -26,7 +26,7 @@ export default function DataProvenancePanel() {
       <div className="flex flex-col gap-1.5">
         <div className="flex items-center gap-2">
           <Satellite size={12} className="text-vayu-accent" />
-          <span className="text-xs font-medium text-white/80">INSAT-3D/3DR (MOSDAC)</span>
+          <span className="text-xs font-medium text-foreground/80">INSAT-3D/3DR (MOSDAC)</span>
         </div>
         <div className="pl-5 flex flex-col gap-1">
           <ProvRow label="LST" value="3RIMG_L2B_LST · ~4km · Daily" />
@@ -41,7 +41,7 @@ export default function DataProvenancePanel() {
       <div className="flex flex-col gap-1.5">
         <div className="flex items-center gap-2">
           <GitBranch size={12} className="text-green-400" />
-          <span className="text-xs font-medium text-white/80">AI Model</span>
+          <span className="text-xs font-medium text-foreground/80">AI Model</span>
         </div>
         <div className="pl-5 flex flex-col gap-1">
           <ProvRow label="Architecture" value="GraphSAGE (3L) + Transformer (4L)" />
@@ -57,7 +57,7 @@ export default function DataProvenancePanel() {
       {/* Limitations */}
       <div className="p-2.5 bg-yellow-500/10 border border-yellow-500/20 rounded-lg">
         <p className="text-xs text-yellow-300/70 font-medium mb-1">Limitations</p>
-        <ul className="text-xs text-white/40 space-y-0.5 list-disc list-inside">
+        <ul className="text-xs text-foreground/40 space-y-0.5 list-disc list-inside">
           <li>Pilot region only (Western India)</li>
           <li>Extreme events may be under-predicted</li>
           <li>Accuracy decreases at T+5 to T+7</li>
@@ -79,7 +79,7 @@ function ProvRow({
 }) {
   return (
     <div className="flex justify-between gap-2">
-      <span className="text-xs text-white/30 shrink-0">{label}</span>
+      <span className="text-xs text-foreground/30 shrink-0">{label}</span>
       {link ? (
         <a
           href={link}
@@ -90,7 +90,7 @@ function ProvRow({
           {value}
         </a>
       ) : (
-        <span className="text-xs text-white/60 truncate text-right">{value}</span>
+        <span className="text-xs text-foreground/60 truncate text-right">{value}</span>
       )}
     </div>
   );

@@ -187,7 +187,7 @@ export const CrossSectionChart: React.FC<CrossSectionChartProps> = ({
   if (points.length === 0) {
     return (
       <GlassPanel className={className} padding="md">
-        <p style={{ color: 'rgba(255,255,255,0.5)', textAlign: 'center', margin: 0 }}>
+        <p style={{ color: 'rgba(var(--fg-rgb),var(--fg-a4))', textAlign: 'center', margin: 0 }}>
           Draw a transect on the globe to see the cross-section profile.
         </p>
       </GlassPanel>
@@ -206,7 +206,7 @@ export const CrossSectionChart: React.FC<CrossSectionChartProps> = ({
           padding: '0 4px',
         }}
       >
-        <span style={{ color: 'rgba(255,255,255,0.9)', fontSize: '13px', fontWeight: 600 }}>
+        <span style={{ color: 'rgba(var(--fg-rgb),var(--fg-a75))', fontSize: '13px', fontWeight: 600 }}>
           Cross-Section Profile
         </span>
         <span style={{ color: config.color, fontSize: '12px', fontWeight: 500 }}>
@@ -238,7 +238,7 @@ export const CrossSectionChart: React.FC<CrossSectionChartProps> = ({
             <text
               x={chartWidth - 4}
               y={elevationHeight - 4}
-              fill="rgba(255,255,255,0.4)"
+              fill="rgba(var(--fg-rgb),var(--fg-a4))"
               fontSize={10}
               textAnchor="end"
             >
@@ -255,15 +255,15 @@ export const CrossSectionChart: React.FC<CrossSectionChartProps> = ({
             y1={chartHeight}
             x2={chartWidth}
             y2={chartHeight}
-            stroke="rgba(255,255,255,0.2)"
+            stroke="rgba(var(--fg-rgb),var(--fg-a2))"
             strokeWidth={1}
           />
           {xTicks.map((tick) => (
             <g key={tick.value} transform={`translate(${scaleX(tick.value)}, ${chartHeight})`}>
-              <line y1={0} y2={5} stroke="rgba(255,255,255,0.3)" strokeWidth={1} />
+              <line y1={0} y2={5} stroke="rgba(var(--fg-rgb),var(--fg-a3))" strokeWidth={1} />
               <text
                 y={16}
-                fill="rgba(255,255,255,0.5)"
+                fill="rgba(var(--fg-rgb),var(--fg-a4))"
                 fontSize={10}
                 textAnchor="middle"
               >
@@ -278,15 +278,15 @@ export const CrossSectionChart: React.FC<CrossSectionChartProps> = ({
             y1={0}
             x2={0}
             y2={variableHeight}
-            stroke="rgba(255,255,255,0.2)"
+            stroke="rgba(var(--fg-rgb),var(--fg-a2))"
             strokeWidth={1}
           />
           {yTicks.map((tick) => (
             <g key={tick.value} transform={`translate(0, ${scaleValue(tick.value)})`}>
-              <line x1={-4} x2={0} stroke="rgba(255,255,255,0.3)" strokeWidth={1} />
+              <line x1={-4} x2={0} stroke="rgba(var(--fg-rgb),var(--fg-a3))" strokeWidth={1} />
               <text
                 x={-8}
-                fill="rgba(255,255,255,0.5)"
+                fill="rgba(var(--fg-rgb),var(--fg-a4))"
                 fontSize={10}
                 textAnchor="end"
                 dominantBaseline="middle"
@@ -300,7 +300,7 @@ export const CrossSectionChart: React.FC<CrossSectionChartProps> = ({
           <text
             x={chartWidth / 2}
             y={chartHeight + 32}
-            fill="rgba(255,255,255,0.5)"
+            fill="rgba(var(--fg-rgb),var(--fg-a4))"
             fontSize={11}
             textAnchor="middle"
           >
@@ -316,7 +316,7 @@ export const CrossSectionChart: React.FC<CrossSectionChartProps> = ({
                 y1={0}
                 x2={scaleX(hoveredPoint.distance)}
                 y2={chartHeight}
-                stroke="rgba(255,255,255,0.4)"
+                stroke="rgba(var(--fg-rgb),var(--fg-a4))"
                 strokeWidth={1}
                 strokeDasharray="4 2"
               />
@@ -339,17 +339,17 @@ export const CrossSectionChart: React.FC<CrossSectionChartProps> = ({
                   width={95}
                   height={48}
                   rx={4}
-                  fill="rgba(6, 10, 22, 0.9)"
-                  stroke="rgba(255,255,255,0.15)"
+                  fill="rgba(var(--panel-bg-rgb),0.9)"
+                  stroke="rgba(var(--fg-rgb),var(--fg-a15))"
                   strokeWidth={0.5}
                 />
-                <text x={6} y={14} fill="rgba(255,255,255,0.8)" fontSize={10}>
+                <text x={6} y={14} fill="rgba(var(--fg-rgb),var(--fg-a75))" fontSize={10}>
                   {hoveredPoint.value.toFixed(1)} {config.unit}
                 </text>
-                <text x={6} y={28} fill="rgba(255,255,255,0.5)" fontSize={9}>
+                <text x={6} y={28} fill="rgba(var(--fg-rgb),var(--fg-a4))" fontSize={9}>
                   {hoveredPoint.lat.toFixed(3)}°, {hoveredPoint.lon.toFixed(3)}°
                 </text>
-                <text x={6} y={42} fill="rgba(255,255,255,0.5)" fontSize={9}>
+                <text x={6} y={42} fill="rgba(var(--fg-rgb),var(--fg-a4))" fontSize={9}>
                   Elev: {hoveredPoint.elevation.toFixed(0)}m
                 </text>
               </g>

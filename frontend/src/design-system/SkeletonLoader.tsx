@@ -43,9 +43,9 @@ export const SkeletonLoader: React.FC<SkeletonLoaderProps> = ({
     height: height ?? defaults.height,
     borderRadius: defaults.borderRadius,
     background: `linear-gradient(90deg,
-      rgba(255, 255, 255, 0.05) 25%,
-      rgba(255, 255, 255, 0.10) 50%,
-      rgba(255, 255, 255, 0.05) 75%
+      rgba(var(--fg-rgb),var(--fg-a05)) 25%,
+      rgba(var(--fg-rgb),var(--fg-a1)) 50%,
+      rgba(var(--fg-rgb),var(--fg-a05)) 75%
     )`,
     backgroundSize: '200% 100%',
     animation: 'skeleton-shimmer 1.5s ease-in-out infinite',

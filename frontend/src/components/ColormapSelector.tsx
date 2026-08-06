@@ -30,7 +30,7 @@ export default function ColormapSelector({ variable, selected, onChange }: Color
   return (
     <div className="panel-tight p-3 flex flex-col gap-2">
       <div className="flex items-center gap-2">
-        <span className="text-[10px] text-white/40 uppercase tracking-wider font-medium">Colormap</span>
+        <span className="text-[10px] text-foreground/40 uppercase tracking-wider font-medium">Colormap</span>
         <span
           className="text-[9px] px-1.5 py-0.5 rounded font-mono ml-auto"
           style={{ background: 'rgba(14,165,233,0.1)', color: '#38bdf8', border: '1px solid rgba(14,165,233,0.2)' }}
@@ -46,16 +46,16 @@ export default function ColormapSelector({ variable, selected, onChange }: Color
             onClick={() => onChange(meta.id)}
             className="flex flex-col gap-0.5 rounded-lg p-1.5 text-left transition-all"
             style={{
-              background: selected === meta.id ? 'rgba(14,165,233,0.12)' : 'rgba(255,255,255,0.03)',
-              border: selected === meta.id ? '1px solid rgba(14,165,233,0.35)' : '1px solid rgba(255,255,255,0.06)',
+              background: selected === meta.id ? 'rgba(14,165,233,0.12)' : 'rgba(var(--fg-rgb),var(--fg-a05))',
+              border: selected === meta.id ? '1px solid rgba(14,165,233,0.35)' : '1px solid rgba(var(--fg-rgb),var(--fg-a05))',
             }}
           >
             <ColormapSwatch id={meta.id} />
             <div className="flex items-center justify-between mt-0.5">
-              <span className={`text-[10px] font-medium ${selected === meta.id ? 'text-white/90' : 'text-white/55'}`}>
+              <span className={`text-[10px] font-medium ${selected === meta.id ? 'text-foreground/90' : 'text-foreground/55'}`}>
                 {meta.label}
               </span>
-              <span className="text-[9px] text-white/25">{meta.desc}</span>
+              <span className="text-[9px] text-foreground/25">{meta.desc}</span>
             </div>
           </button>
         ))}

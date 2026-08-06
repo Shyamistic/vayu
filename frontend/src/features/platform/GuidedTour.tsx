@@ -295,7 +295,7 @@ const ProgressDots: React.FC<{ total: number; current: number }> = ({ total, cur
               ? 'rgba(56, 189, 248, 1)'
               : i < current
                 ? 'rgba(56, 189, 248, 0.45)'
-                : 'rgba(255, 255, 255, 0.18)',
+                : 'rgba(var(--fg-rgb),var(--fg-a2))',
           transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
         }}
       />
@@ -385,17 +385,17 @@ const TourTooltip: React.FC<TourTooltipProps> = ({
               background: 'none',
               border: 'none',
               cursor: 'pointer',
-              color: 'rgba(255,255,255,0.4)',
+              color: 'rgba(var(--fg-rgb),var(--fg-a4))',
               fontSize: '18px',
               lineHeight: 1,
               padding: '0 2px',
               transition: 'color 0.15s',
             }}
             onMouseEnter={(e) =>
-              ((e.currentTarget as HTMLButtonElement).style.color = 'rgba(255,255,255,0.85)')
+              ((e.currentTarget as HTMLButtonElement).style.color = 'rgba(var(--fg-rgb),var(--fg-a75))')
             }
             onMouseLeave={(e) =>
-              ((e.currentTarget as HTMLButtonElement).style.color = 'rgba(255,255,255,0.4)')
+              ((e.currentTarget as HTMLButtonElement).style.color = 'rgba(var(--fg-rgb),var(--fg-a4))')
             }
           >
             ✕
@@ -419,7 +419,7 @@ const TourTooltip: React.FC<TourTooltipProps> = ({
               margin: 0,
               fontSize: '16px',
               fontWeight: 700,
-              color: 'rgba(255, 255, 255, 0.95)',
+              color: 'rgba(var(--fg-rgb),var(--fg-a75))',
               fontFamily: 'Inter, sans-serif',
               lineHeight: 1.3,
             }}
@@ -434,7 +434,7 @@ const TourTooltip: React.FC<TourTooltipProps> = ({
             margin: 0,
             fontSize: '13px',
             lineHeight: 1.6,
-            color: 'rgba(255, 255, 255, 0.72)',
+            color: 'rgba(var(--fg-rgb),var(--fg-a7))',
             fontFamily: 'Inter, sans-serif',
           }}
         >
@@ -459,16 +459,16 @@ const TourTooltip: React.FC<TourTooltipProps> = ({
               aria-label="Previous tour step"
               style={{
                 ...buttonBase,
-                background: 'rgba(255, 255, 255, 0.08)',
-                color: 'rgba(255, 255, 255, 0.75)',
+                background: 'rgba(var(--fg-rgb),var(--fg-a08))',
+                color: 'rgba(var(--fg-rgb),var(--fg-a75))',
               }}
               onMouseEnter={(e) =>
                 ((e.currentTarget as HTMLButtonElement).style.background =
-                  'rgba(255,255,255,0.14)')
+                  'rgba(var(--fg-rgb),var(--fg-a15))')
               }
               onMouseLeave={(e) =>
                 ((e.currentTarget as HTMLButtonElement).style.background =
-                  'rgba(255,255,255,0.08)')
+                  'rgba(var(--fg-rgb),var(--fg-a08))')
               }
             >
               ← Back
@@ -481,14 +481,14 @@ const TourTooltip: React.FC<TourTooltipProps> = ({
             style={{
               ...buttonBase,
               background: 'transparent',
-              color: 'rgba(255,255,255,0.4)',
+              color: 'rgba(var(--fg-rgb),var(--fg-a4))',
               padding: '8px 10px',
             }}
             onMouseEnter={(e) =>
-              ((e.currentTarget as HTMLButtonElement).style.color = 'rgba(255,255,255,0.7)')
+              ((e.currentTarget as HTMLButtonElement).style.color = 'rgba(var(--fg-rgb),var(--fg-a7))')
             }
             onMouseLeave={(e) =>
-              ((e.currentTarget as HTMLButtonElement).style.color = 'rgba(255,255,255,0.4)')
+              ((e.currentTarget as HTMLButtonElement).style.color = 'rgba(var(--fg-rgb),var(--fg-a4))')
             }
           >
             {isLast ? 'Close' : 'Skip'}

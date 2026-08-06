@@ -519,9 +519,9 @@ const TabBar: React.FC<{ active: OceanTab; onChange: (t: OceanTab) => void }> = 
             flex: '1 1 auto',
             padding: '6px 8px',
             borderRadius: '6px',
-            border: active === tab.id ? '1px solid rgba(34,197,94,0.6)' : '1px solid rgba(255,255,255,0.1)',
-            background: active === tab.id ? 'rgba(34,197,94,0.15)' : 'rgba(255,255,255,0.04)',
-            color: active === tab.id ? '#4ade80' : 'rgba(255,255,255,0.55)',
+            border: active === tab.id ? '1px solid rgba(34,197,94,0.6)' : '1px solid rgba(var(--fg-rgb),var(--fg-a1))',
+            background: active === tab.id ? 'rgba(34,197,94,0.15)' : 'rgba(var(--fg-rgb),var(--fg-a05))',
+            color: active === tab.id ? '#4ade80' : 'rgba(var(--fg-rgb),var(--fg-a6))',
             fontSize: '11px',
             fontWeight: active === tab.id ? 600 : 400,
             cursor: 'pointer',
@@ -538,7 +538,7 @@ const TabBar: React.FC<{ active: OceanTab; onChange: (t: OceanTab) => void }> = 
 
 /** SST anomaly color scale legend */
 const SSTLegend: React.FC = () => (
-  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px', fontSize: '11px', color: 'rgba(255,255,255,0.55)' }}>
+  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px', fontSize: '11px', color: 'rgba(var(--fg-rgb),var(--fg-a6))' }}>
     <span>−4°C</span>
     <div aria-hidden="true" style={{ flex: 1, height: '8px', borderRadius: '4px', background: 'linear-gradient(to right, rgb(20,80,220), #f0f0f0, rgb(255,40,0))' }} />
     <span>+4°C</span>
@@ -547,11 +547,11 @@ const SSTLegend: React.FC = () => (
 
 /** Single SST anomaly row */
 const SSTRow: React.FC<{ anomaly: SSTAnomaly; index: number }> = ({ anomaly, index }) => (
-  <tr style={{ background: index % 2 === 0 ? 'rgba(255,255,255,0.02)' : 'transparent' }}>
-    <td style={{ padding: '5px 8px', fontSize: '11px', color: 'rgba(255,255,255,0.45)', textAlign: 'right' }}>
+  <tr style={{ background: index % 2 === 0 ? 'rgba(var(--fg-rgb),var(--fg-a05))' : 'transparent' }}>
+    <td style={{ padding: '5px 8px', fontSize: '11px', color: 'rgba(var(--fg-rgb),var(--fg-a4))', textAlign: 'right' }}>
       {anomaly.lat.toFixed(1)}°N
     </td>
-    <td style={{ padding: '5px 8px', fontSize: '11px', color: 'rgba(255,255,255,0.45)', textAlign: 'right' }}>
+    <td style={{ padding: '5px 8px', fontSize: '11px', color: 'rgba(var(--fg-rgb),var(--fg-a4))', textAlign: 'right' }}>
       {anomaly.lon.toFixed(1)}°E
     </td>
     <td style={{ padding: '5px 8px', textAlign: 'center' }}>
@@ -597,17 +597,17 @@ const CVIRow: React.FC<{ result: CoastalVulnerabilityIndex; rank: number; isSele
       aria-selected={isSelected}
       style={{
         cursor: 'pointer',
-        background: isSelected ? 'rgba(255,255,255,0.07)' : rank % 2 === 0 ? 'rgba(255,255,255,0.02)' : 'transparent',
+        background: isSelected ? 'rgba(var(--fg-rgb),var(--fg-a08))' : rank % 2 === 0 ? 'rgba(var(--fg-rgb),var(--fg-a05))' : 'transparent',
         borderLeft: isSelected ? `3px solid ${color}` : '3px solid transparent',
         transition: 'background 150ms ease',
       }}
-      onMouseEnter={(e) => ((e.currentTarget as HTMLTableRowElement).style.background = 'rgba(255,255,255,0.05)')}
-      onMouseLeave={(e) => ((e.currentTarget as HTMLTableRowElement).style.background = isSelected ? 'rgba(255,255,255,0.07)' : rank % 2 === 0 ? 'rgba(255,255,255,0.02)' : 'transparent')}
+      onMouseEnter={(e) => ((e.currentTarget as HTMLTableRowElement).style.background = 'rgba(var(--fg-rgb),var(--fg-a05))')}
+      onMouseLeave={(e) => ((e.currentTarget as HTMLTableRowElement).style.background = isSelected ? 'rgba(var(--fg-rgb),var(--fg-a08))' : rank % 2 === 0 ? 'rgba(var(--fg-rgb),var(--fg-a05))' : 'transparent')}
     >
-      <td style={{ padding: '4px 6px', textAlign: 'center', color: 'rgba(255,255,255,0.35)', fontSize: '11px' }}>{rank}</td>
+      <td style={{ padding: '4px 6px', textAlign: 'center', color: 'rgba(var(--fg-rgb),var(--fg-a3))', fontSize: '11px' }}>{rank}</td>
       <td style={{ padding: '4px 6px' }}>
-        <div style={{ fontSize: '12px', fontWeight: 500, color: 'rgba(255,255,255,0.9)' }}>{result.districtName}</div>
-        <div style={{ fontSize: '10px', color: 'rgba(255,255,255,0.35)' }}>{result.state}</div>
+        <div style={{ fontSize: '12px', fontWeight: 500, color: 'rgba(var(--fg-rgb),var(--fg-a75))' }}>{result.districtName}</div>
+        <div style={{ fontSize: '10px', color: 'rgba(var(--fg-rgb),var(--fg-a3))' }}>{result.state}</div>
       </td>
       <td style={{ padding: '4px 6px', textAlign: 'center' }}>
         <span style={{ background: `${color}22`, border: `1px solid ${color}88`, borderRadius: '4px', color, fontWeight: 600, fontSize: '11px', padding: '1px 5px' }}>
@@ -625,7 +625,7 @@ const CVIDetailCard: React.FC<{ result: CoastalVulnerabilityIndex }> = ({ result
   return (
     <div style={{ background: `${color}12`, border: `1px solid ${color}44`, borderRadius: '8px', padding: '12px', marginTop: '10px' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-        <span style={{ fontWeight: 700, fontSize: '14px', color: 'rgba(255,255,255,0.95)' }}>{result.districtName}</span>
+        <span style={{ fontWeight: 700, fontSize: '14px', color: 'rgba(var(--fg-rgb),var(--fg-a75))' }}>{result.districtName}</span>
         <span style={{ fontSize: '20px', fontWeight: 700, color }}>{result.cvi.toFixed(1)}</span>
       </div>
       <div style={{ fontSize: '11px', color, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '8px' }}>
@@ -637,10 +637,10 @@ const CVIDetailCard: React.FC<{ result: CoastalVulnerabilityIndex }> = ({ result
           { label: 'SST Anomaly', value: result.sstAnomalyScore.toFixed(0),  icon: '🌡️' },
           { label: 'Tidal Range', value: result.tidalRangeScore.toFixed(0),  icon: '🌕' },
         ].map(({ label: l, value, icon }) => (
-          <div key={l} style={{ textAlign: 'center', background: 'rgba(255,255,255,0.05)', borderRadius: '6px', padding: '6px 4px' }}>
+          <div key={l} style={{ textAlign: 'center', background: 'rgba(var(--fg-rgb),var(--fg-a05))', borderRadius: '6px', padding: '6px 4px' }}>
             <div style={{ fontSize: '16px' }}>{icon}</div>
             <div style={{ fontSize: '16px', fontWeight: 700, color: '#94a3b8' }}>{value}</div>
-            <div style={{ fontSize: '9px', color: 'rgba(255,255,255,0.4)', marginTop: '2px' }}>{l}</div>
+            <div style={{ fontSize: '9px', color: 'rgba(var(--fg-rgb),var(--fg-a4))', marginTop: '2px' }}>{l}</div>
           </div>
         ))}
       </div>
@@ -661,8 +661,8 @@ const RouteRow: React.FC<{ route: ShippingRoute; isSelected: boolean; onSelect: 
     style={{
       padding: '8px 10px',
       borderRadius: '6px',
-      background: isSelected ? 'rgba(255,255,255,0.07)' : 'rgba(255,255,255,0.02)',
-      border: `1px solid ${isSelected ? route.color + '88' : 'rgba(255,255,255,0.06)'}`,
+      background: isSelected ? 'rgba(var(--fg-rgb),var(--fg-a08))' : 'rgba(var(--fg-rgb),var(--fg-a05))',
+      border: `1px solid ${isSelected ? route.color + '88' : 'rgba(var(--fg-rgb),var(--fg-a05))'}`,
       cursor: 'pointer',
       marginBottom: '6px',
       transition: 'all 150ms ease',
@@ -670,8 +670,8 @@ const RouteRow: React.FC<{ route: ShippingRoute; isSelected: boolean; onSelect: 
   >
     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
       <div>
-        <span style={{ fontSize: '12px', fontWeight: 600, color: 'rgba(255,255,255,0.9)' }}>🚢 {route.name}</span>
-        <span style={{ marginLeft: '6px', fontSize: '10px', color: 'rgba(255,255,255,0.35)', textTransform: 'capitalize' }}>
+        <span style={{ fontSize: '12px', fontWeight: 600, color: 'rgba(var(--fg-rgb),var(--fg-a75))' }}>🚢 {route.name}</span>
+        <span style={{ marginLeft: '6px', fontSize: '10px', color: 'rgba(var(--fg-rgb),var(--fg-a3))', textTransform: 'capitalize' }}>
           ({route.cargoType})
         </span>
       </div>
@@ -680,9 +680,9 @@ const RouteRow: React.FC<{ route: ShippingRoute; isSelected: boolean; onSelect: 
       </span>
     </div>
     {isSelected && (
-      <div style={{ marginTop: '6px', fontSize: '11px', color: 'rgba(255,255,255,0.55)', borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: '6px' }}>
+      <div style={{ marginTop: '6px', fontSize: '11px', color: 'rgba(var(--fg-rgb),var(--fg-a6))', borderTop: '1px solid rgba(var(--fg-rgb),var(--fg-a08))', paddingTop: '6px' }}>
         {route.riskDescription}
-        <div style={{ marginTop: '4px', color: 'rgba(255,255,255,0.3)' }}>
+        <div style={{ marginTop: '4px', color: 'rgba(var(--fg-rgb),var(--fg-a3))' }}>
           {route.waypoints.length} waypoints · {route.waypoints.length - 1} segments
         </div>
       </div>
@@ -707,9 +707,9 @@ const SSTPanel: React.FC<{ anomalies: SSTAnomaly[] }> = ({ anomalies }) => {
           { label: 'Warm cells',   value: String(warmCount),  color: '#f97316' },
           { label: 'Cool cells',   value: String(coolCount),  color: '#60a5fa' },
         ].map(({ label, value, color }) => (
-          <div key={label} style={{ textAlign: 'center', background: 'rgba(255,255,255,0.04)', borderRadius: '6px', padding: '6px' }}>
+          <div key={label} style={{ textAlign: 'center', background: 'rgba(var(--fg-rgb),var(--fg-a05))', borderRadius: '6px', padding: '6px' }}>
             <div style={{ fontSize: '15px', fontWeight: 700, color }}>{value}</div>
-            <div style={{ fontSize: '10px', color: 'rgba(255,255,255,0.4)' }}>{label}</div>
+            <div style={{ fontSize: '10px', color: 'rgba(var(--fg-rgb),var(--fg-a4))' }}>{label}</div>
           </div>
         ))}
       </div>
@@ -719,7 +719,7 @@ const SSTPanel: React.FC<{ anomalies: SSTAnomaly[] }> = ({ anomalies }) => {
           <thead style={{ position: 'sticky', top: 0, background: 'rgba(10,12,20,0.95)' }}>
             <tr>
               {['Lat', 'Lon', 'SST', 'Anomaly'].map((h) => (
-                <th key={h} scope="col" style={{ padding: '5px 8px', fontSize: '11px', fontWeight: 600, color: 'rgba(255,255,255,0.5)', borderBottom: '1px solid rgba(255,255,255,0.1)', textAlign: h === 'Lat' || h === 'Lon' ? 'right' : 'center' }}>{h}</th>
+                <th key={h} scope="col" style={{ padding: '5px 8px', fontSize: '11px', fontWeight: 600, color: 'rgba(var(--fg-rgb),var(--fg-a4))', borderBottom: '1px solid rgba(var(--fg-rgb),var(--fg-a1))', textAlign: h === 'Lat' || h === 'Lon' ? 'right' : 'center' }}>{h}</th>
               ))}
             </tr>
           </thead>
@@ -746,7 +746,7 @@ const WavesPanel: React.FC<{ predictions: WaveHeightPrediction[] }> = ({ predict
             <div key={level} style={{ flex: '1 1 auto', textAlign: 'center', background: `${cfg.color}18`, border: `1px solid ${cfg.color}55`, borderRadius: '6px', padding: '5px 4px' }}>
               <div style={{ fontSize: '14px' }}>{cfg.emoji}</div>
               <div style={{ fontSize: '13px', fontWeight: 700, color: cfg.color }}>{count}</div>
-              <div style={{ fontSize: '9px', color: 'rgba(255,255,255,0.4)' }}>{cfg.label}</div>
+              <div style={{ fontSize: '9px', color: 'rgba(var(--fg-rgb),var(--fg-a4))' }}>{cfg.label}</div>
             </div>
           );
         })}
@@ -756,7 +756,7 @@ const WavesPanel: React.FC<{ predictions: WaveHeightPrediction[] }> = ({ predict
           <thead style={{ position: 'sticky', top: 0, background: 'rgba(10,12,20,0.95)' }}>
             <tr>
               {['Lat', 'Lon', 'SWH (m)', 'Risk', ''].map((h, i) => (
-                <th key={i} scope="col" style={{ padding: '5px 6px', fontSize: '11px', fontWeight: 600, color: 'rgba(255,255,255,0.5)', borderBottom: '1px solid rgba(255,255,255,0.1)', textAlign: 'center' }}>{h}</th>
+                <th key={i} scope="col" style={{ padding: '5px 6px', fontSize: '11px', fontWeight: 600, color: 'rgba(var(--fg-rgb),var(--fg-a4))', borderBottom: '1px solid rgba(var(--fg-rgb),var(--fg-a1))', textAlign: 'center' }}>{h}</th>
               ))}
             </tr>
           </thead>
@@ -764,9 +764,9 @@ const WavesPanel: React.FC<{ predictions: WaveHeightPrediction[] }> = ({ predict
             {predictions.map((p, idx) => {
               const cfg = WAVE_RISK_CONFIG[p.riskLevel];
               return (
-                <tr key={`${p.lat}-${p.lon}`} style={{ background: idx % 2 === 0 ? 'rgba(255,255,255,0.02)' : 'transparent' }}>
-                  <td style={{ padding: '4px 6px', textAlign: 'center', fontSize: '11px', color: 'rgba(255,255,255,0.45)' }}>{p.lat.toFixed(1)}°N</td>
-                  <td style={{ padding: '4px 6px', textAlign: 'center', fontSize: '11px', color: 'rgba(255,255,255,0.45)' }}>{p.lon.toFixed(1)}°E</td>
+                <tr key={`${p.lat}-${p.lon}`} style={{ background: idx % 2 === 0 ? 'rgba(var(--fg-rgb),var(--fg-a05))' : 'transparent' }}>
+                  <td style={{ padding: '4px 6px', textAlign: 'center', fontSize: '11px', color: 'rgba(var(--fg-rgb),var(--fg-a4))' }}>{p.lat.toFixed(1)}°N</td>
+                  <td style={{ padding: '4px 6px', textAlign: 'center', fontSize: '11px', color: 'rgba(var(--fg-rgb),var(--fg-a4))' }}>{p.lon.toFixed(1)}°E</td>
                   <td style={{ padding: '4px 6px', textAlign: 'center' }}>
                     <span style={{ background: `${cfg.color}22`, border: `1px solid ${cfg.color}88`, borderRadius: '4px', color: cfg.color, fontWeight: 600, fontSize: '11px', padding: '1px 5px' }}>
                       {p.significantWaveHeight.toFixed(1)}m
@@ -804,7 +804,7 @@ const CVIPanel: React.FC<{ results: CoastalVulnerabilityIndex[] }> = ({ results 
           <thead style={{ position: 'sticky', top: 0, background: 'rgba(10,12,20,0.95)' }}>
             <tr>
               {['#', 'District', 'CVI', 'Risk'].map((h, i) => (
-                <th key={h} scope="col" style={{ padding: '5px 6px', fontSize: '11px', fontWeight: 600, color: 'rgba(255,255,255,0.5)', borderBottom: '1px solid rgba(255,255,255,0.1)', textAlign: i < 2 ? 'left' : 'center' }}>{h}</th>
+                <th key={h} scope="col" style={{ padding: '5px 6px', fontSize: '11px', fontWeight: 600, color: 'rgba(var(--fg-rgb),var(--fg-a4))', borderBottom: '1px solid rgba(var(--fg-rgb),var(--fg-a1))', textAlign: i < 2 ? 'left' : 'center' }}>{h}</th>
               ))}
             </tr>
           </thead>
@@ -956,9 +956,9 @@ export const OceanCoastal: React.FC<OceanCoastalProps> = ({
 
       {/* ── Main Glass Panel ── */}
       <GlassPanel padding="md" className="ocean-coastal-panel">
-        <h3 style={{ fontSize: '18px', fontWeight: 600, color: 'rgba(255,255,255,0.95)', margin: '0 0 12px 0', display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <h3 style={{ fontSize: '18px', fontWeight: 600, color: 'rgba(var(--fg-rgb),var(--fg-a75))', margin: '0 0 12px 0', display: 'flex', alignItems: 'center', gap: '8px' }}>
           🌊 Ocean &amp; Coastal Monitoring
-          <span style={{ marginLeft: 'auto', fontSize: '12px', fontWeight: 400, color: 'rgba(255,255,255,0.4)' }}>
+          <span style={{ marginLeft: 'auto', fontSize: '12px', fontWeight: 400, color: 'rgba(var(--fg-rgb),var(--fg-a4))' }}>
             Indian Ocean
           </span>
         </h3>
@@ -970,7 +970,7 @@ export const OceanCoastal: React.FC<OceanCoastalProps> = ({
         {activeTab === 'sst'    && <SSTPanel    anomalies={sstAnomalies} />}
         {activeTab === 'waves'  && (wavePredictions.length > 0
           ? <WavesPanel predictions={wavePredictions} />
-          : <div style={{ color: 'rgba(255,255,255,0.4)', fontSize: '13px', textAlign: 'center', padding: '24px 0' }}>No ocean grid cells in active region.<br/>Select a coastal region to see wave heights.</div>
+          : <div style={{ color: 'rgba(var(--fg-rgb),var(--fg-a4))', fontSize: '13px', textAlign: 'center', padding: '24px 0' }}>No ocean grid cells in active region.<br/>Select a coastal region to see wave heights.</div>
         )}
         {activeTab === 'cvi'    && <CVIPanel    results={cviResults} />}
         {activeTab === 'routes' && <RoutesPanel routes={shippingRoutes} />}

@@ -406,7 +406,7 @@ const CodeBlock: React.FC<CodeBlockProps> = ({ code, language }) => {
       style={{
         position: 'relative',
         background: 'rgba(0, 0, 0, 0.4)',
-        border: '1px solid rgba(255,255,255,0.07)',
+        border: '1px solid rgba(var(--fg-rgb),var(--fg-a08))',
         borderRadius: '8px',
         overflow: 'hidden',
       }}
@@ -418,11 +418,11 @@ const CodeBlock: React.FC<CodeBlockProps> = ({ code, language }) => {
           alignItems: 'center',
           justifyContent: 'space-between',
           padding: '6px 12px',
-          background: 'rgba(255,255,255,0.04)',
-          borderBottom: '1px solid rgba(255,255,255,0.06)',
+          background: 'rgba(var(--fg-rgb),var(--fg-a05))',
+          borderBottom: '1px solid rgba(var(--fg-rgb),var(--fg-a05))',
         }}
       >
-        <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.4)', fontFamily: 'monospace' }}>
+        <span style={{ fontSize: '11px', color: 'rgba(var(--fg-rgb),var(--fg-a4))', fontFamily: 'monospace' }}>
           {langLabel[language]}
         </span>
         <button
@@ -430,9 +430,9 @@ const CodeBlock: React.FC<CodeBlockProps> = ({ code, language }) => {
           title="Copy code"
           style={{
             background: 'none',
-            border: '1px solid rgba(255,255,255,0.15)',
+            border: '1px solid rgba(var(--fg-rgb),var(--fg-a15))',
             borderRadius: '4px',
-            color: copied ? '#38bd84' : 'rgba(255,255,255,0.5)',
+            color: copied ? '#38bd84' : 'rgba(var(--fg-rgb),var(--fg-a4))',
             cursor: 'pointer',
             fontSize: '11px',
             padding: '2px 8px',
@@ -448,7 +448,7 @@ const CodeBlock: React.FC<CodeBlockProps> = ({ code, language }) => {
           padding: '12px 14px',
           fontSize: '12px',
           lineHeight: 1.6,
-          color: 'rgba(255,255,255,0.82)',
+          color: 'rgba(var(--fg-rgb),var(--fg-a75))',
           fontFamily: '"Fira Code", "Cascadia Code", monospace',
           overflowX: 'auto',
           whiteSpace: 'pre',
@@ -544,7 +544,7 @@ const TryItPanel: React.FC<TryItPanelProps> = ({ endpoint }) => {
               fontWeight: 600,
               textTransform: 'uppercase',
               letterSpacing: '1px',
-              color: 'rgba(255,255,255,0.4)',
+              color: 'rgba(var(--fg-rgb),var(--fg-a4))',
               marginBottom: '8px',
             }}
           >
@@ -554,13 +554,13 @@ const TryItPanel: React.FC<TryItPanelProps> = ({ endpoint }) => {
             {allParams.map((param) => (
               <div key={param.name} style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                 <div style={{ width: '140px', flexShrink: 0 }}>
-                  <div style={{ fontSize: '12px', fontWeight: 600, color: 'rgba(255,255,255,0.8)', fontFamily: 'monospace' }}>
+                  <div style={{ fontSize: '12px', fontWeight: 600, color: 'rgba(var(--fg-rgb),var(--fg-a75))', fontFamily: 'monospace' }}>
                     {param.name}
                     {param.required && (
                       <span style={{ color: '#fc8181', marginLeft: '3px' }}>*</span>
                     )}
                   </div>
-                  <div style={{ fontSize: '10px', color: 'rgba(255,255,255,0.35)', marginTop: '1px' }}>
+                  <div style={{ fontSize: '10px', color: 'rgba(var(--fg-rgb),var(--fg-a3))', marginTop: '1px' }}>
                     {param.type}
                   </div>
                 </div>
@@ -571,9 +571,9 @@ const TryItPanel: React.FC<TryItPanelProps> = ({ endpoint }) => {
                     style={{
                       flex: 1,
                       background: 'rgba(0,0,0,0.35)',
-                      border: '1px solid rgba(255,255,255,0.12)',
+                      border: '1px solid rgba(var(--fg-rgb),var(--fg-a12))',
                       borderRadius: '6px',
-                      color: 'rgba(255,255,255,0.85)',
+                      color: 'rgba(var(--fg-rgb),var(--fg-a75))',
                       fontSize: '12px',
                       padding: '5px 8px',
                       outline: 'none',
@@ -593,9 +593,9 @@ const TryItPanel: React.FC<TryItPanelProps> = ({ endpoint }) => {
                     style={{
                       flex: 1,
                       background: 'rgba(0,0,0,0.35)',
-                      border: '1px solid rgba(255,255,255,0.12)',
+                      border: '1px solid rgba(var(--fg-rgb),var(--fg-a12))',
                       borderRadius: '6px',
-                      color: 'rgba(255,255,255,0.85)',
+                      color: 'rgba(var(--fg-rgb),var(--fg-a75))',
                       fontSize: '12px',
                       padding: '5px 8px',
                       outline: 'none',
@@ -603,7 +603,7 @@ const TryItPanel: React.FC<TryItPanelProps> = ({ endpoint }) => {
                   />
                 )}
                 <div
-                  style={{ fontSize: '11px', color: 'rgba(255,255,255,0.35)', maxWidth: '160px', flexShrink: 0 }}
+                  style={{ fontSize: '11px', color: 'rgba(var(--fg-rgb),var(--fg-a3))', maxWidth: '160px', flexShrink: 0 }}
                   title={param.description}
                 >
                   {param.description}
@@ -622,10 +622,10 @@ const TryItPanel: React.FC<TryItPanelProps> = ({ endpoint }) => {
               key={lang}
               onClick={() => setActiveLang(lang)}
               style={{
-                background: activeLang === lang ? 'rgba(99,179,237,0.2)' : 'rgba(255,255,255,0.06)',
-                border: `1px solid ${activeLang === lang ? 'rgba(99,179,237,0.5)' : 'rgba(255,255,255,0.1)'}`,
+                background: activeLang === lang ? 'rgba(99,179,237,0.2)' : 'rgba(var(--fg-rgb),var(--fg-a05))',
+                border: `1px solid ${activeLang === lang ? 'rgba(99,179,237,0.5)' : 'rgba(var(--fg-rgb),var(--fg-a1))'}`,
                 borderRadius: '5px',
-                color: activeLang === lang ? '#63b3ed' : 'rgba(255,255,255,0.5)',
+                color: activeLang === lang ? '#63b3ed' : 'rgba(var(--fg-rgb),var(--fg-a4))',
                 cursor: 'pointer',
                 fontSize: '11px',
                 fontWeight: 600,
@@ -683,7 +683,7 @@ const TryItPanel: React.FC<TryItPanelProps> = ({ endpoint }) => {
               fontWeight: 600,
               textTransform: 'uppercase',
               letterSpacing: '1px',
-              color: 'rgba(255,255,255,0.4)',
+              color: 'rgba(var(--fg-rgb),var(--fg-a4))',
               marginBottom: '6px',
             }}
           >
@@ -694,9 +694,9 @@ const TryItPanel: React.FC<TryItPanelProps> = ({ endpoint }) => {
               margin: 0,
               padding: '12px',
               background: error ? 'rgba(252,129,129,0.08)' : 'rgba(0,0,0,0.4)',
-              border: `1px solid ${error ? 'rgba(252,129,129,0.25)' : 'rgba(255,255,255,0.07)'}`,
+              border: `1px solid ${error ? 'rgba(252,129,129,0.25)' : 'rgba(var(--fg-rgb),var(--fg-a08))'}`,
               borderRadius: '8px',
-              color: error ? '#fc8181' : 'rgba(255,255,255,0.8)',
+              color: error ? '#fc8181' : 'rgba(var(--fg-rgb),var(--fg-a75))',
               fontSize: '12px',
               fontFamily: '"Fira Code", monospace',
               lineHeight: 1.6,
@@ -728,10 +728,10 @@ const EndpointCard: React.FC<EndpointCardProps> = ({ endpoint, isOpen, onToggle 
   return (
     <div
       style={{
-        border: '1px solid rgba(255,255,255,0.08)',
+        border: '1px solid rgba(var(--fg-rgb),var(--fg-a08))',
         borderRadius: '10px',
         overflow: 'hidden',
-        background: isOpen ? 'rgba(255,255,255,0.03)' : 'transparent',
+        background: isOpen ? 'rgba(var(--fg-rgb),var(--fg-a05))' : 'transparent',
         transition: 'background 0.2s',
       }}
     >
@@ -755,7 +755,7 @@ const EndpointCard: React.FC<EndpointCardProps> = ({ endpoint, isOpen, onToggle 
         <code
           style={{
             flex: 1,
-            color: 'rgba(255,255,255,0.85)',
+            color: 'rgba(var(--fg-rgb),var(--fg-a75))',
             fontSize: '13px',
             fontFamily: 'monospace',
             fontWeight: 500,
@@ -763,14 +763,14 @@ const EndpointCard: React.FC<EndpointCardProps> = ({ endpoint, isOpen, onToggle 
         >
           {endpoint.path}
         </code>
-        <span style={{ fontSize: '12px', color: 'rgba(255,255,255,0.5)', marginRight: '6px' }}>
+        <span style={{ fontSize: '12px', color: 'rgba(var(--fg-rgb),var(--fg-a4))', marginRight: '6px' }}>
           {endpoint.summary}
         </span>
         <TagBadge tag={endpoint.tag} />
         <span
           style={{
             marginLeft: '8px',
-            color: 'rgba(255,255,255,0.35)',
+            color: 'rgba(var(--fg-rgb),var(--fg-a3))',
             fontSize: '14px',
             transform: isOpen ? 'rotate(90deg)' : 'rotate(0deg)',
             transition: 'transform 0.2s',
@@ -783,7 +783,7 @@ const EndpointCard: React.FC<EndpointCardProps> = ({ endpoint, isOpen, onToggle 
 
       {/* Expanded content */}
       {isOpen && (
-        <div style={{ padding: '0 16px 16px', borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+        <div style={{ padding: '0 16px 16px', borderTop: '1px solid rgba(var(--fg-rgb),var(--fg-a05))' }}>
           {/* Tabs */}
           <div style={{ display: 'flex', gap: '4px', margin: '12px 0 14px' }}>
             {(['docs', 'try'] as const).map((tab) => (
@@ -791,10 +791,10 @@ const EndpointCard: React.FC<EndpointCardProps> = ({ endpoint, isOpen, onToggle 
                 key={tab}
                 onClick={() => setActiveTab(tab)}
                 style={{
-                  background: activeTab === tab ? 'rgba(255,255,255,0.1)' : 'none',
-                  border: `1px solid ${activeTab === tab ? 'rgba(255,255,255,0.2)' : 'transparent'}`,
+                  background: activeTab === tab ? 'rgba(var(--fg-rgb),var(--fg-a1))' : 'none',
+                  border: `1px solid ${activeTab === tab ? 'rgba(var(--fg-rgb),var(--fg-a2))' : 'transparent'}`,
                   borderRadius: '5px',
-                  color: activeTab === tab ? 'rgba(255,255,255,0.9)' : 'rgba(255,255,255,0.4)',
+                  color: activeTab === tab ? 'rgba(var(--fg-rgb),var(--fg-a75))' : 'rgba(var(--fg-rgb),var(--fg-a4))',
                   cursor: 'pointer',
                   fontSize: '12px',
                   fontWeight: 600,
@@ -811,7 +811,7 @@ const EndpointCard: React.FC<EndpointCardProps> = ({ endpoint, isOpen, onToggle 
           {activeTab === 'docs' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
               {/* Description */}
-              <p style={{ margin: 0, fontSize: '13px', color: 'rgba(255,255,255,0.65)', lineHeight: 1.6 }}>
+              <p style={{ margin: 0, fontSize: '13px', color: 'rgba(var(--fg-rgb),var(--fg-a7))', lineHeight: 1.6 }}>
                 {endpoint.description}
               </p>
 
@@ -825,10 +825,10 @@ const EndpointCard: React.FC<EndpointCardProps> = ({ endpoint, isOpen, onToggle 
 
               {/* Response format */}
               <div>
-                <div style={{ fontSize: '12px', fontWeight: 700, color: 'rgba(255,255,255,0.55)', marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '0.8px' }}>
+                <div style={{ fontSize: '12px', fontWeight: 700, color: 'rgba(var(--fg-rgb),var(--fg-a6))', marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '0.8px' }}>
                   Response Format
                 </div>
-                <div style={{ fontSize: '12px', color: 'rgba(255,255,255,0.65)', marginBottom: '8px' }}>
+                <div style={{ fontSize: '12px', color: 'rgba(var(--fg-rgb),var(--fg-a7))', marginBottom: '8px' }}>
                   {endpoint.responseFormat}
                 </div>
                 <CodeBlock code={endpoint.responseExample} language="javascript" />
@@ -856,7 +856,7 @@ const ParamTable: React.FC<ParamTableProps> = ({ title, params }) => (
       style={{
         fontSize: '12px',
         fontWeight: 700,
-        color: 'rgba(255,255,255,0.55)',
+        color: 'rgba(var(--fg-rgb),var(--fg-a6))',
         marginBottom: '8px',
         textTransform: 'uppercase',
         letterSpacing: '0.8px',
@@ -867,7 +867,7 @@ const ParamTable: React.FC<ParamTableProps> = ({ title, params }) => (
     <div
       style={{
         background: 'rgba(0,0,0,0.3)',
-        border: '1px solid rgba(255,255,255,0.07)',
+        border: '1px solid rgba(var(--fg-rgb),var(--fg-a08))',
         borderRadius: '8px',
         overflow: 'hidden',
       }}
@@ -879,13 +879,13 @@ const ParamTable: React.FC<ParamTableProps> = ({ title, params }) => (
           gridTemplateColumns: '120px 160px 60px 1fr',
           gap: '8px',
           padding: '7px 12px',
-          background: 'rgba(255,255,255,0.04)',
-          borderBottom: '1px solid rgba(255,255,255,0.06)',
+          background: 'rgba(var(--fg-rgb),var(--fg-a05))',
+          borderBottom: '1px solid rgba(var(--fg-rgb),var(--fg-a05))',
           fontSize: '10px',
           fontWeight: 700,
           textTransform: 'uppercase',
           letterSpacing: '0.8px',
-          color: 'rgba(255,255,255,0.35)',
+          color: 'rgba(var(--fg-rgb),var(--fg-a3))',
         }}
       >
         <span>Name</span>
@@ -901,27 +901,27 @@ const ParamTable: React.FC<ParamTableProps> = ({ title, params }) => (
             gridTemplateColumns: '120px 160px 60px 1fr',
             gap: '8px',
             padding: '8px 12px',
-            borderBottom: i < params.length - 1 ? '1px solid rgba(255,255,255,0.04)' : 'none',
+            borderBottom: i < params.length - 1 ? '1px solid rgba(var(--fg-rgb),var(--fg-a05))' : 'none',
             fontSize: '12px',
           }}
         >
           <code style={{ color: '#63b3ed', fontFamily: 'monospace', fontSize: '12px' }}>{p.name}</code>
-          <span style={{ color: 'rgba(255,255,255,0.5)', fontFamily: 'monospace', fontSize: '11px' }}>
+          <span style={{ color: 'rgba(var(--fg-rgb),var(--fg-a4))', fontFamily: 'monospace', fontSize: '11px' }}>
             {p.type}
           </span>
           <span
             style={{
-              color: p.required ? '#fc8181' : 'rgba(255,255,255,0.3)',
+              color: p.required ? '#fc8181' : 'rgba(var(--fg-rgb),var(--fg-a3))',
               fontSize: '11px',
               fontWeight: 600,
             }}
           >
             {p.required ? 'Yes' : 'No'}
           </span>
-          <span style={{ color: 'rgba(255,255,255,0.6)' }}>
+          <span style={{ color: 'rgba(var(--fg-rgb),var(--fg-a6))' }}>
             {p.description}
             {p.defaultValue && (
-              <span style={{ color: 'rgba(255,255,255,0.35)', marginLeft: '4px' }}>
+              <span style={{ color: 'rgba(var(--fg-rgb),var(--fg-a3))', marginLeft: '4px' }}>
                 (default: <code style={{ fontFamily: 'monospace', fontSize: '11px' }}>{p.defaultValue}</code>)
               </span>
             )}
@@ -953,7 +953,7 @@ const UsageStatsPanel: React.FC<{ stats: ApiUsageStats }> = ({ stats }) => {
           fontWeight: 700,
           textTransform: 'uppercase',
           letterSpacing: '1.2px',
-          color: 'rgba(255,255,255,0.4)',
+          color: 'rgba(var(--fg-rgb),var(--fg-a4))',
           marginBottom: '14px',
         }}
       >
@@ -973,17 +973,17 @@ const UsageStatsPanel: React.FC<{ stats: ApiUsageStats }> = ({ stats }) => {
           <div
             key={item.label}
             style={{
-              background: 'rgba(255,255,255,0.04)',
-              border: '1px solid rgba(255,255,255,0.07)',
+              background: 'rgba(var(--fg-rgb),var(--fg-a05))',
+              border: '1px solid rgba(var(--fg-rgb),var(--fg-a08))',
               borderRadius: '8px',
               padding: '10px 12px',
             }}
           >
             <div style={{ fontSize: '18px', marginBottom: '4px' }}>{item.icon}</div>
-            <div style={{ fontSize: '18px', fontWeight: 700, color: 'rgba(255,255,255,0.9)' }}>
+            <div style={{ fontSize: '18px', fontWeight: 700, color: 'rgba(var(--fg-rgb),var(--fg-a75))' }}>
               {item.value}
             </div>
-            <div style={{ fontSize: '10px', color: 'rgba(255,255,255,0.4)', marginTop: '2px' }}>
+            <div style={{ fontSize: '10px', color: 'rgba(var(--fg-rgb),var(--fg-a4))', marginTop: '2px' }}>
               {item.label}
             </div>
           </div>
@@ -1000,7 +1000,7 @@ const UsageStatsPanel: React.FC<{ stats: ApiUsageStats }> = ({ stats }) => {
             marginBottom: '6px',
           }}
         >
-          <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.5)', fontWeight: 600 }}>
+          <span style={{ fontSize: '11px', color: 'rgba(var(--fg-rgb),var(--fg-a4))', fontWeight: 600 }}>
             Daily Rate Limit
           </span>
           <span style={{ fontSize: '11px', color: usageColor, fontWeight: 700 }}>
@@ -1010,7 +1010,7 @@ const UsageStatsPanel: React.FC<{ stats: ApiUsageStats }> = ({ stats }) => {
         <div
           style={{
             height: '6px',
-            background: 'rgba(255,255,255,0.1)',
+            background: 'rgba(var(--fg-rgb),var(--fg-a1))',
             borderRadius: '3px',
             overflow: 'hidden',
           }}
@@ -1025,7 +1025,7 @@ const UsageStatsPanel: React.FC<{ stats: ApiUsageStats }> = ({ stats }) => {
             }}
           />
         </div>
-        <div style={{ fontSize: '10px', color: 'rgba(255,255,255,0.35)', marginTop: '4px' }}>
+        <div style={{ fontSize: '10px', color: 'rgba(var(--fg-rgb),var(--fg-a3))', marginTop: '4px' }}>
           {stats.rateLimitPerMinute} requests/minute · {stats.rateLimitPerDay.toLocaleString()} requests/day
         </div>
       </div>
@@ -1108,7 +1108,7 @@ export const APIPortal: React.FC<APIPortalProps> = ({
                 margin: 0,
                 fontSize: '22px',
                 fontWeight: 700,
-                color: 'rgba(255,255,255,0.95)',
+                color: 'rgba(var(--fg-rgb),var(--fg-a75))',
                 lineHeight: 1.3,
               }}
             >
@@ -1118,7 +1118,7 @@ export const APIPortal: React.FC<APIPortalProps> = ({
               style={{
                 margin: '6px 0 0',
                 fontSize: '13px',
-                color: 'rgba(255,255,255,0.5)',
+                color: 'rgba(var(--fg-rgb),var(--fg-a4))',
                 lineHeight: 1.5,
               }}
             >
@@ -1150,7 +1150,7 @@ export const APIPortal: React.FC<APIPortalProps> = ({
           style={{
             marginTop: '12px',
             background: 'rgba(0,0,0,0.3)',
-            border: '1px solid rgba(255,255,255,0.08)',
+            border: '1px solid rgba(var(--fg-rgb),var(--fg-a08))',
             borderRadius: '6px',
             padding: '7px 12px',
             display: 'flex',
@@ -1158,7 +1158,7 @@ export const APIPortal: React.FC<APIPortalProps> = ({
             gap: '8px',
           }}
         >
-          <span style={{ fontSize: '10px', fontWeight: 600, textTransform: 'uppercase', color: 'rgba(255,255,255,0.35)', letterSpacing: '0.8px' }}>
+          <span style={{ fontSize: '10px', fontWeight: 600, textTransform: 'uppercase', color: 'rgba(var(--fg-rgb),var(--fg-a3))', letterSpacing: '0.8px' }}>
             Base URL
           </span>
           <code style={{ fontSize: '12px', color: '#63b3ed', fontFamily: 'monospace' }}>
@@ -1182,9 +1182,9 @@ export const APIPortal: React.FC<APIPortalProps> = ({
             style={{
               flex: '1 1 200px',
               background: 'rgba(0,0,0,0.35)',
-              border: '1px solid rgba(255,255,255,0.12)',
+              border: '1px solid rgba(var(--fg-rgb),var(--fg-a12))',
               borderRadius: '7px',
-              color: 'rgba(255,255,255,0.85)',
+              color: 'rgba(var(--fg-rgb),var(--fg-a75))',
               fontSize: '13px',
               padding: '7px 12px',
               outline: 'none',
@@ -1197,10 +1197,10 @@ export const APIPortal: React.FC<APIPortalProps> = ({
                 key={tag}
                 onClick={() => setActiveTag(tag)}
                 style={{
-                  background: activeTag === tag ? `${TAG_COLORS[tag] ?? '#718096'}33` : 'rgba(255,255,255,0.06)',
-                  border: `1px solid ${activeTag === tag ? (TAG_COLORS[tag] ?? '#718096') : 'rgba(255,255,255,0.1)'}`,
+                  background: activeTag === tag ? `${TAG_COLORS[tag] ?? '#718096'}33` : 'rgba(var(--fg-rgb),var(--fg-a05))',
+                  border: `1px solid ${activeTag === tag ? (TAG_COLORS[tag] ?? '#718096') : 'rgba(var(--fg-rgb),var(--fg-a1))'}`,
                   borderRadius: '5px',
-                  color: activeTag === tag ? (TAG_COLORS[tag] ?? '#e2e8f0') : 'rgba(255,255,255,0.4)',
+                  color: activeTag === tag ? (TAG_COLORS[tag] ?? '#e2e8f0') : 'rgba(var(--fg-rgb),var(--fg-a4))',
                   cursor: 'pointer',
                   fontSize: '11px',
                   fontWeight: 600,
@@ -1223,7 +1223,7 @@ export const APIPortal: React.FC<APIPortalProps> = ({
             fontWeight: 700,
             textTransform: 'uppercase',
             letterSpacing: '1.2px',
-            color: 'rgba(255,255,255,0.4)',
+            color: 'rgba(var(--fg-rgb),var(--fg-a4))',
             marginBottom: '12px',
           }}
         >
@@ -1234,7 +1234,7 @@ export const APIPortal: React.FC<APIPortalProps> = ({
             style={{
               textAlign: 'center',
               padding: '32px 0',
-              color: 'rgba(255,255,255,0.3)',
+              color: 'rgba(var(--fg-rgb),var(--fg-a3))',
               fontSize: '13px',
             }}
           >
@@ -1262,13 +1262,13 @@ export const APIPortal: React.FC<APIPortalProps> = ({
             fontWeight: 700,
             textTransform: 'uppercase',
             letterSpacing: '1.2px',
-            color: 'rgba(255,255,255,0.4)',
+            color: 'rgba(var(--fg-rgb),var(--fg-a4))',
             marginBottom: '8px',
           }}
         >
           🔑 Authentication
         </div>
-        <p style={{ margin: 0, fontSize: '13px', color: 'rgba(255,255,255,0.6)', lineHeight: 1.6 }}>
+        <p style={{ margin: 0, fontSize: '13px', color: 'rgba(var(--fg-rgb),var(--fg-a6))', lineHeight: 1.6 }}>
           The VAYU API currently operates without authentication for internal dashboard use. For
           external integrations, pass your API key as the{' '}
           <code style={{ fontFamily: 'monospace', color: '#63b3ed', fontSize: '12px' }}>

@@ -182,7 +182,7 @@ export const InspectDataCard: React.FC<InspectDataCardProps> = ({
                 alignItems: 'baseline',
                 padding: '6px 8px',
                 borderRadius: '6px',
-                background: 'rgba(255, 255, 255, 0.03)',
+                background: 'rgba(var(--fg-rgb),var(--fg-a05))',
               }}
             >
               <span
@@ -219,7 +219,7 @@ export const InspectDataCard: React.FC<InspectDataCardProps> = ({
         </div>
 
         {/* 7-day sparkline section */}
-        <div style={{ marginTop: '12px', borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: '10px' }}>
+        <div style={{ marginTop: '12px', borderTop: '1px solid rgba(var(--fg-rgb),var(--fg-a05))', paddingTop: '10px' }}>
           <div
             style={{
               fontSize: '10px',

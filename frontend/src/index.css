@@ -13,10 +13,11 @@
     --text-secondary: rgba(255, 255, 255, 0.55);
   }
 
-  /* Part B: Dark theme — never pure white text */
+  /* Part B: never pure white/black text — flips with [data-theme] via
+     --fg-rgb/--fg-a75 (design-system/tokens.css) */
   body {
     font-family: var(--font-family-sans, 'Inter', system-ui, sans-serif);
-    color: rgba(255, 255, 255, 0.85);
+    color: rgba(var(--fg-rgb), var(--fg-a75));
     font-variant-numeric: tabular-nums;
   }
 
@@ -30,19 +31,28 @@
 }
 
 @layer components {
-  /* Part B: Glassmorphism panels */
+  /* Part B: Glassmorphism panels — background/border flip with [data-theme]
+     via the --panel-bg-rgb/--fg-rgb tokens in design-system/tokens.css. */
   .panel {
-    @apply bg-[rgba(6,10,22,0.88)] backdrop-blur-xl border border-white/[0.08] rounded-xl shadow-[0_4px_24px_rgba(0,0,0,0.4)];
+    border-radius: 0.75rem;
+    background: rgba(var(--panel-bg-rgb), 0.88);
+    border: 1px solid rgba(var(--fg-rgb), var(--fg-a08));
+    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.4);
+    backdrop-filter: blur(20px);
     -webkit-backdrop-filter: blur(20px);
     transition: box-shadow 200ms ease, border-color 200ms ease, transform 200ms ease;
   }
   .panel:hover {
-    border-color: rgba(255, 255, 255, 0.12);
+    border-color: rgba(var(--fg-rgb), var(--fg-a12));
     box-shadow: 0 4px 24px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(14, 165, 233, 0.04);
   }
 
   .panel-tight {
-    @apply bg-[rgba(6,10,22,0.88)] backdrop-blur-xl border border-white/[0.08] rounded-lg shadow-[0_2px_12px_rgba(0,0,0,0.3)];
+    border-radius: 0.5rem;
+    background: rgba(var(--panel-bg-rgb), 0.88);
+    border: 1px solid rgba(var(--fg-rgb), var(--fg-a08));
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.3);
+    backdrop-filter: blur(16px);
     -webkit-backdrop-filter: blur(16px);
     transition: box-shadow 200ms ease, border-color 200ms ease;
   }
@@ -57,14 +67,14 @@
 
   .btn-ghost {
     @apply px-3 py-1.5 rounded-md text-sm;
-    background: rgba(255,255,255,0.05);
-    color: rgba(255,255,255,0.8);
-    border: 1px solid rgba(255,255,255,0.08);
+    background: rgba(var(--fg-rgb), var(--fg-a05));
+    color: rgba(var(--fg-rgb), var(--fg-a75));
+    border: 1px solid rgba(var(--fg-rgb), var(--fg-a08));
     transition: background 150ms, transform 100ms, border-color 150ms;
   }
   .btn-ghost:hover {
-    background: rgba(255,255,255,0.10);
-    border-color: rgba(255,255,255,0.15);
+    background: rgba(var(--fg-rgb), var(--fg-a1));
+    border-color: rgba(var(--fg-rgb), var(--fg-a15));
     transform: scale(1.02);
   }
   .btn-ghost:active { transform: scale(0.96); }
@@ -76,8 +86,8 @@
   /* Part B: Metric cards */
   .metric-card {
     @apply rounded-lg p-3 flex flex-col gap-1;
-    background: rgba(255,255,255,0.04);
-    border: 1px solid rgba(255,255,255,0.07);
+    background: rgba(var(--fg-rgb), var(--fg-a05));
+    border: 1px solid rgba(var(--fg-rgb), var(--fg-a08));
     transition: transform 200ms ease, box-shadow 200ms ease, border-color 200ms ease;
   }
   .metric-card:hover {
@@ -93,7 +103,7 @@
   }
   .metric-label {
     @apply text-xs uppercase tracking-wide;
-    color: rgba(255,255,255,0.5);
+    color: rgba(var(--fg-rgb), var(--fg-a6));
   }
 
   /* Part B: Active element breathing glow */
@@ -304,6 +314,67 @@ input:focus-visible {
 /* Custom scrollbar for panels (hide completely, show on hover via JS) */
 .scrollbar-none::-webkit-scrollbar { display: none; }
 .scrollbar-none { -ms-overflow-style: none; scrollbar-width: none; }
+
+/* Legibility floor for the tiny micro-labels used throughout the feature/
+   analysis panels (badges, stat captions, legend ticks). These were sized
+   for a permanently-dark background where thin low-contrast text reads
+   fine; on a light panel the same weight looks washed out, especially for
+   older users. Bumping weight (and nudging the smallest size up a notch)
+   fixes legibility without touching every component's layout. */
+.text-\[8px\] { font-size: 9px; font-weight: 500; }
+.text-\[9px\] { font-weight: 500; }
+.text-\[10px\] { font-weight: 500; }
+.text-\[11px\] { font-weight: 500; }
+
+/* text-foreground/NN utility classes resolve to a FIXED alpha fraction
+   (Tailwind bakes the number in at build time) — they can't see the
+   theme's boosted contrast tiers the way inline `rgba(var(--fg-rgb),
+   var(--fg-aNN))` styles can. On dark panels a faint fixed alpha still
+   reads fine; the identical alpha as dark-on-white reads as washed-out
+   grey (exactly the "too much grey on white" feedback). These overrides
+   route the same classes through the boosted tiers in light mode only —
+   dark mode is untouched since it's unaffected below. Placed after
+   @tailwind utilities so they win on selector-order without !important. */
+:root[data-theme='light'] .text-foreground\/20,
+:root[data-theme='light'] .text-foreground\/25,
+:root[data-theme='light'] .text-foreground\/30,
+:root[data-theme='light'] .text-foreground\/35 { color: rgba(var(--fg-rgb), var(--fg-a4)) !important; }
+:root[data-theme='light'] .text-foreground\/40,
+:root[data-theme='light'] .text-foreground\/45,
+:root[data-theme='light'] .text-foreground\/50 { color: rgba(var(--fg-rgb), var(--fg-a6)) !important; }
+:root[data-theme='light'] .text-foreground\/60,
+:root[data-theme='light'] .text-foreground\/70 { color: rgba(var(--fg-rgb), var(--fg-a7)) !important; }
+:root[data-theme='light'] .text-foreground\/80,
+:root[data-theme='light'] .text-foreground\/90 { color: rgba(var(--fg-rgb), var(--fg-a75)) !important; }
+:root[data-theme='light'] .hover\:text-foreground\/60:hover,
+:root[data-theme='light'] .hover\:text-foreground\/70:hover { color: rgba(var(--fg-rgb), var(--fg-a7)) !important; }
+:root[data-theme='light'] .hover\:text-foreground\/80:hover { color: rgba(var(--fg-rgb), var(--fg-a75)) !important; }
+
+/* Same washed-out problem for thin decorative fills — slider tracks need
+   real visible contrast, but a *card* fill (unselected option buttons,
+   e.g. What-If scenario/season pickers, layer picker tiles) is different:
+   ANY grey fill next to a vivid selected-state card (e.g. the blue-tinted
+   active scenario) reads as disabled-by-comparison, no matter how light —
+   it's a hue/saturation contrast problem, not just a lightness one. Drop
+   the fill entirely for unselected cards in light mode and let the border
+   alone define the shape — an outlined white chip reads as "clickable,
+   just not selected", never as "disabled". */
+:root[data-theme='light'] .bg-foreground\/5,
+:root[data-theme='light'] .bg-foreground\/8,
+:root[data-theme='light'] .bg-foreground\/10 { background-color: transparent !important; }
+:root[data-theme='light'] .border-foreground\/10 { border-color: rgba(var(--fg-rgb), var(--fg-a2)) !important; }
+:root[data-theme='light'] input[type='range'].bg-foreground\/10,
+:root[data-theme='light'] input[type='range'].bg-foreground\/20 { background-color: rgba(var(--fg-rgb), var(--fg-a2)) !important; }
+:root[data-theme='light'] input[type='range']::-webkit-slider-runnable-track { background-color: rgba(var(--fg-rgb), var(--fg-a2)) !important; }
+:root[data-theme='light'] input[type='range']::-moz-range-track { background-color: rgba(var(--fg-rgb), var(--fg-a2)) !important; }
+
+/* Modal scrim — a dark dimming backdrop is correct behind either a dark or
+   a white card (that's the universal modal pattern, keep it in both
+   themes), but a flat pure-black rgba(0,0,0,0.55) reads harsher against a
+   bright white light-mode card than against an already-dark dark-mode
+   card. Soften it for light mode only; dark mode keeps the original. */
+.modal-scrim { background: rgba(0,0,0,0.55); }
+:root[data-theme='light'] .modal-scrim { background: rgba(15,23,32,0.35); }
 
 /* Hindi locale — Noto Sans Devanagari font support */
 html.lang-hi {

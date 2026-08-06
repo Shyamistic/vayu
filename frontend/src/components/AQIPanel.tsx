@@ -111,20 +111,20 @@ export default function AQIPanel() {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Wind size={14} className="text-blue-400" />
-          <span className="text-sm font-semibold text-white/85">Air Quality Index</span>
+          <span className="text-sm font-semibold text-foreground/85">Air Quality Index</span>
         </div>
         <div className="flex items-center gap-2">
           <span
             className="text-[9px] px-1.5 py-0.5 rounded font-mono"
             style={{
-              background: source === 'live' ? 'rgba(34,197,94,0.12)' : 'rgba(255,255,255,0.05)',
-              color: source === 'live' ? '#86efac' : 'rgba(255,255,255,0.3)',
-              border: `1px solid ${source === 'live' ? 'rgba(34,197,94,0.2)' : 'rgba(255,255,255,0.08)'}`,
+              background: source === 'live' ? 'rgba(34,197,94,0.12)' : 'rgba(var(--fg-rgb),var(--fg-a05))',
+              color: source === 'live' ? '#86efac' : 'rgba(var(--fg-rgb),var(--fg-a3))',
+              border: `1px solid ${source === 'live' ? 'rgba(34,197,94,0.2)' : 'rgba(var(--fg-rgb),var(--fg-a08))'}`,
             }}
           >
             {source === 'live' ? '● Live' : '◌ Demo'}
           </span>
-          <button onClick={load} className="text-white/30 hover:text-white/70 transition-colors">
+          <button onClick={load} className="text-foreground/30 hover:text-foreground/70 transition-colors">
             <RefreshCw size={12} className={loading ? 'animate-spin' : ''} />
           </button>
         </div>
@@ -150,8 +150,8 @@ export default function AQIPanel() {
               >
                 <div className="flex items-center justify-between">
                   <div>
-                    <span className="text-xs font-semibold text-white/85">{city.city}</span>
-                    <span className="text-[9px] text-white/35 ml-1.5">{city.state}</span>
+                    <span className="text-xs font-semibold text-foreground/85">{city.city}</span>
+                    <span className="text-[9px] text-foreground/35 ml-1.5">{city.state}</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <span className="text-[10px] font-bold" style={{ color: band.color }}>
@@ -166,7 +166,7 @@ export default function AQIPanel() {
                   </div>
                 </div>
                 {isOpen && (
-                  <div className="grid grid-cols-4 gap-1 mt-2 pt-2 border-t" style={{ borderColor: 'rgba(255,255,255,0.08)' }}>
+                  <div className="grid grid-cols-4 gap-1 mt-2 pt-2 border-t" style={{ borderColor: 'rgba(var(--fg-rgb),var(--fg-a08))' }}>
                     {[
                       { label: 'PM2.5', value: city.pm25.toFixed(1), unit: 'μg' },
                       { label: 'PM10',  value: city.pm10.toFixed(1),  unit: 'μg' },
@@ -174,11 +174,11 @@ export default function AQIPanel() {
                       { label: 'O₃',   value: city.o3.toFixed(1),    unit: 'μg' },
                     ].map(({ label, value, unit }) => (
                       <div key={label} className="text-center">
-                        <div className="text-[8px] text-white/35">{label}</div>
+                        <div className="text-[8px] text-foreground/35">{label}</div>
                         <div className="text-[10px] font-mono font-bold tabular-nums" style={{ color: band.color }}>
                           {value}
                         </div>
-                        <div className="text-[8px] text-white/25">{unit}</div>
+                        <div className="text-[8px] text-foreground/25">{unit}</div>
                       </div>
                     ))}
                   </div>
@@ -189,7 +189,7 @@ export default function AQIPanel() {
         </div>
       )}
 
-      <p className="text-[9px] text-white/20 text-center">
+      <p className="text-[9px] text-foreground/20 text-center">
         OWM Air Pollution API · CPCB scale · Click city for details
       </p>
     </div>

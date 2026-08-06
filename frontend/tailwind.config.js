@@ -17,6 +17,17 @@ export default {
         'isro-saffron': '#ff9933',
         'isro-navy': '#0a2351',
         'isro-green': '#138808',
+        // Theme-aware — foreground/panel flip with data-theme via CSS vars
+        // in design-system/tokens.css, so `text-foreground/40` etc. read
+        // correctly in both light and dark modes without a second class set.
+        // Legacy comma rgba() form — required because --fg-rgb/--panel-bg-rgb
+        // are comma-separated triplets (shared with the many inline
+        // `rgba(var(--fg-rgb),var(--fg-aNN))` styles elsewhere); the modern
+        // `rgb(var(...) / <alpha-value>)` slash syntax is invalid CSS when
+        // mixed with a comma-separated var and silently drops the whole
+        // declaration, which is why `text-foreground/*` etc. weren't working.
+        foreground: 'rgba(var(--fg-rgb), <alpha-value>)',
+        panel: 'rgba(var(--panel-bg-rgb), <alpha-value>)',
       },
       fontFamily: {
         sans: ['Inter', 'system-ui', 'sans-serif'],

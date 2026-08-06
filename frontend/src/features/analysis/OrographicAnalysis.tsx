@@ -373,7 +373,7 @@ const ElevationLegend: React.FC = () => (
           alignItems: 'center',
           gap: '4px',
           fontSize: '11px',
-          color: 'rgba(255,255,255,0.7)',
+          color: 'rgba(var(--fg-rgb),var(--fg-a7))',
         }}
       >
         <span
@@ -382,7 +382,7 @@ const ElevationLegend: React.FC = () => (
             height: '14px',
             borderRadius: '3px',
             background: band.color,
-            border: '1px solid rgba(255,255,255,0.15)',
+            border: '1px solid rgba(var(--fg-rgb),var(--fg-a15))',
             display: 'inline-block',
           }}
           aria-hidden="true"
@@ -411,7 +411,7 @@ const OEFCard: React.FC<{ oef: OEFResult }> = ({ oef }) => {
       }}
     >
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-        <span style={{ fontSize: '13px', fontWeight: 600, color: 'rgba(255,255,255,0.9)' }}>
+        <span style={{ fontSize: '13px', fontWeight: 600, color: 'rgba(var(--fg-rgb),var(--fg-a75))' }}>
           ⛰️ Orographic Enhancement Factor
         </span>
         <span style={{ fontSize: '20px', fontWeight: 700, color }}>
@@ -435,9 +435,9 @@ const OEFCard: React.FC<{ oef: OEFResult }> = ({ oef }) => {
           { label: 'Leeward mean',  value: `${oef.leewardMeanMm.toFixed(1)} mm`,  color: '#f59e0b', cells: oef.leewardCells  },
         ].map(({ label, value, color: c, cells }) => (
           <div key={label} style={{ fontSize: '11px' }}>
-            <div style={{ color: 'rgba(255,255,255,0.45)' }}>{label}</div>
+            <div style={{ color: 'rgba(var(--fg-rgb),var(--fg-a4))' }}>{label}</div>
             <div style={{ color: c, fontWeight: 600 }}>{value}</div>
-            <div style={{ color: 'rgba(255,255,255,0.3)', fontSize: '10px' }}>{cells} cells</div>
+            <div style={{ color: 'rgba(var(--fg-rgb),var(--fg-a3))', fontSize: '10px' }}>{cells} cells</div>
           </div>
         ))}
       </div>
@@ -464,13 +464,13 @@ const RegressionStats: React.FC<{ reg: RegressionResult }> = ({ reg }) => (
       <div
         key={label}
         style={{
-          background: 'rgba(255,255,255,0.04)',
+          background: 'rgba(var(--fg-rgb),var(--fg-a05))',
           borderRadius: '6px',
           padding: '5px 8px',
           textAlign: 'center',
         }}
       >
-        <div style={{ color: 'rgba(255,255,255,0.4)', fontSize: '10px' }}>{label}</div>
+        <div style={{ color: 'rgba(var(--fg-rgb),var(--fg-a4))', fontSize: '10px' }}>{label}</div>
         <div style={{ color: '#93c5fd', fontWeight: 600 }}>{value}</div>
       </div>
     ))}
@@ -515,7 +515,7 @@ const ElevationRainfallScatter: React.FC<{
 
   return (
     <div style={{ marginTop: '8px' }}>
-      <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.5)', marginBottom: '4px' }}>
+      <div style={{ fontSize: '11px', color: 'rgba(var(--fg-rgb),var(--fg-a4))', marginBottom: '4px' }}>
         Elevation vs Rainfall scatter ({cells.length} cells)
       </div>
       <svg
@@ -531,7 +531,7 @@ const ElevationRainfallScatter: React.FC<{
             key={`h${f}`}
             x1={padL} y1={padT + f * plotH}
             x2={padL + plotW} y2={padT + f * plotH}
-            stroke="rgba(255,255,255,0.06)"
+            stroke="rgba(var(--fg-rgb),var(--fg-a05))"
             strokeWidth="1"
           />
         ))}
@@ -540,14 +540,14 @@ const ElevationRainfallScatter: React.FC<{
             key={`v${f}`}
             x1={padL + f * plotW} y1={padT}
             x2={padL + f * plotW} y2={padT + plotH}
-            stroke="rgba(255,255,255,0.06)"
+            stroke="rgba(var(--fg-rgb),var(--fg-a05))"
             strokeWidth="1"
           />
         ))}
 
         {/* Axes */}
-        <line x1={padL} y1={padT} x2={padL} y2={padT + plotH} stroke="rgba(255,255,255,0.2)" strokeWidth="1" />
-        <line x1={padL} y1={padT + plotH} x2={padL + plotW} y2={padT + plotH} stroke="rgba(255,255,255,0.2)" strokeWidth="1" />
+        <line x1={padL} y1={padT} x2={padL} y2={padT + plotH} stroke="rgba(var(--fg-rgb),var(--fg-a2))" strokeWidth="1" />
+        <line x1={padL} y1={padT + plotH} x2={padL + plotW} y2={padT + plotH} stroke="rgba(var(--fg-rgb),var(--fg-a2))" strokeWidth="1" />
 
         {/* Regression line */}
         {regLine && (
@@ -569,7 +569,7 @@ const ElevationRainfallScatter: React.FC<{
             cy={toY(c.rainfall)}
             r={3}
             fill={dotColor(c.elevationM)}
-            stroke="rgba(255,255,255,0.2)"
+            stroke="rgba(var(--fg-rgb),var(--fg-a2))"
             strokeWidth="0.5"
           >
             <title>{`Elev: ${c.elevationM}m, Rain: ${c.rainfall.toFixed(1)}mm`}</title>
@@ -583,7 +583,7 @@ const ElevationRainfallScatter: React.FC<{
             x={toX(v)} y={H - 6}
             textAnchor="middle"
             fontSize="9"
-            fill="rgba(255,255,255,0.4)"
+            fill="rgba(var(--fg-rgb),var(--fg-a4))"
           >
             {v >= 1000 ? `${v / 1000}k` : v}
           </text>
@@ -596,7 +596,7 @@ const ElevationRainfallScatter: React.FC<{
             x={padL - 4} y={toY(v) + 4}
             textAnchor="end"
             fontSize="9"
-            fill="rgba(255,255,255,0.4)"
+            fill="rgba(var(--fg-rgb),var(--fg-a4))"
           >
             {v}
           </text>
@@ -607,7 +607,7 @@ const ElevationRainfallScatter: React.FC<{
           x={padL + plotW / 2} y={H - 0}
           textAnchor="middle"
           fontSize="9"
-          fill="rgba(255,255,255,0.4)"
+          fill="rgba(var(--fg-rgb),var(--fg-a4))"
         >
           Elevation (m)
         </text>
@@ -615,7 +615,7 @@ const ElevationRainfallScatter: React.FC<{
           x={8} y={padT + plotH / 2}
           textAnchor="middle"
           fontSize="9"
-          fill="rgba(255,255,255,0.4)"
+          fill="rgba(var(--fg-rgb),var(--fg-a4))"
           transform={`rotate(-90, 8, ${padT + plotH / 2})`}
         >
           Rain (mm)
@@ -752,7 +752,7 @@ export const OrographicAnalysis: React.FC<OrographicAnalysisProps> = ({
           style={{
             fontSize: 'var(--font-heading-sm, 18px)',
             fontWeight: 600,
-            color: 'rgba(255,255,255,0.95)',
+            color: 'rgba(var(--fg-rgb),var(--fg-a75))',
             margin: '0 0 var(--space-md, 12px) 0',
             display: 'flex',
             alignItems: 'center',
@@ -760,7 +760,7 @@ export const OrographicAnalysis: React.FC<OrographicAnalysisProps> = ({
           }}
         >
           ⛰️ Orographic Analysis
-          <span style={{ marginLeft: 'auto', fontSize: '11px', fontWeight: 400, color: 'rgba(255,255,255,0.4)' }}>
+          <span style={{ marginLeft: 'auto', fontSize: '11px', fontWeight: 400, color: 'rgba(var(--fg-rgb),var(--fg-a4))' }}>
             {elevatedCells.length} cells
           </span>
         </h3>
@@ -782,20 +782,20 @@ export const OrographicAnalysis: React.FC<OrographicAnalysisProps> = ({
             <div
               key={label}
               style={{
-                background: 'rgba(255,255,255,0.04)',
+                background: 'rgba(var(--fg-rgb),var(--fg-a05))',
                 borderRadius: '6px',
                 padding: '5px 8px',
                 textAlign: 'center',
               }}
             >
-              <div style={{ fontSize: '10px', color: 'rgba(255,255,255,0.4)' }}>{label}</div>
+              <div style={{ fontSize: '10px', color: 'rgba(var(--fg-rgb),var(--fg-a4))' }}>{label}</div>
               <div style={{ fontSize: '13px', fontWeight: 700, color }}>{value}</div>
             </div>
           ))}
         </div>
 
         {/* Elevation contour legend (Req 34.1) */}
-        <div style={{ marginBottom: '4px', fontSize: '11px', color: 'rgba(255,255,255,0.5)', fontWeight: 600 }}>
+        <div style={{ marginBottom: '4px', fontSize: '11px', color: 'rgba(var(--fg-rgb),var(--fg-a4))', fontWeight: 600 }}>
           Elevation Contour Bands
         </div>
         <ElevationLegend />
@@ -807,13 +807,13 @@ export const OrographicAnalysis: React.FC<OrographicAnalysisProps> = ({
           <div
             style={{
               fontSize: '11px',
-              color: 'rgba(255,255,255,0.4)',
+              color: 'rgba(var(--fg-rgb),var(--fg-a4))',
               fontStyle: 'italic',
               marginBottom: '10px',
               padding: '8px',
-              background: 'rgba(255,255,255,0.03)',
+              background: 'rgba(var(--fg-rgb),var(--fg-a05))',
               borderRadius: '6px',
-              border: '1px solid rgba(255,255,255,0.06)',
+              border: '1px solid rgba(var(--fg-rgb),var(--fg-a05))',
             }}
           >
             OEF not available — grid cells outside Western Ghats transect bounds.
@@ -824,7 +824,7 @@ export const OrographicAnalysis: React.FC<OrographicAnalysisProps> = ({
         {/* Peak labels (Req 34.3) */}
         <PeakLabelList peaks={peakLabels} />
         {peakLabels.length === 0 && terrainExaggeration <= 2 && (
-          <div style={{ fontSize: '10px', color: 'rgba(255,255,255,0.3)', marginBottom: '8px', fontStyle: 'italic' }}>
+          <div style={{ fontSize: '10px', color: 'rgba(var(--fg-rgb),var(--fg-a3))', marginBottom: '8px', fontStyle: 'italic' }}>
             Increase terrain exaggeration above 2× to reveal mountain peak labels.
           </div>
         )}
@@ -836,11 +836,11 @@ export const OrographicAnalysis: React.FC<OrographicAnalysisProps> = ({
           aria-controls="orographic-scatter"
           style={{
             width: '100%',
-            background: 'rgba(255,255,255,0.04)',
-            border: '1px solid rgba(255,255,255,0.1)',
+            background: 'rgba(var(--fg-rgb),var(--fg-a05))',
+            border: '1px solid rgba(var(--fg-rgb),var(--fg-a1))',
             borderRadius: '6px',
             padding: '6px 10px',
-            color: 'rgba(255,255,255,0.7)',
+            color: 'rgba(var(--fg-rgb),var(--fg-a7))',
             fontSize: '11px',
             cursor: 'pointer',
             textAlign: 'left',

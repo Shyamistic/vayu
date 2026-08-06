@@ -331,7 +331,7 @@ export const HeatWaveAlert: React.FC<HeatWaveAlertProps> = ({
           style={{
             marginLeft: 'auto',
             fontSize: 'var(--font-small, 12px)',
-            color: 'rgba(255,255,255,0.6)',
+            color: 'rgba(var(--fg-rgb),var(--fg-a6))',
           }}
         >
           Peak: {bulletin.peakTemperature.toFixed(1)}°C · {bulletin.maxDuration} days
@@ -344,7 +344,7 @@ export const HeatWaveAlert: React.FC<HeatWaveAlertProps> = ({
           style={{
             fontSize: 'var(--font-heading-sm, 18px)',
             fontWeight: 'var(--font-weight-semibold, 600)',
-            color: 'rgba(255,255,255,0.95)',
+            color: 'rgba(var(--fg-rgb),var(--fg-a75))',
             margin: '0 0 var(--space-md, 12px) 0',
             display: 'flex',
             alignItems: 'center',
@@ -356,7 +356,7 @@ export const HeatWaveAlert: React.FC<HeatWaveAlertProps> = ({
             style={{
               fontSize: 'var(--font-small, 12px)',
               fontWeight: 400,
-              color: 'rgba(255,255,255,0.5)',
+              color: 'rgba(var(--fg-rgb),var(--fg-a4))',
             }}
           >
             Generated {new Date(bulletin.generatedAt).toLocaleTimeString()}
@@ -389,7 +389,7 @@ export const HeatWaveAlert: React.FC<HeatWaveAlertProps> = ({
         {/* Recommendations */}
         <div
           style={{
-            borderTop: '1px solid rgba(255,255,255,0.1)',
+            borderTop: '1px solid rgba(var(--fg-rgb),var(--fg-a1))',
             paddingTop: 'var(--space-md, 12px)',
           }}
         >
@@ -417,7 +417,7 @@ export const HeatWaveAlert: React.FC<HeatWaveAlertProps> = ({
                 key={idx}
                 style={{
                   fontSize: 'var(--font-small, 12px)',
-                  color: 'rgba(255,255,255,0.75)',
+                  color: 'rgba(var(--fg-rgb),var(--fg-a75))',
                   lineHeight: 1.5,
                 }}
               >
@@ -498,7 +498,7 @@ const HeatWaveCell: React.FC<HeatWaveCellProps> = ({ result, humidity }) => {
           style={{
             fontSize: 'var(--font-body, 14px)',
             fontWeight: 'var(--font-weight-medium, 500)',
-            color: 'rgba(255,255,255,0.9)',
+            color: 'rgba(var(--fg-rgb),var(--fg-a75))',
             marginBottom: '2px',
           }}
         >
@@ -507,7 +507,7 @@ const HeatWaveCell: React.FC<HeatWaveCellProps> = ({ result, humidity }) => {
             style={{
               marginLeft: '6px',
               fontSize: 'var(--font-small, 11px)',
-              color: 'rgba(255,255,255,0.4)',
+              color: 'rgba(var(--fg-rgb),var(--fg-a4))',
               fontWeight: 400,
             }}
           >
@@ -517,7 +517,7 @@ const HeatWaveCell: React.FC<HeatWaveCellProps> = ({ result, humidity }) => {
         <div
           style={{
             fontSize: 'var(--font-small, 12px)',
-            color: 'rgba(255,255,255,0.6)',
+            color: 'rgba(var(--fg-rgb),var(--fg-a6))',
           }}
         >
           Peak: {result.peakTemp.toFixed(1)}°C ·&nbsp;

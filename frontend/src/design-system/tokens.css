@@ -4,6 +4,49 @@
    ============================================================================= */
 
 :root {
+  /* ─── Theme-flip RGB triplets ────────────────────────────────────────────────
+     Comma-separated (not wrapped in rgb()) so call sites can do
+     rgba(var(--fg-rgb), var(--fg-a4)) — base color and opacity both flip with
+     [data-theme]. --fg-rgb is the text/icon/border base color; --panel-bg-rgb
+     is the floating header/toolbar background base color. Only the primary
+     chrome (App.tsx's header + toolbar) is wired to these as of the
+     2026-08-06 light-mode pass — the many feature/analysis panels elsewhere
+     still use hardcoded dark rgba() and haven't been converted yet. */
+  --fg-rgb: 255, 255, 255;
+  --panel-bg-rgb: 6, 10, 22;
+
+  /* ─── Foreground opacity tiers ───────────────────────────────────────────────
+     NOT just "the same alpha on a flipped color" — light-on-dark and
+     dark-on-light do not reach equal contrast at equal alpha. A near-white
+     foreground at 0.4 alpha over a near-black panel comfortably clears WCAG
+     AA (dark backgrounds have huge luminance headroom even at moderate
+     alpha). The same 0.4 alpha in reverse — a near-black foreground over a
+     white panel — lands around a 2:1 contrast ratio, well under the 4.5:1
+     AA minimum for normal-size text (fails silently: renders, just too
+     faint to read). Each tier below is boosted for light mode specifically
+     so text/icons stay legible; dark-mode values are unchanged from the
+     original design. Border- and subtle-background-only tiers (a05/a08/a1)
+     are boosted more modestly since decorative dividers don't carry the
+     same 4.5:1 text-contrast requirement. */
+  --fg-a05: 0.05;
+  --fg-a08: 0.08;
+  --fg-a1:  0.1;
+  --fg-a12: 0.12;
+  --fg-a15: 0.15;
+  --fg-a2:  0.2;
+  --fg-a3:  0.3;
+  --fg-a4:  0.4;
+  --fg-a6:  0.6;
+  --fg-a7:  0.7;
+  --fg-a75: 0.75;
+
+  /* Neutral/grey classification text (e.g. "Near Normal" in SPI drought
+     badges) can't just flip with --fg-rgb like other text — a light grey
+     tuned to read on a dark panel is, at the SAME lightness, unreadable on
+     a light panel (no hue difference to help perception the way tinted
+     colors like green/red get). Needs its own explicit per-theme value. */
+  --color-text-muted: #9ca3af;
+
   /* ─── Background Depths ─────────────────────────────────────────────────────── */
   --bg-base: #060a16;        /* Deepest background (viewport/body) */
   --bg-elevated: #0a0f1e;    /* Cards, panels, floating containers */
@@ -96,6 +139,33 @@
   --text-secondary: #94a3b8;   /* slate-400  — labels, captions, helper text    */
   --text-disabled:  #475569;   /* slate-600  — disabled/inactive elements       */
   --text-on-accent: #ffffff;   /* always white on colored button backgrounds    */
+}
+
+/* =============================================================================
+   Light theme override
+   Toggled via [data-theme="light"] on <html> (see App.tsx's theme state).
+   Flips the RGB-triplet tokens plus boosts every foreground opacity tier for
+   real dark-on-light contrast (see the --fg-a* comment above) — everything
+   else (accent colors, semantic colors) is vivid enough to read on both
+   light and dark panel backgrounds and is left unchanged.
+   ============================================================================= */
+:root[data-theme="light"] {
+  --fg-rgb: 15, 23, 32;          /* near-black slate text/icons/borders */
+  --panel-bg-rgb: 255, 255, 255; /* white header/toolbar panels */
+
+  --fg-a05: 0.08;
+  --fg-a08: 0.15;
+  --fg-a1:  0.2;
+  --fg-a12: 0.25;
+  --fg-a15: 0.3;
+  --fg-a2:  0.4;
+  --fg-a3:  0.65;
+  --fg-a4:  0.75;
+  --fg-a6:  0.8;
+  --fg-a7:  0.85;
+  --fg-a75: 0.9;
+
+  --color-text-muted: #6b7280;
 }
 
 /* =============================================================================
