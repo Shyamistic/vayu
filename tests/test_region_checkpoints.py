@@ -50,11 +50,32 @@ def test_get_region_model_falls_back_when_checkpoint_absent(monkeypatch, tmp_pat
 
 
 def test_get_region_model_unknown_region_uses_global(monkeypatch):
-    """full_india and any future region without a dedicated entry keep working
-    exactly as before per-region loading existed."""
+    """A region with no entry in the map keeps working exactly as it did before
+    per-region loading existed, rather than returning None and dropping to mock.
+
+    Deliberately uses a region that is NOT in _REGION_CHECKPOINT_DIRS. This test
+    previously used full_india as its example, which silently stopped testing the
+    fallback once full_india got its own trained checkpoint — the assertion then
+    failed for the right reason, but the coverage had already been lost.
+    """
+    unmapped = "some_future_region"
+    assert unmapped not in backend_main._REGION_CHECKPOINT_DIRS
     sentinel = object()
     monkeypatch.setattr(backend_main, "_model", sentinel)
-    assert backend_main._get_region_model("full_india") is sentinel
+    assert backend_main._get_region_model(unmapped) is sentinel
+
+
+def test_full_india_has_its_own_checkpoint_entry():
+    """full_india was trained separately (0.5 deg, 4,288 nodes) and must not
+    silently reuse the global model.
+
+    The fallback in _get_region_model is intentionally silent, so a missing entry
+    here produces plausible predictions from the wrong weights with no warning.
+    That is exactly how this went unnoticed until the served values were compared
+    before and after adding the entry (rain_mean 7.88 -> 8.194).
+    """
+    assert "full_india" in backend_main._REGION_CHECKPOINT_DIRS
+    assert backend_main._REGION_CHECKPOINT_DIRS["full_india"] != backend_main._REGION_CHECKPOINT_DIRS["western_ghats"]
 
 
 def test_get_region_model_loads_and_caches_distinct_checkpoints():
@@ -107,3 +128,52 @@ def test_resolve_norm_params_differs_between_regions():
         np.sort(wg["rainfall_mean"])[: min(wg["rainfall_mean"].size, ci["rainfall_mean"].size)],
         np.sort(ci["rainfall_mean"])[: min(wg["rainfall_mean"].size, ci["rainfall_mean"].size)],
     )
+
+
+# ── Real static rasters reach the model input ────────────────────────────────
+
+
+def test_every_region_maps_to_a_static_raster_dir():
+    """Each region serving real data needs real terrain, not the synthetic ridge."""
+    for region in backend_main._REGION_DATA_DIRS:
+        assert region in backend_main._REGION_STATIC_DIRS, (
+            f"{region} has a dataset but no static raster directory, so inference "
+            f"would fall back to synthetic elevation/land-sea mask"
+        )
+
+
+def test_full_india_static_dir_is_the_half_degree_build():
+    """full_india must NOT reuse the 0.25 deg static_full_india rasters.
+
+    The 0.25 deg grid is 6.5/6.75/7.0..., the 0.5 deg grid is 6.625/7.125/... —
+    they share no latitude value, so an inner join on coordinates yields an empty
+    set rather than raising.
+    """
+    assert backend_main._REGION_STATIC_DIRS["full_india"] == "static_full_india_05"
+
+
+def test_elevation_and_land_sea_mask_are_model_input_channels():
+    """Pins WHY passing the rasters matters: they are input features, not metadata.
+
+    Measured on the full-India grid, synthetic elevation topped out at 1,491 m
+    against a real 6,737 m, and the land_sea_mask channel differed by up to 1.0 —
+    i.e. cells were on the wrong side of the coastline. Serving those to a model
+    trained on the real rasters is a train/serve mismatch that leaves predictions
+    looking plausible.
+    """
+    from data_ingestion.graph_builder import ClimateGraphBuilder
+
+    builder = ClimateGraphBuilder()
+    names = builder.feature_names
+    assert "elevation" in names, "elevation must be a model input feature"
+    assert "land_sea_mask" in names, "land_sea_mask must be a model input feature"
+    # Guard the slice in _get_real_predictions: it truncates x to
+    # model.config.gnn_in_features, so these must sit inside that width.
+    assert names.index("elevation") < 17
+    assert names.index("land_sea_mask") < 17
+
+
+def test_resolve_static_rasters_returns_none_pair_for_unmapped_region():
+    """An unmapped region must degrade to synthetic rather than raise."""
+    elevation, lsm = backend_main._resolve_static_rasters("some_future_region")
+    assert elevation is None and lsm is None

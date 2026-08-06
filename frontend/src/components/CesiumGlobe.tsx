@@ -372,7 +372,9 @@ function CesiumGlobeInner({
   const [coords, setCoords] = useState<{ lat: number; lon: number; x: number; y: number } | null>(null);
   // India landmass outline (simplified), used to clip the heatmap raster so it
   // doesn't paint ocean/neighboring countries beyond the data bbox rectangle.
-  const indiaOutlineRef = useRef<[number, number][][] | null>(null);
+  // Each polygon retains *all* of its rings — exterior plus holes — because
+  // lakes and enclaves must remain transparent in the canvas clip mask.
+  const indiaOutlineRef = useRef<[number, number][][][] | null>(null);
   const [outlineLoaded, setOutlineLoaded] = useState(false);
   // Programmatic flights suppress post-zoom normalization until completion.
   const isCameraAnimatingRef = useRef(false);
@@ -393,20 +395,25 @@ function CesiumGlobeInner({
       .then((res) => res.json())
       .then((geojson: { features: { geometry: { type: string; coordinates: unknown } }[] }) => {
         if (cancelled) return;
-        const rings: [number, number][][] = [];
+        const polygons: [number, number][][][] = [];
         for (const feature of geojson.features) {
           const { type, coordinates } = feature.geometry;
-          // Only exterior rings are needed for a fill-based clip mask —
-          // interior holes (lakes etc.) aren't present at this simplification.
+          // Preserve exterior and interior rings as one polygon. The canvas uses
+          // the even-odd fill rule below, so lakes/enclaves cut transparent
+          // holes instead of being painted by the heatmap.
           if (type === 'Polygon') {
-            const poly = coordinates as [number, number][][];
-            if (poly[0]) rings.push(poly[0]);
+            const polygon = coordinates as [number, number][][];
+            const rings = polygon.filter((ring) => ring.length >= 3);
+            if (rings.length > 0) polygons.push(rings);
           } else if (type === 'MultiPolygon') {
             const multi = coordinates as [number, number][][][];
-            for (const poly of multi) if (poly[0]) rings.push(poly[0]);
+            for (const polygon of multi) {
+              const rings = polygon.filter((ring) => ring.length >= 3);
+              if (rings.length > 0) polygons.push(rings);
+            }
           }
         }
-        indiaOutlineRef.current = rings;
+        indiaOutlineRef.current = polygons;
         setOutlineLoaded(true);
       })
       .catch(() => { /* clip is a visual nicety — heatmap still renders unclipped if this fails */ });
@@ -1405,18 +1412,25 @@ function CesiumGlobeInner({
   // the render loop from encountering a frame with missing imagery.
 
   const heatmapTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Incremented on every render request. `fromUrl()` is asynchronous, so a
+  // generation token prevents an old unmasked canvas from replacing a newer
+  // outline-clipped layer after the GeoJSON fetch resolves.
+  const heatmapRenderGenerationRef = useRef(0);
 
   useEffect(() => {
-    if (!isReady || !viewerRef.current) return;
-    const viewer = viewerRef.current;
-    if (viewer.isDestroyed()) return;
+    if (!isReady || !viewerRef.current || viewerRef.current.isDestroyed()) return;
+
+    const renderGeneration = ++heatmapRenderGenerationRef.current;
+    let cancelled = false;
+    const isCurrentRender = () => (
+      !cancelled && heatmapRenderGenerationRef.current === renderGeneration
+    );
 
     // Debounce — wait for slider to settle
     if (heatmapTimerRef.current) clearTimeout(heatmapTimerRef.current);
 
     heatmapTimerRef.current = setTimeout(() => {
-      if (!viewerRef.current || viewerRef.current.isDestroyed()) return;
-      const v = viewerRef.current;
+      if (!isCurrentRender() || !viewerRef.current || viewerRef.current.isDestroyed()) return;
 
       // No data → just hide existing layer
       if (gridCells.length === 0) {
@@ -1512,31 +1526,43 @@ function CesiumGlobeInner({
       // overhangs the coastline (e.g. Western Ghats' bbox includes Arabian
       // Sea west of the coast). Masks out anything outside the outline with
       // a destination-in composite instead of reshaping the raster itself.
-      const outlineRings = indiaOutlineRef.current;
-      if (outlineRings && outlineRings.length > 0) {
+      const outlinePolygons = indiaOutlineRef.current;
+      if (outlinePolygons && outlinePolygons.length > 0) {
         const lonSpan = east - west;
         const latSpan = north - south;
         ctx.beginPath();
-        for (const ring of outlineRings) {
-          // Cheap bbox reject — most of the 144 rings are irrelevant for any
-          // single region's small tile (only a handful ever overlap it).
-          let ringMinLon = Infinity, ringMaxLon = -Infinity, ringMinLat = Infinity, ringMaxLat = -Infinity;
-          for (const [lon, lat] of ring) {
-            if (lon < ringMinLon) ringMinLon = lon;
-            if (lon > ringMaxLon) ringMaxLon = lon;
-            if (lat < ringMinLat) ringMinLat = lat;
-            if (lat > ringMaxLat) ringMaxLat = lat;
+        for (const polygon of outlinePolygons) {
+          // Cheap polygon bbox reject — most of the 144 polygons are irrelevant
+          // for a small regional tile. Its full ring set is retained after the
+          // reject so interior holes remain transparent under the even-odd fill.
+          let polygonMinLon = Infinity, polygonMaxLon = -Infinity;
+          let polygonMinLat = Infinity, polygonMaxLat = -Infinity;
+          for (const ring of polygon) {
+            for (const [lon, lat] of ring) {
+              if (lon < polygonMinLon) polygonMinLon = lon;
+              if (lon > polygonMaxLon) polygonMaxLon = lon;
+              if (lat < polygonMinLat) polygonMinLat = lat;
+              if (lat > polygonMaxLat) polygonMaxLat = lat;
+            }
           }
-          if (ringMaxLon < west || ringMinLon > east || ringMaxLat < south || ringMinLat > north) continue;
-          ring.forEach(([lon, lat], i) => {
-            const px = ((lon - west) / lonSpan) * canvas.width;
-            const py = ((north - lat) / latSpan) * canvas.height;
-            if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
-          });
-          ctx.closePath();
+          if (
+            polygonMaxLon < west || polygonMinLon > east ||
+            polygonMaxLat < south || polygonMinLat > north
+          ) continue;
+
+          for (const ring of polygon) {
+            ring.forEach(([lon, lat], i) => {
+              const px = ((lon - west) / lonSpan) * canvas.width;
+              const py = ((north - lat) / latSpan) * canvas.height;
+              if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+            });
+            ctx.closePath();
+          }
         }
         ctx.globalCompositeOperation = 'destination-in';
-        ctx.fill();
+        // Even-odd makes interior GeoJSON rings transparent instead of filling
+        // them with weather colour. It also supports disjoint island polygons.
+        ctx.fill('evenodd');
         ctx.globalCompositeOperation = 'source-over';
       }
 
@@ -1546,20 +1572,35 @@ function CesiumGlobeInner({
       Cesium.SingleTileImageryProvider.fromUrl(canvas.toDataURL('image/png'), {
         rectangle: Cesium.Rectangle.fromDegrees(west, south, east, north),
       }).then((provider) => {
-        if (!viewerRef.current || viewerRef.current.isDestroyed()) return;
-        // Add new layer
-        const newLayer = viewerRef.current.imageryLayers.addImageryProvider(provider);
+        if (!isCurrentRender()) return;
+        const viewer = viewerRef.current;
+        if (!viewer || viewer.isDestroyed()) return;
+
+        // Add the new layer before removing the old one so no blank imagery
+        // frame is exposed. Re-check the generation before publishing it: an
+        // old provider resolving after a newer request must never replace the
+        // current (possibly outline-clipped) raster.
+        const newLayer = viewer.imageryLayers.addImageryProvider(provider);
+        if (!isCurrentRender()) {
+          try { viewer.imageryLayers.remove(newLayer, true); } catch {}
+          return;
+        }
         newLayer.alpha = 0.78;
         heatmapLayerRef.current = newLayer;
 
-        // NOW remove old layer (new one is already rendering)
-        if (oldLayer) {
-          try { viewerRef.current!.imageryLayers.remove(oldLayer, true); } catch {}
+        if (oldLayer && oldLayer !== newLayer) {
+          try { viewer.imageryLayers.remove(oldLayer, true); } catch {}
         }
       }).catch(() => {});
     }, 500);
 
     return () => {
+      cancelled = true;
+      // Invalidate a provider promise that is already in flight; clearing the
+      // debounce alone is not sufficient because fromUrl resolves later.
+      if (heatmapRenderGenerationRef.current === renderGeneration) {
+        heatmapRenderGenerationRef.current += 1;
+      }
       if (heatmapTimerRef.current) clearTimeout(heatmapTimerRef.current);
     };
   }, [gridCells, variable, isReady, colormap, outlineLoaded]);

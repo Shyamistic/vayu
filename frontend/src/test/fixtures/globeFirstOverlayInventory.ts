@@ -98,7 +98,7 @@ export const APP_OVERLAY_INVENTORY: readonly OverlayInventoryEntry[] = [
     viewportFootprint: { desktop: 'Entire viewport.', mobile: 'Entire viewport.' }, intendedRole: 'intro', notes: 'role=dialog and aria-modal=true, but no focus trap, initial focus, restoration, or coordinator collision policy.',
   }),
   appSurface({
-    id: 'drawer-panels', component: 'LayerControlPanel, WhatIfPanel, view-mode panels, and IMDAlertBanner', source: 'App.tsx drawer children', trigger: 'Rendered inside the open drawer; view-mode panels depend on viewMode.',
+    id: 'drawer-panels', component: 'LayerControlPanel, WhatIfStudio, view-mode panels, and IMDAlertBanner', source: 'App.tsx drawer children', trigger: 'Rendered inside the open drawer; view-mode panels depend on viewMode.',
     currentStacking: 'No independent fixed layer; inherits the drawer stacking context.', currentModalBehavior: 'not-modal', currentFocusBehavior: 'native-control-focus-only',
     viewportFootprint: { desktop: 'Scrollable content within 380px drawer.', mobile: 'Scrollable content within 30dvh bottom sheet.' }, intendedRole: 'drawer-content', notes: 'No current App-mounted panel is a standalone viewport dialog; IMDAlertBanner is inline drawer content, not ExtremeAlerts.',
   }),
