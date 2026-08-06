@@ -49,6 +49,14 @@ from backend.evidence_ingestion import LiveReplayIngestionAdapter
 from backend.openmeteo_client import OpenMeteoClient, get_openmeteo
 from backend.pipeline import start_pipeline, stop_pipeline, get_pipeline
 from backend.iot_subscriber import start_iot_subscriber, get_latest_readings, get_latest_reading
+from backend.sensitivity import (
+    SEASON_PRESETS,
+    VARIABLE_ALIASES,
+    CalendarWindow,
+    SensitivityResult,
+    compute_sensitivity,
+    project_scenario,
+)
 from data_ingestion.graph_builder import ClimateGraphBuilder
 from scenario_engine.engine import ScenarioConfig, ScenarioEngine, ScenarioType
 from scenario_engine.twin_state import ClimateState, StateUpdater, TwinEngine
@@ -83,6 +91,11 @@ _REGION_CHECKPOINT_DIRS: dict[str, str] = {
     "north_east_india": "checkpoints/regions/north_east_india/vayu_best.pt",
     "indo_gangetic_plain": "checkpoints/regions/indo_gangetic_plain/vayu_best.pt",
     "central_india": "checkpoints/regions/central_india/vayu_best.pt",
+    # full_india is the 0.5 deg / 4,288-node run. The architecture is grid-agnostic
+    # (GNN weights are shared across nodes), so the same 129-tensor state_dict
+    # loads for any grid — but the weights are region-specific and must not be
+    # confused with the 0.25 deg regional ones.
+    "full_india": "checkpoints/regions/full_india/vayu_best.pt",
 }
 
 
@@ -332,6 +345,42 @@ class ScenarioRequest(BaseModel):
         if v not in valid:
             raise ValueError(f"scenario_type must be one of {sorted(valid)}")
         return v
+
+
+class WhatIfRequest(BaseModel):
+    """A driver perturbation to push through the observed sensitivity field."""
+
+    region: str = "western_ghats"
+    predictor: str = Field("tmax", description="Driver variable: tmax | tmin | sst | lst")
+    response: str = Field("rainfall", description="Responding variable")
+    delta: float = Field(
+        2.0, ge=-10.0, le=10.0,
+        description="Change applied to the predictor, in its own units (degC for temperature)",
+    )
+    season: str = Field("jjas", description=f"One of {sorted(SEASON_PRESETS)}")
+    window_start: str | None = Field(None, description="Calendar range start, MM-DD")
+    window_end: str | None = Field(None, description="Calendar range end, MM-DD")
+    start_year: int | None = Field(None, ge=1900, le=2100)
+    end_year: int | None = Field(None, ge=1900, le=2100)
+    past_start_year: int | None = Field(None, ge=1900, le=2100)
+    past_end_year: int | None = Field(None, ge=1900, le=2100)
+    current_start_year: int | None = Field(None, ge=1900, le=2100)
+    current_end_year: int | None = Field(None, ge=1900, le=2100)
+    include_cells: bool = True
+
+    @field_validator("predictor", "response")
+    @classmethod
+    def validate_variable(cls, v: str) -> str:
+        if (v or "").strip().lower() not in VARIABLE_ALIASES:
+            raise ValueError(f"must be one of {sorted(VARIABLE_ALIASES)}")
+        return v.strip().lower()
+
+    @field_validator("season")
+    @classmethod
+    def validate_season(cls, v: str) -> str:
+        if (v or "").strip().lower() not in SEASON_PRESETS:
+            raise ValueError(f"must be one of {sorted(SEASON_PRESETS)}")
+        return v.strip().lower()
 
 
 class ScenarioSummaryItem(BaseModel):
@@ -834,6 +883,64 @@ _REGION_ALIASES = frozenset({"pilot"})
 _resolved_dataset_paths: dict[str, str | None] = {}
 _norm_params_cache: dict[str, dict[str, np.ndarray] | None] = {}
 
+#: Fitted sensitivity results keyed by every parameter that changes the answer.
+#: A fit scans the full 45-year record, so repeating it per request would make
+#: the What-If panel feel broken on the 0.5 deg grid.
+_sensitivity_cache: dict[tuple, SensitivityResult] = {}
+
+#: Root holding one `static_<region>/` directory of warped DEM + land-sea rasters,
+#: built by `data_ingestion.cli build-static-rasters`. Separate from
+#: CLIMATE_DATA_ROOT because the bundles live on bulk storage while the static
+#: rasters are small enough to ship with a container image.
+STATIC_RASTER_ROOT = Path(os.getenv("STATIC_RASTER_ROOT", "D:/"))
+
+#: Region id → static raster subdirectory. full_india is a 0.5 deg product, and its
+#: rasters were regenerated on that grid: the 0.25 deg `static_full_india` shares NO
+#: latitude value with the 0.5 deg grid (6.5/6.75/... vs 6.625/7.125/...), so
+#: reusing it silently yields an empty intersection rather than an error.
+_REGION_STATIC_DIRS: dict[str, str] = {
+    "western_ghats": "static_western_ghats",
+    "pilot": "static_western_ghats",
+    "north_east_india": "static_north_east_india",
+    "indo_gangetic_plain": "static_indo_gangetic_plain",
+    "central_india": "static_central_india",
+    "full_india": "static_full_india_05",
+}
+
+_resolved_static_paths: dict[str, tuple[str | None, str | None]] = {}
+
+
+def _resolve_static_rasters(region: str) -> tuple[str | None, str | None]:
+    """Return (elevation.nc, lsm.nc) for `region`, or (None, None).
+
+    Without these, ClimateGraphBuilder falls back to a SYNTHETIC Western Ghats
+    ridge and a hand-drawn coastline (see graph_builder._load_or_generate_elevation).
+    Elevation and the land-sea mask are model INPUT features, so serving synthetic
+    terrain means inference runs on different inputs than training did — the
+    predictions stay plausible-looking, which is exactly why this went unnoticed.
+    """
+    if region in _resolved_static_paths:
+        return _resolved_static_paths[region]
+
+    subdir = _REGION_STATIC_DIRS.get(region)
+    elevation: str | None = None
+    lsm: str | None = None
+    if subdir:
+        base = STATIC_RASTER_ROOT / subdir
+        elev_path = base / "elevation.nc"
+        lsm_path = base / "lsm.nc"
+        if elev_path.exists() and lsm_path.exists():
+            elevation, lsm = str(elev_path), str(lsm_path)
+            logger.info("Region '%s' → real static rasters in %s", region, base)
+        else:
+            logger.warning(
+                "Region '%s': missing %s and/or %s — inference will use SYNTHETIC "
+                "elevation and land-sea mask, which differ from the training inputs",
+                region, elev_path, lsm_path,
+            )
+    _resolved_static_paths[region] = (elevation, lsm)
+    return elevation, lsm
+
 
 def _resolve_norm_params(region: str) -> dict[str, np.ndarray] | None:
     """Return per-cell {rainfall,temp_max,temp_min}_{mean,std} for `region`, or None.
@@ -947,11 +1054,19 @@ def _get_real_predictions(target_date: date, region: str, lead_day: int) -> list
 
     ds = _dataset_cache[ds_path]
 
-    # Get graph builder for this dataset
-    if ds_path not in _graph_builder_cache:
-        _graph_builder_cache[ds_path] = ClimateGraphBuilder.from_dataset(ds)
+    # Get graph builder for this dataset, built on the REAL warped DEM and
+    # land-sea mask. Passing these was missing, so every served prediction ran on
+    # a synthetic Western Ghats ridge regardless of region.
+    elevation_path, lsm_path = _resolve_static_rasters(region)
+    # Keyed by dataset AND rasters: two regions can share a bundle (pilot aliases
+    # western_ghats) while a raster path change must still rebuild the graph.
+    builder_key = f"{ds_path}|{elevation_path}|{lsm_path}"
+    if builder_key not in _graph_builder_cache:
+        _graph_builder_cache[builder_key] = ClimateGraphBuilder.from_dataset(
+            ds, elevation_path=elevation_path, land_sea_mask_path=lsm_path,
+        )
 
-    builder = _graph_builder_cache[ds_path]
+    builder = _graph_builder_cache[builder_key]
 
     # Find the time index for the target date (we need 30 days ending at target_date)
     try:
@@ -1341,6 +1456,160 @@ async def run_scenario(request: ScenarioRequest):
         twin.update_state(projected)
 
     return result
+
+
+# ── Empirical sensitivity / What-If ───────────────────────────────────────────
+
+
+def _sensitivity_region(region: str) -> str:
+    """Validate a region id for the sensitivity endpoints and normalize aliases."""
+    if region not in _REGION_DATA_DIRS:
+        raise HTTPException(
+            400, f"region must be one of {sorted(_REGION_DATA_DIRS)}"
+        )
+    return region
+
+
+def _build_window(
+    season: str, window_start: str | None, window_end: str | None
+) -> CalendarWindow:
+    """Resolve either a named season or an explicit MM-DD calendar range."""
+    try:
+        if window_start and window_end:
+            return CalendarWindow.from_dates(window_start, window_end)
+        return CalendarWindow.from_preset(season)
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from exc
+
+
+def _load_sensitivity(
+    region: str,
+    predictor: str,
+    response: str,
+    window: CalendarWindow,
+    year_range: tuple[int, int] | None,
+) -> "SensitivityResult":
+    """Compute (and cache) a sensitivity fit, mapping failures to HTTP errors.
+
+    Cached in-process keyed by every input that changes the answer: the fit reads
+    the whole 45-year record, which takes a few seconds for the 0.5 deg grid and
+    is identical for repeated requests.
+    """
+    ds_path = _resolve_dataset_path(region)
+    if not ds_path:
+        raise HTTPException(
+            503,
+            f"No normalized dataset available for region '{region}'. Sensitivity is "
+            f"derived from the observed record and cannot be estimated without it.",
+        )
+
+    cache_key = (
+        ds_path, region, predictor, response,
+        window.month_start, window.day_start, window.month_end, window.day_end,
+        window.name, year_range,
+    )
+    cached = _sensitivity_cache.get(cache_key)
+    if cached is not None:
+        return cached
+
+    try:
+        result = compute_sensitivity(
+            ds_path,
+            region=region,
+            predictor=predictor,
+            response=response,
+            window=window,
+            year_range=year_range,
+        )
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from exc
+    except Exception as exc:
+        logger.exception("Sensitivity computation failed for %s", region)
+        raise HTTPException(500, f"Sensitivity computation failed: {exc}") from exc
+
+    if len(_sensitivity_cache) > 24:
+        _sensitivity_cache.pop(next(iter(_sensitivity_cache)))
+    _sensitivity_cache[cache_key] = result
+    return result
+
+
+@app.get("/api/sensitivity", tags=["Sensitivity"])
+async def get_sensitivity(
+    region: str = Query("western_ghats", description="Region id"),
+    predictor: str = Query("tmax", description="tmax | tmin | sst | lst"),
+    response: str = Query("rainfall", description="rainfall | tmax | tmin"),
+    season: str = Query("jjas", description="annual | jjas | mam | on | djf"),
+    window_start: str | None = Query(None, description="Calendar range start, MM-DD"),
+    window_end: str | None = Query(None, description="Calendar range end, MM-DD"),
+    start_year: int | None = Query(None, ge=1900, le=2100),
+    end_year: int | None = Query(None, ge=1900, le=2100),
+    include_cells: bool = Query(True, description="Include the per-cell slope field"),
+):
+    """Regress a climate response on a driver over the observed 1981-2025 record.
+
+    This is the empirical dR/dT the What-If simulator runs on. It returns the
+    slope with its full diagnostic set (r-squared, two-sided p, standard error,
+    95 % CI, n) plus the per-year scatter and residuals, so the strength of the
+    relationship is visible rather than implied.
+    """
+    region = _sensitivity_region(region)
+    window = _build_window(season, window_start, window_end)
+    year_range = (start_year, end_year) if start_year and end_year else None
+    if year_range and year_range[0] > year_range[1]:
+        raise HTTPException(400, "start_year must not exceed end_year")
+
+    result = await asyncio.to_thread(
+        _load_sensitivity, region, predictor, response, window, year_range
+    )
+    return JSONResponse(content=result.to_dict(include_cells=include_cells))
+
+
+@app.post("/api/what-if", tags=["Sensitivity"])
+async def run_what_if(request: WhatIfRequest):
+    """Before/after climate projection driven by the observed sensitivity field.
+
+    Unlike ``POST /api/scenario`` (which propagates a perturbation through the
+    GNN), this endpoint answers the question with observations only: it applies
+    the per-cell regression slope to the requested driver change and reports the
+    result with propagated uncertainty, a past/current/future timeline built from
+    measured epochs, and the caveats that apply.
+    """
+    region = _sensitivity_region(request.region)
+    window = _build_window(request.season, request.window_start, request.window_end)
+    year_range = (
+        (request.start_year, request.end_year)
+        if request.start_year and request.end_year else None
+    )
+    if year_range and year_range[0] > year_range[1]:
+        raise HTTPException(400, "start_year must not exceed end_year")
+
+    t_start = time.time()
+    result = await asyncio.to_thread(
+        _load_sensitivity, region, request.predictor, request.response, window, year_range
+    )
+
+    try:
+        projection = await asyncio.to_thread(
+            project_scenario,
+            result,
+            request.delta,
+            past_years=(
+                (request.past_start_year, request.past_end_year)
+                if request.past_start_year and request.past_end_year else None
+            ),
+            current_years=(
+                (request.current_start_year, request.current_end_year)
+                if request.current_start_year and request.current_end_year else None
+            ),
+        )
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from exc
+
+    payload = projection.to_dict(include_cells=request.include_cells)
+    payload["computation_time_s"] = round(time.time() - t_start, 3)
+    payload["scatter"] = [p.to_dict() for p in result.points]
+    payload["excluded_years"] = [int(y) for y in result.excluded_years]
+    return JSONResponse(content=payload)
 
 
 @app.get("/api/twin/state", response_model=TwinStateResponse, tags=["Digital Twin"])

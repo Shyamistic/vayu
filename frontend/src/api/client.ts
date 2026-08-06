@@ -8,9 +8,14 @@ import type {
   HistoricalRecord,
   MetricsResponse,
   PredictionResponse,
+  PredictorId,
   ScenarioRequest,
   ScenarioResponse,
+  SeasonId,
+  SensitivityResponse,
   VariableId,
+  WhatIfRequest,
+  WhatIfResponse,
 } from '../types';
 
 const API_BASE = import.meta.env.VITE_API_URL || '';
@@ -90,6 +95,57 @@ export async function runScenario(
     data.magnitude = request.magnitude;
     return data as ScenarioResponse;
   }
+}
+
+// ── Empirical sensitivity / What-If ───────────────────────────────────────────
+
+/**
+ * Fetch the observed dR/dT regression for a region.
+ *
+ * Deliberately has no mock fallback: an empirical sensitivity is only meaningful
+ * if it came from the record. Returning fabricated regression diagnostics —
+ * r-squared, p-value, confidence intervals — would misrepresent invented numbers
+ * as measurements, so callers get the error and the UI says the fit is
+ * unavailable.
+ */
+export async function fetchSensitivity(params: {
+  region: string;
+  predictor: PredictorId;
+  response?: string;
+  season: SeasonId;
+  windowStart?: string;
+  windowEnd?: string;
+  startYear?: number;
+  endYear?: number;
+  includeCells?: boolean;
+}): Promise<SensitivityResponse> {
+  const q = new URLSearchParams({
+    region: params.region,
+    predictor: params.predictor,
+    response: params.response ?? 'rainfall',
+    season: params.season,
+    include_cells: String(params.includeCells ?? false),
+  });
+  if (params.windowStart && params.windowEnd) {
+    q.set('window_start', params.windowStart);
+    q.set('window_end', params.windowEnd);
+  }
+  if (params.startYear) q.set('start_year', String(params.startYear));
+  if (params.endYear) q.set('end_year', String(params.endYear));
+
+  return apiFetch<SensitivityResponse>(`/api/sensitivity?${q.toString()}`);
+}
+
+/**
+ * Run a before/after projection through the observed sensitivity field.
+ *
+ * Like {@link fetchSensitivity}, this has no offline fallback by design.
+ */
+export async function runWhatIf(request: WhatIfRequest): Promise<WhatIfResponse> {
+  return apiFetch<WhatIfResponse>('/api/what-if', {
+    method: 'POST',
+    body: JSON.stringify(request),
+  });
 }
 
 // ── Historical ────────────────────────────────────────────────────────────────

@@ -74,6 +74,148 @@ export interface ScenarioResponseWithAnomaly extends ScenarioResponse {
   grid_lons: number[];
 }
 
+// ── Empirical sensitivity (dR/dT) ─────────────────────────────────────────────
+
+export type PredictorId = 'tmax' | 'tmin' | 'sst' | 'lst';
+export type SeasonId = 'annual' | 'jjas' | 'mam' | 'on' | 'djf';
+
+/** OLS diagnostics for a response-on-driver fit over the observed record. */
+export interface RegressionFit {
+  slope: number | null;
+  intercept: number | null;
+  r_squared: number | null;
+  p_value: number | null;
+  std_err: number | null;
+  ci95_low: number | null;
+  ci95_high: number | null;
+  n: number;
+  predictor: string;
+  response: string;
+  predictor_unit: string;
+  response_unit: string;
+  slope_unit: string;
+  predictor_climatology: number | null;
+  response_climatology: number | null;
+  slope_percent_per_unit: number | null;
+  significant: boolean;
+}
+
+/** One year in the regression scatter. */
+export interface SensitivityPoint {
+  year: number;
+  predictor_value: number | null;
+  predictor_anomaly: number | null;
+  response_value: number | null;
+  fitted_value: number | null;
+  residual: number | null;
+  valid_days: number;
+}
+
+export interface SensitivityResponse {
+  region: string;
+  season: SeasonId | string;
+  season_label: string;
+  fit: RegressionFit;
+  points: SensitivityPoint[];
+  excluded_years: number[];
+  provenance: Record<string, unknown>;
+  lats?: number[];
+  lons?: number[];
+  cell_slope?: (number | null)[];
+  cell_std_err?: (number | null)[];
+  cell_r_squared?: (number | null)[];
+  cell_p_value?: (number | null)[];
+  cell_baseline?: (number | null)[];
+}
+
+/** Past/current/future bar in the before-after timeline. */
+export interface EpochSummary {
+  id: 'past' | 'current' | 'future' | string;
+  label: string;
+  year_start: number | null;
+  year_end: number | null;
+  value: number | null;
+  uncertainty: number | null;
+  uncertainty_kind: 'observed_sem' | 'regression_ci' | 'none';
+  /** True for measured epochs, false for the projected one. */
+  observed: boolean;
+  delta_vs_current: number | null;
+}
+
+export interface WhatIfHotspot {
+  node_idx: number;
+  lat: number;
+  lon: number;
+  delta_value: number | null;
+  delta_percent: number | null;
+  significant: boolean;
+  percentile_rank: number;
+  selection_basis: string;
+}
+
+export interface WhatIfRequest {
+  region: string;
+  predictor: PredictorId;
+  response?: string;
+  delta: number;
+  season: SeasonId;
+  window_start?: string;
+  window_end?: string;
+  start_year?: number;
+  end_year?: number;
+  past_start_year?: number;
+  past_end_year?: number;
+  current_start_year?: number;
+  current_end_year?: number;
+  include_cells?: boolean;
+}
+
+export interface WhatIfResponse {
+  region: string;
+  season: string;
+  season_label: string;
+  delta_predictor: number | null;
+  fit: RegressionFit;
+  regional: {
+    baseline: number | null;
+    scenario: number | null;
+    delta: number | null;
+    delta_percent: number | null;
+    delta_ci95_low: number | null;
+    delta_ci95_high: number | null;
+    unit: string;
+  };
+  integral: {
+    baseline_volume_km3: number | null;
+    delta_volume_km3: number | null;
+    area_km2: number | null;
+    definition: string;
+  };
+  epochs: EpochSummary[];
+  distribution: {
+    cells_wetter: number;
+    cells_drier: number;
+    cells_significant: number;
+    cells_total: number;
+    clamped_cells: number;
+  };
+  hotspots: WhatIfHotspot[];
+  /** Plain-language limits of the result, surfaced in the UI rather than buried. */
+  caveats: string[];
+  provenance: Record<string, unknown>;
+  scatter: SensitivityPoint[];
+  excluded_years: number[];
+  computation_time_s: number;
+  lats?: number[];
+  lons?: number[];
+  cell_baseline?: (number | null)[];
+  cell_scenario?: (number | null)[];
+  cell_delta?: (number | null)[];
+  cell_delta_percent?: (number | null)[];
+  cell_delta_uncertainty?: (number | null)[];
+  cell_significant?: boolean[];
+}
+
 export interface Hotspot {
   node_idx: number;
   delta_value: number;
