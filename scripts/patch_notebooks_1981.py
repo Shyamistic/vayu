@@ -68,24 +68,47 @@ REGIONS = {
                             "vayu-indo-gangetic-plain-1981-2025", 8, 8, "2.5"),
     "central_india": ("vayu_kaggle_training_central_india.ipynb",
                       "vayu-central-india-1981-2025", 6, 6, "2.5"),
+    # full_india is 0.5deg / ~4,288 nodes, roughly 1.9x Indo-Gangetic's 2,205, so
+    # the stride scales from 8 to 12 to keep epoch wall-clock comparable
+    # (~975 s/epoch estimated from IGP's measured 750 s at 1,869 windows).
+    "full_india": ("vayu_kaggle_training_full_india.ipynb",
+                   "vayu-full-india-05deg-1981-2025", 12, 12, "2.5"),
 }
+
+#: Notebook to clone when a region has none yet. Cell lookup in patch() is by
+#: content, so any of the four works as a structural template.
+TEMPLATE_NB = "vayu_kaggle_training.ipynb"
 
 # Measured floors from scripts/skill_ceiling_probe.py on the 1981-2025 data
 # (train 1981-2021, val 2022, leads 1-7 pooled). The model must BEAT these.
+#
+# full_india is deliberately absent rather than guessed: the floors go straight
+# into the notebook's header table and results verdicts, and a plausible-looking
+# placeholder is worse than a hard failure. Measure first:
+#
+#   python scripts/skill_ceiling_probe.py \
+#       --normalized D:\vayu_data\processed_full_india_05\normalized_1981-2025.nc \
+#       --train-start 1981 --train-end 2021 --val-start 2022 --val-end 2022
 FLOORS = {
     "western_ghats": (0.235, 0.807, 0.818),
     "north_east_india": (0.201, 0.753, 0.959),
     "indo_gangetic_plain": (0.191, 0.893, 0.944),
     "central_india": (0.263, 0.879, 0.905),
+    # Measured 2026-08-06 on the regrid-fixed 0.5 deg bundle, 4,288 nodes /
+    # 14,975 train days / 365 val windows. Rainfall persistence is strongly
+    # NEGATIVE here (-0.345) and climatology carries the blend (w_persist 0.15),
+    # the same pattern as the 0.25 deg regions but more pronounced.
+    "full_india": (0.230, 0.845, 0.913),
 }
 
 EPOCHS = "25"
 
-# Kaggle clones this branch. ai_engine/verification.py and
-# ai_engine/windowed_dataset.py do not exist on main, so cloning the default
-# branch would silently train the superseded code. Change to 'main' once this
-# branch is merged.
-BRANCH = "fix/rain-collapse-v3"
+# Kaggle clones this branch. Now 'main': fix/rain-collapse-v3 was fast-forward
+# merged into main (26ddd4e) together with the teammate's frontend work, so main
+# is the single source of truth and does contain ai_engine/verification.py and
+# ai_engine/windowed_dataset.py. The guard in the mount cell still checks for
+# those files, so a stale clone fails loudly rather than training old code.
+BRANCH = "main"
 
 
 def mount_cell(region: str) -> str:
@@ -360,6 +383,36 @@ else:
 '''
 
 
+#: Extra header text for regions that are not a standard 0.25 deg regional bundle.
+REGION_NOTES = {
+    "full_india": """
+## This bundle is 0.5 deg, not 0.25 deg — read before comparing
+
+Full India at 0.25 deg is 129x137 = 17,673 nodes, about 19.8 GB as a dense
+tensor, which exceeds both the build machine's RAM and a Kaggle session. This
+bundle is therefore **0.5 deg (64x67 = 4,288 nodes, ~5.0 GB)** and keeps all 45
+years. Its scores are **not** directly comparable with the four 0.25 deg
+regional runs: coarser cells average away local extremes, which flatters
+rainfall variance-based metrics.
+
+IMD rainfall was **2x2 area-averaged** onto this grid
+(`scripts/coarsen_imd_to_half_degree.py`), not point-sampled. Subsetting 0.25 deg
+to 0.5 deg by selection discards 75% of cells and biases extremes low, and
+extremes are the judged metric. Verified after coarsening: mean 3.15 -> 3.24
+mm/day (preserved), peak 979 -> 949 mm/day (smoothed, as expected).
+
+Because the coarsened cell centres are 6.625/7.125/..., the preprocess ran with
+explicit custom bounds. A plain `--resolution 0.5` builds 6.0/6.5/7.0/..., which
+shares **no** coordinate with the data and inner-joins to an empty dataset.
+
+`insat_lst` and `insat_sst` are NaN (flag 0) north of ~35.5 N and east of
+~97.4 E, where ERA5-Land and OISST coverage ends. That is real absence of source
+data, not a defect — earlier builds silently linearly *extrapolated* there and
+produced `insat_lst` down to -4252 C.
+""",
+}
+
+
 def header_cell(region: str, slug: str, train_stride: int, rain_weight: str) -> str:
     rain_floor, tmax_floor, tmin_floor = FLOORS[region]
     pretty = region.replace('_', ' ').title()
@@ -367,7 +420,7 @@ def header_cell(region: str, slug: str, train_stride: int, rain_weight: str) -> 
 
 **Accelerator**: GPU T4 x2 (recommended) or T4 x1 / P100
 **Dataset to attach**: `shyam31415/{slug}`
-
+{REGION_NOTES.get(region, "")}
 ## What changed from the 2010-2025 runs
 
 **45 years instead of 16.** IMD rainfall/tmax/tmin now span 1981-2025, and every
@@ -427,15 +480,80 @@ finishes); 1981-2021 is 14,975 days, so the old stride 3 would not complete.
 '''
 
 
+def locate_cells(cells: list[dict]) -> dict[str, int | None]:
+    """Find the five cells to rewrite, by content rather than fixed index.
+
+    The notebooks differ in how many markdown cells they carry, so positional
+    lookup breaks silently. Returns None for any cell that could not be found.
+    """
+    found: dict[str, int | None] = {
+        "mount": None, "stage": None, "smoke": None, "train": None, "results": None,
+    }
+    for i, c in enumerate(cells):
+        if c["cell_type"] != "code":
+            continue
+        src = "".join(c["source"])
+        if "REGION = " in src and "REPO_DIR" in src:
+            found["mount"] = i
+        elif "REQUIRED_FILES" in src:
+            found["stage"] = i
+        elif "--smoke-only" in src:
+            found["smoke"] = i
+        elif "--all-windows" in src and "--run-baselines" in src:
+            found["train"] = i
+        elif "test_report.json" in src:
+            found["results"] = i
+    return found
+
+
 def patch(region: str, dry_run: bool) -> bool:
     nb_name, slug, tr_stride, ev_stride, rain_w = REGIONS[region]
     path = NB_DIR / nb_name
-    if not path.exists():
-        print(f"  MISSING notebook: {path}")
+
+    if region not in FLOORS:
+        print(f"  no measured floors for '{region}' — refusing to patch.")
+        print( "  The floors are printed in the notebook header and drive the")
+        print( "  BEATS/BELOW verdicts, so a placeholder would read as a result.")
+        print(f"  Run scripts/skill_ceiling_probe.py first, then add {region} to FLOORS.")
         return False
+
+    template = NB_DIR / TEMPLATE_NB
+
+    if not path.exists():
+        if not template.exists():
+            print(f"  MISSING notebook and no template at {template}")
+            return False
+        if dry_run:
+            print(f"  [dry-run] would create {nb_name} from {TEMPLATE_NB}")
+            return True
+        path.write_text(template.read_text(encoding="utf-8"), encoding="utf-8")
+        print(f"  created {nb_name} from {TEMPLATE_NB} (all cells rewritten below)")
 
     nb = json.loads(path.read_text(encoding="utf-8"))
     cells = nb["cells"]
+    located = locate_cells(cells)
+
+    # An existing notebook can predate the current cell layout. full_india had a
+    # stale 9-cell notebook from an earlier attempt (kaggle_medium preset, ~475K
+    # params, different dataset) whose staging cell used a bare shutil copy and
+    # whose training cell had no --run-baselines, so no cell matched. Rebuilding
+    # from the template is safe because every cell below is rewritten anyway;
+    # failing here would instead leave a superseded notebook in place.
+    if any(v is None for v in located.values()) and path.name != TEMPLATE_NB:
+        missing = [k for k, v in located.items() if v is None]
+        if not template.exists():
+            print(f"  could not locate {', '.join(missing)} cell(s) and no template")
+            return False
+        if dry_run:
+            print(f"  [dry-run] would rebuild stale {nb_name} from {TEMPLATE_NB} "
+                  f"(missing {', '.join(missing)})")
+            return True
+        print(f"  {nb_name} is stale (missing {', '.join(missing)} cell(s)) — "
+              f"rebuilding from {TEMPLATE_NB}")
+        path.write_text(template.read_text(encoding="utf-8"), encoding="utf-8")
+        nb = json.loads(path.read_text(encoding="utf-8"))
+        cells = nb["cells"]
+        located = locate_cells(cells)
 
     def set_source(idx: int, text: str) -> None:
         lines = text.splitlines(keepends=True)
@@ -444,30 +562,16 @@ def patch(region: str, dry_run: bool) -> bool:
             cells[idx]["outputs"] = []
             cells[idx]["execution_count"] = None
 
-    # Locate cells by content rather than fixed index, since the four
-    # notebooks have slightly different markdown counts.
-    idx_mount = idx_stage = idx_smoke = idx_train = idx_results = None
-    for i, c in enumerate(cells):
-        src = "".join(c["source"])
-        if c["cell_type"] != "code":
-            continue
-        if "REGION = " in src and "REPO_DIR" in src:
-            idx_mount = i
-        elif "REQUIRED_FILES" in src:
-            idx_stage = i
-        elif "--smoke-only" in src:
-            idx_smoke = i
-        elif "--all-windows" in src and "--run-baselines" in src:
-            idx_train = i
-        elif "test_report.json" in src:
-            idx_results = i
-
-    for label, idx in (("mount", idx_mount), ("stage", idx_stage),
-                        ("smoke", idx_smoke), ("train", idx_train),
-                        ("results", idx_results)):
+    for label, idx in located.items():
         if idx is None:
             print(f"  could not locate {label} cell in {nb_name}")
             return False
+
+    idx_mount = located["mount"]
+    idx_stage = located["stage"]
+    idx_smoke = located["smoke"]
+    idx_train = located["train"]
+    idx_results = located["results"]
 
     set_source(idx_mount, mount_cell(region))
 

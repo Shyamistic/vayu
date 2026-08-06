@@ -23,11 +23,19 @@ REGIONS = {
     "north_east_india": "VAYU North East India 1981-2025",
     "indo_gangetic_plain": "VAYU Indo-Gangetic Plain 1981-2025",
     "central_india": "VAYU Central India 1981-2025",
+    # Titled 0.5deg explicitly: it is a coarser product than the four regional
+    # 0.25deg bundles, and the distinction has to survive contact with a dataset
+    # listing page, not just the notebook markdown.
+    "full_india": "VAYU Full India 0.5deg 1981-2025",
 }
 
 
+#: Slug overrides where the derived name would hide something important.
+SLUG_OVERRIDES = {"full_india": "vayu-full-india-05deg-1981-2025"}
+
+
 def slug(region: str) -> str:
-    return f"vayu-{region.replace('_', '-')}-1981-2025"
+    return SLUG_OVERRIDES.get(region, f"vayu-{region.replace('_', '-')}-1981-2025")
 
 
 def ensure_metadata(bundle_dir: Path, region: str) -> None:

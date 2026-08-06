@@ -71,9 +71,18 @@ def r2(pred: np.ndarray, true: np.ndarray) -> float:
     return float(1.0 - np.sum((t - p) ** 2) / (np.sum((t - t.mean()) ** 2) + 1e-10))
 
 
-def probe(region: str) -> dict:
-    proc = sorted(_glob.glob(f"{PROCESSED.format(region=region)}/normalized_*.nc"))[-1]
-    static = STATIC.format(region=region)
+def probe(region: str, processed_template: str = PROCESSED,
+          static_template: str = STATIC) -> dict:
+    # Templates are overridable because not every bundle follows
+    # processed_<region>_1981 / static_<region>: full_india is a 0.5 deg product in
+    # processed_full_india_05 with its own static rasters on that grid.
+    matches = sorted(_glob.glob(f"{processed_template.format(region=region)}/normalized_*.nc"))
+    if not matches:
+        raise FileNotFoundError(
+            f"No normalized_*.nc in {processed_template.format(region=region)}"
+        )
+    proc = matches[-1]
+    static = static_template.format(region=region)
     dense = build_dense_region_tensor(
         proc, elevation_file=f"{static}/elevation.nc", lsm_file=f"{static}/lsm.nc"
     )
@@ -174,10 +183,16 @@ def probe(region: str) -> dict:
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--regions", nargs="*", default=REGIONS)
+    ap.add_argument("--processed-template", default=PROCESSED)
+    ap.add_argument("--static-template", default=STATIC)
     ap.add_argument("--json-out", default=None)
     args = ap.parse_args()
 
-    results = {r: probe(r) for r in args.regions}
+    results = {
+        r: probe(r, processed_template=args.processed_template,
+                 static_template=args.static_template)
+        for r in args.regions
+    }
 
     print("\nridge = plain linear model on the 9 populated input channels + "
           "day-of-year climatology")

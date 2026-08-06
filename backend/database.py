@@ -85,6 +85,17 @@ class DatabaseClient:
         self.url = url
         self._pool = None
 
+    @property
+    def connected(self) -> bool:
+        """True when a live connection pool exists.
+
+        Every query method already returns an empty result when the pool is
+        absent, so callers cannot distinguish "no rows" from "no database". This
+        exposes the difference for /health, which otherwise reports a lean
+        deployment as fully healthy.
+        """
+        return self._pool is not None
+
     async def connect(self) -> None:
         try:
             import asyncpg
