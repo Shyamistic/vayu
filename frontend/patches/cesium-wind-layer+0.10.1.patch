@@ -1,0 +1,94 @@
+diff --git a/node_modules/cesium-wind-layer/dist/index.js b/node_modules/cesium-wind-layer/dist/index.js
+index 983d811..a5480cd 100644
+--- a/node_modules/cesium-wind-layer/dist/index.js
++++ b/node_modules/cesium-wind-layer/dist/index.js
+@@ -364,7 +364,19 @@ vec4 calculateProjectedCoordinate(vec2 lonLat) {
+         vec4 projectedPosition = czm_modelViewProjection * vec4(particlePosition, 1.0);
+         return projectedPosition;
+     } else {
+-        vec3 position2D = vec3(radians(lonLat.x), radians(lonLat.y), 0.0);
++        // VAYU patch: project through Cesium's default WebMercatorProjection
++        // (x = lon[rad] * R, y = R * ln(tan(pi/4 + lat[rad]/2))) instead of
++        // using raw lon/lat radians as if they were already-projected world
++        // coordinates. The unpatched library's 2D/Columbus View branch was off
++        // by a factor of ~6.4 million (Earth's radius in meters vs. radians),
++        // which silently projected every particle far outside the visible
++        // frustum -- particles existed (gl.getError()==0, valid data) but were
++        // never on screen. See patches/cesium-wind-layer+*.patch.
++        float R = 6378137.0;
++        float lonRad = radians(lonLat.x);
++        float latRad = radians(lonLat.y);
++        float mercatorY = R * log(tan(0.7853981633974483 + latRad * 0.5));
++        vec3 position2D = vec3(lonRad * R, mercatorY, 0.0);
+         return czm_modelViewProjection * vec4(position2D, 1.0);
+     }
+ }
+@@ -472,6 +484,7 @@ uniform vec2 domain;
+ uniform vec2 displayRange;
+ uniform sampler2D colorTable;
+ uniform sampler2D segmentsDepthTexture;
++uniform bool is3D;
+ 
+ out vec4 fragColor;
+ 
+@@ -497,7 +510,15 @@ void main() {
+ 
+     float segmentsDepth = texture(segmentsDepthTexture, textureCoordinate).r;
+     float globeDepth = czm_unpackDepth(texture(czm_globeDepthTexture, textureCoordinate));
+-    if (segmentsDepth < globeDepth) {
++    // VAYU patch: this depth-occlusion test (hide particle trail segments
++    // behind terrain) has no equivalent uniform guard in the unpatched
++    // shader, so it runs unconditionally in every scene mode. In 2D/Columbus
++    // View there's no real terrain occlusion (flat orthographic map), and the
++    // depth comparison here reliably evaluates true and zeroes out every
++    // particle -- everything upstream (particle positions, GL state, scene
++    // primitives) checks out fine, this is what actually makes particles
++    // invisible in 2D. Gate it to 3D only. See patches/cesium-wind-layer+*.patch.
++    if (is3D && segmentsDepth < globeDepth) {
+         fragColor = vec4(zero);
+     }
+ }
+diff --git a/node_modules/cesium-wind-layer/dist/index.mjs b/node_modules/cesium-wind-layer/dist/index.mjs
+index 227fb38..8798b65 100644
+--- a/node_modules/cesium-wind-layer/dist/index.mjs
++++ b/node_modules/cesium-wind-layer/dist/index.mjs
+@@ -345,7 +345,19 @@ vec4 calculateProjectedCoordinate(vec2 lonLat) {
+         vec4 projectedPosition = czm_modelViewProjection * vec4(particlePosition, 1.0);
+         return projectedPosition;
+     } else {
+-        vec3 position2D = vec3(radians(lonLat.x), radians(lonLat.y), 0.0);
++        // VAYU patch: project through Cesium's default WebMercatorProjection
++        // (x = lon[rad] * R, y = R * ln(tan(pi/4 + lat[rad]/2))) instead of
++        // using raw lon/lat radians as if they were already-projected world
++        // coordinates. The unpatched library's 2D/Columbus View branch was off
++        // by a factor of ~6.4 million (Earth's radius in meters vs. radians),
++        // which silently projected every particle far outside the visible
++        // frustum -- particles existed (gl.getError()==0, valid data) but were
++        // never on screen. See patches/cesium-wind-layer+*.patch.
++        float R = 6378137.0;
++        float lonRad = radians(lonLat.x);
++        float latRad = radians(lonLat.y);
++        float mercatorY = R * log(tan(0.7853981633974483 + latRad * 0.5));
++        vec3 position2D = vec3(lonRad * R, mercatorY, 0.0);
+         return czm_modelViewProjection * vec4(position2D, 1.0);
+     }
+ }
+@@ -453,6 +465,7 @@ uniform vec2 domain;
+ uniform vec2 displayRange;
+ uniform sampler2D colorTable;
+ uniform sampler2D segmentsDepthTexture;
++uniform bool is3D;
+ 
+ out vec4 fragColor;
+ 
+@@ -478,7 +491,9 @@ void main() {
+ 
+     float segmentsDepth = texture(segmentsDepthTexture, textureCoordinate).r;
+     float globeDepth = czm_unpackDepth(texture(czm_globeDepthTexture, textureCoordinate));
+-    if (segmentsDepth < globeDepth) {
++    // VAYU patch: gate the depth-occlusion test to 3D only — see the
++    // matching comment in dist/index.js and patches/cesium-wind-layer+*.patch.
++    if (is3D && segmentsDepth < globeDepth) {
+         fragColor = vec4(zero);
+     }
+ }

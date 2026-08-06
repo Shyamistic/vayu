@@ -13,6 +13,10 @@ interface CellInfoCardProps {
   forecastCells?: GridCell[]; // same lat/lon across multiple days for sparkline
   onClose: () => void;
   style?: React.CSSProperties;
+  /** Optional prediction run metadata — model version, freshness, cache status. */
+  modelVersion?: string;
+  inputDataTimestamp?: string;
+  cached?: boolean;
 }
 
 function MiniSparkline({
@@ -87,6 +91,9 @@ export default function CellInfoCard({
   forecastCells,
   onClose,
   style,
+  modelVersion,
+  inputDataTimestamp,
+  cached,
 }: CellInfoCardProps) {
   // Build mock 7-day sparkline from forecast cells or generate plausible values
   const sparkValues: number[] = forecastCells && forecastCells.length >= 2
@@ -159,13 +166,14 @@ export default function CellInfoCard({
           </div>
         )}
 
-        {/* All three vars */}
+        {/* All three vars, each with its own uncertainty (all already on `cell`,
+            previously only the selected variable's uncertainty was surfaced) */}
         <div className="grid grid-cols-3 gap-1">
           {([
-            { key: 'rainfall', label: 'Rain', unit: 'mm', color: '#60a5fa' },
-            { key: 'temp_max', label: 'Tmax', unit: '°C', color: '#f97316' },
-            { key: 'temp_min', label: 'Tmin', unit: '°C', color: '#a78bfa' },
-          ] as const).map(({ key, label, unit, color }) => (
+            { key: 'rainfall', uncertaintyKey: 'rainfall_uncertainty', label: 'Rain', unit: 'mm', color: '#60a5fa' },
+            { key: 'temp_max', uncertaintyKey: 'temp_max_uncertainty', label: 'Tmax', unit: '°C', color: '#f97316' },
+            { key: 'temp_min', uncertaintyKey: 'temp_min_uncertainty', label: 'Tmin', unit: '°C', color: '#a78bfa' },
+          ] as const).map(({ key, uncertaintyKey, label, unit, color }) => (
             <div
               key={key}
               className="flex flex-col items-center py-1.5 rounded-lg"
@@ -179,6 +187,11 @@ export default function CellInfoCard({
                 {(cell[key] as number).toFixed(1)}
               </span>
               <span className="text-[9px] text-white/25">{unit}</span>
+              {cell[uncertaintyKey] > 0 && (
+                <span className="text-[8px] font-mono text-yellow-300/60 mt-0.5">
+                  ±{cell[uncertaintyKey].toFixed(1)}
+                </span>
+              )}
             </div>
           ))}
         </div>
@@ -206,6 +219,34 @@ export default function CellInfoCard({
         <div className="text-[9px] text-white/20 text-center font-mono">
           Node #{cell.node_idx} · 0.25° grid
         </div>
+
+        {/* Prediction run metadata — model version, cache/live status, data
+            freshness. Already available on activePrediction in App.tsx but
+            wasn't previously passed down to this card. */}
+        {(modelVersion || inputDataTimestamp || cached !== undefined) && (
+          <div
+            className="flex items-center justify-between px-2 py-1 rounded-md text-[8px] font-mono"
+            style={{ background: 'rgba(255,255,255,0.03)' }}
+          >
+            <span className="text-white/25">
+              {modelVersion ? `VAYU v${modelVersion}` : ''}
+            </span>
+            <span className="flex items-center gap-1">
+              {cached !== undefined && (
+                <span className={cached ? 'text-white/30' : 'text-emerald-400/70'}>
+                  {cached ? 'cached' : 'live'}
+                </span>
+              )}
+              {inputDataTimestamp && (
+                <span className="text-white/25" title={inputDataTimestamp}>
+                  {new Date(inputDataTimestamp).toLocaleString(undefined, {
+                    month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit',
+                  })}
+                </span>
+              )}
+            </span>
+          </div>
+        )}
       </div>
     </div>
   );

@@ -173,6 +173,15 @@ export default function App() {
   const [windStyle, setWindStyle] = useState<WindAnimationStyle>('normal');
   const [showTerminator, setShowTerminator] = useState(false);
   const [mapMode, setMapMode] = useState<'3d' | '2d'>('3d');
+  // Wind and Inspect are disabled in 2D (see their button comments below) —
+  // force them off on switching to 2D so a state left on from 3D doesn't
+  // linger as a control that looks enabled but silently does nothing.
+  useEffect(() => {
+    if (mapMode === '2d') {
+      setShowWind(false);
+      setInspectMode(false);
+    }
+  }, [mapMode]);
   // One-time auto-rotate + auto-play-forecast hero moment, right after the
   // cinematic intro. Turns itself off on completion or the first real user
   // interaction with the globe (see CesiumGlobe's heroMode effect).
@@ -619,9 +628,19 @@ export default function App() {
           </button>
         )}
 
-        {/* Wind particle toggle — the GPU wind renderer doesn't draw anything
-            in Cesium's 2D orthographic mode, so the control is disabled there
-            rather than presenting a switch that silently does nothing. */}
+        {/* Wind particle toggle — disabled in 2D. cesium-wind-layer's GPU
+            particle system has multiple layered bugs in its 2D/Columbus View
+            path (a coordinate-projection bug and a missing depth-test guard,
+            both patched in patches/cesium-wind-layer+*.patch) and even with
+            both fixed, particles still don't visibly render in 2D — confirmed
+            via live inspection that the layer, its primitives, and scene
+            state are all otherwise healthy, so there's a further unresolved
+            issue inside the library. Rather than expose a control that
+            silently does nothing, disable it in 2D until wind is wired to a
+            2D-appropriate renderer (e.g. the entity/billboard-based
+            barb/streamline WindLayer in features/globe/layers/WindLayer.ts,
+            which isn't a GPU compute primitive and shouldn't hit this class
+            of bug). */}
         <button
           onClick={() => mapMode === '3d' && setShowWind((v) => !v)}
           disabled={mapMode === '2d'}
@@ -675,17 +694,21 @@ export default function App() {
           <span className="text-[9px] font-medium">Terminator</span>
         </button>
 
-        {/* Inspect mode toggle */}
+        {/* Inspect mode toggle — disabled in 2D alongside Wind (see comment
+            above); grouping known-broken 2D features together rather than
+            leaving them silently non-functional. */}
         <button
-          onClick={() => setInspectMode((v) => !v)}
+          onClick={() => mapMode === '3d' && setInspectMode((v) => !v)}
+          disabled={mapMode === '2d'}
           className="flex flex-col items-center gap-1 px-3 py-2.5 rounded-lg mt-1 transition-all"
           style={{
             background: 'rgba(6,10,22,0.92)',
-            border: inspectMode ? '1px solid #a855f7' : '1px solid rgba(255,255,255,0.08)',
-            color: inspectMode ? '#a855f7' : 'rgba(255,255,255,0.3)',
-            boxShadow: inspectMode ? '0 0 8px rgba(168,85,247,0.25)' : 'none',
+            border: inspectMode && mapMode === '3d' ? '1px solid #a855f7' : '1px solid rgba(255,255,255,0.08)',
+            color: mapMode === '2d' ? 'rgba(255,255,255,0.15)' : inspectMode ? '#a855f7' : 'rgba(255,255,255,0.3)',
+            boxShadow: inspectMode && mapMode === '3d' ? '0 0 8px rgba(168,85,247,0.25)' : 'none',
+            cursor: mapMode === '2d' ? 'not-allowed' : 'pointer',
           }}
-          title="Inspect cell data (click globe)"
+          title={mapMode === '2d' ? 'Inspect is only available in 3D mode' : 'Inspect cell data (click globe)'}
         >
           <Search size={14} />
           <span className="text-[9px] font-medium">Inspect</span>
@@ -928,9 +951,12 @@ export default function App() {
         <CellInfoCard
           cell={selectedCell.cell}
           variable={state.selectedVariable}
+          modelVersion={state.activePrediction?.model_version}
+          inputDataTimestamp={state.activePrediction?.input_data_timestamp}
+          cached={state.activePrediction?.cached}
           onClose={() => setSelectedCell(null)}
           style={{
-            top: Math.min(selectedCell.y + 12, window.innerHeight - 420),
+            top: Math.min(selectedCell.y + 12, window.innerHeight - 460),
             left: Math.min(selectedCell.x + 12, window.innerWidth - 240),
           }}
         />

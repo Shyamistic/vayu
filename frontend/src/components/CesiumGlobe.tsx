@@ -3,7 +3,7 @@ import type { Ref } from 'react';
 import * as Cesium from 'cesium';
 import { WindLayer } from 'cesium-wind-layer';
 import type { WindData } from 'cesium-wind-layer';
-import type { GridCell, IoTStation, RegionId, ScenarioResponse, VariableId } from '../types';
+import type { GridCell, IoTStation, IoTStationStatus, RegionId, ScenarioResponse, VariableId } from '../types';
 import { calculateStationPredictionError, formatSignedError } from '../features/sensors/sensorNetwork';
 import { getCenterFacingView } from '../features/globe/cameraCentering';
 import {
@@ -58,6 +58,67 @@ const IMD_RAIN_COLORS: [number, string][] = [
   [1.00, '#990099'],  // exceptional
 ];
 
+// ── IoT station pin markers ─────────────────────────────────────────────────
+// Custom SVG markers (gradient fill, glow ring, drop shadow, per-status glyph)
+// replacing Cesium's PinBuilder default, which renders as a flat, unstyled
+// teardrop that reads poorly against the satellite basemap. Generated once per
+// status and cached — status only has 3 states, no need to rebuild per station.
+
+type StationStatus = IoTStationStatus;
+
+const STATION_STATUS_STYLE: Record<StationStatus, { base: string; light: string; glyph: string }> = {
+  online: {
+    base: '#16a34a',
+    light: '#4ade80',
+    // Three ascending signal bars
+    glyph: '<rect x="15" y="18" width="3.4" height="7" rx="1" fill="white"/><rect x="20.3" y="14" width="3.4" height="11" rx="1" fill="white"/><rect x="25.6" y="9" width="3.4" height="16" rx="1" fill="white"/>',
+  },
+  low_battery: {
+    base: '#d97706',
+    light: '#fbbf24',
+    // Battery outline with a low internal fill
+    glyph: '<rect x="13" y="13" width="18" height="11" rx="2.5" fill="none" stroke="white" stroke-width="2"/><rect x="31.5" y="16.5" width="2.4" height="4" rx="1" fill="white"/><rect x="15.5" y="15.5" width="4.5" height="6.5" rx="0.8" fill="white"/>',
+  },
+  offline: {
+    base: '#475569',
+    light: '#94a3b8',
+    // No-signal: slashed circle
+    glyph: '<circle cx="22" cy="18.5" r="8.5" fill="none" stroke="white" stroke-width="2.4"/><line x1="16.5" y1="13" x2="27.5" y2="24" stroke="white" stroke-width="2.4" stroke-linecap="round"/>',
+  },
+};
+
+function buildStationPinSvg(status: StationStatus): string {
+  const { base, light, glyph } = STATION_STATUS_STYLE[status];
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="44" height="56" viewBox="0 0 44 56">
+    <defs>
+      <radialGradient id="fill-${status}" cx="38%" cy="30%" r="75%">
+        <stop offset="0%" stop-color="${light}"/>
+        <stop offset="100%" stop-color="${base}"/>
+      </radialGradient>
+      <filter id="shadow-${status}" x="-60%" y="-40%" width="220%" height="220%">
+        <feDropShadow dx="0" dy="2" stdDeviation="2.2" flood-color="#000" flood-opacity="0.5"/>
+      </filter>
+    </defs>
+    <path
+      d="M22 2C11.5 2 3 10.4 3 20.7c0 14.2 19 31.8 19 31.8s19-17.6 19-31.8C41 10.4 32.5 2 22 2z"
+      fill="url(#fill-${status})"
+      stroke="rgba(255,255,255,0.92)"
+      stroke-width="1.6"
+      filter="url(#shadow-${status})"
+    />
+    <circle cx="22" cy="18.5" r="12.5" fill="rgba(6,10,22,0.28)"/>
+    ${glyph}
+  </svg>`;
+  return `data:image/svg+xml;base64,${btoa(svg)}`;
+}
+
+/** Generated once at module load — 3 fixed statuses, no per-station work. */
+const STATION_PIN_IMAGES: Record<StationStatus, string> = {
+  online: buildStationPinSvg('online'),
+  low_battery: buildStationPinSvg('low_battery'),
+  offline: buildStationPinSvg('offline'),
+};
+
 // Wind particle animation style presets — density/speed/colour, in the spirit
 // of Ventusky's "Wind Animation: Normal / Soft / Dark / Fast-motion" selector.
 export type WindAnimationStyle = 'normal' | 'soft' | 'dark' | 'fast';
@@ -68,39 +129,45 @@ const WIND_STYLE_PRESETS: Record<WindAnimationStyle, Pick<
 >> = {
   normal: {
     particlesTextureSize: 40,   // 1600 particles — good perf/visual balance
-    lineWidth: { min: 1.0, max: 2.0 },
-    lineLength: { min: 20, max: 80 },
+    lineWidth: { min: 2.0, max: 4.0 },
+    // lineLength (not lineWidth) is what determines the drawn trail segment
+    // length in cesium-wind-layer's vertex shader (extendedPosition = current
+    // + direction * lengthFactor). It's scaled by a data-bounds-relative
+    // pixelSize that shrinks the more you zoom into a sub-region of
+    // wind_field.json's bounding box, so values that looked fine zoomed out
+    // can collapse to sub-pixel "dots" once zoomed into e.g. Western Ghats.
+    lineLength: { min: 60, max: 240 },
     speedFactor: 3.0,
     dropRate: 0.006,
     dropRateBump: 0.02,
-    colors: ['rgba(80,160,255,0.4)', 'rgba(150,210,255,0.75)', 'rgba(255,255,255,0.9)'],
+    colors: ['rgba(150,200,255,0.5)', 'rgba(210,230,255,0.8)', 'rgba(255,255,255,0.95)'],
   },
   soft: {
     particlesTextureSize: 30,   // fewer, thinner, slower — a gentle haze
-    lineWidth: { min: 0.6, max: 1.2 },
-    lineLength: { min: 15, max: 50 },
+    lineWidth: { min: 1.2, max: 2.4 },
+    lineLength: { min: 45, max: 150 },
     speedFactor: 1.6,
     dropRate: 0.01,
     dropRateBump: 0.03,
-    colors: ['rgba(150,200,255,0.25)', 'rgba(200,225,255,0.45)', 'rgba(255,255,255,0.6)'],
+    colors: ['rgba(180,215,255,0.3)', 'rgba(220,235,255,0.5)', 'rgba(255,255,255,0.7)'],
   },
   dark: {
     particlesTextureSize: 55,   // dense, high-contrast — matches Ventusky's "Dark" storm look
-    lineWidth: { min: 1.2, max: 2.6 },
-    lineLength: { min: 25, max: 90 },
+    lineWidth: { min: 2.4, max: 5.2 },
+    lineLength: { min: 75, max: 270 },
     speedFactor: 2.6,
     dropRate: 0.005,
     dropRateBump: 0.018,
-    colors: ['rgba(40,80,160,0.55)', 'rgba(90,140,220,0.85)', 'rgba(220,235,255,1.0)'],
+    colors: ['rgba(120,160,220,0.65)', 'rgba(190,210,240,0.9)', 'rgba(255,255,255,1.0)'],
   },
   fast: {
     particlesTextureSize: 45,   // longer, faster-moving trails
-    lineWidth: { min: 1.0, max: 2.2 },
-    lineLength: { min: 30, max: 110 },
+    lineWidth: { min: 2.0, max: 4.4 },
+    lineLength: { min: 90, max: 330 },
     speedFactor: 6.0,
     dropRate: 0.008,
     dropRateBump: 0.025,
-    colors: ['rgba(80,160,255,0.4)', 'rgba(150,210,255,0.75)', 'rgba(255,255,255,0.9)'],
+    colors: ['rgba(150,200,255,0.5)', 'rgba(210,230,255,0.8)', 'rgba(255,255,255,0.95)'],
   },
 };
 
@@ -260,6 +327,8 @@ function CesiumGlobeInner({
   const windLayerRef = useRef<WindLayer | null>(null);
   const extrude3DRef = useRef<Cesium.CustomDataSource | null>(null);
   const terminatorLayerRef = useRef<TerminatorLayer | null>(null);
+  const osmBuildingsRef = useRef<Cesium.Cesium3DTileset | null>(null);
+  const iotStationsSourceRef = useRef<Cesium.CustomDataSource | null>(null);
   const terminatorTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const onHeroDayChangeRef = useRef(onHeroDayChange);
   const onHeroCompleteRef = useRef(onHeroComplete);
@@ -384,6 +453,18 @@ function CesiumGlobeInner({
       });
     };
 
+    // See the "OSM Buildings" comment above: 3D Tiles content can't safely
+    // update in 2D/Columbus View, so hide it outside 3D rather than let it
+    // crash the render loop every frame.
+    if (osmBuildingsRef.current) {
+      osmBuildingsRef.current.show = mapMode === '3d';
+    }
+
+    // Station pins hidden in 2D — see the CustomDataSource comment above.
+    if (iotStationsSourceRef.current) {
+      iotStationsSourceRef.current.show = mapMode === '3d';
+    }
+
     if (mapMode === '2d') {
       if (viewer.scene.mode === Cesium.SceneMode.SCENE2D) {
         flyToIndiaTopDown(1.0);
@@ -481,6 +562,12 @@ function CesiumGlobeInner({
     if (!isReady || !viewerRef.current) return;
     const viewer = viewerRef.current;
     const source = new Cesium.CustomDataSource('vayu-iot-sensors');
+    // Station pins are hidden in 2D by product decision (grouped with Wind
+    // and Inspect, which are hidden for real technical reasons — see their
+    // comments). Start hidden if already in 2D; the mapMode effect below
+    // keeps it in sync on later mode switches.
+    source.show = mapModeRef.current === '3d';
+    iotStationsSourceRef.current = source;
     viewer.dataSources.add(source);
     const hoverHandler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
     const controller = new AbortController();
@@ -488,11 +575,6 @@ function CesiumGlobeInner({
     let hoverTooltip: Cesium.Entity | undefined;
     let disposed = false;
 
-    const statusColor = (status: IoTStation['status']) => {
-      if (status === 'online') return Cesium.Color.fromCssColorString('#4ade80');
-      if (status === 'low_battery') return Cesium.Color.fromCssColorString('#fbbf24');
-      return Cesium.Color.fromCssColorString('#94a3b8');
-    };
     const formatValue = (value: number | null | undefined, unit: string, digits = 1) =>
       value == null ? '—' : `${value.toFixed(digits)} ${unit}`;
     const tooltipText = (station: IoTStation) => {
@@ -540,14 +622,13 @@ function CesiumGlobeInner({
           },
         });
 
-        const pinBuilder = new Cesium.PinBuilder();
         stations.forEach((station) => {
-          const color = statusColor(station.status);
-          const isOffline = station.status === 'offline';
+          const status = station.status;
+          const isOffline = status === 'offline';
           source.entities.add({
             position: Cesium.Cartesian3.fromDegrees(station.lon, station.lat, station.alt ?? 0),
             billboard: {
-              image: pinBuilder.fromColor(color, 42),
+              image: STATION_PIN_IMAGES[status],
               verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
               heightReference: Cesium.HeightReference.CLAMP_TO_GROUND,
               scale: isOffline ? 0.72 : new Cesium.CallbackProperty(
@@ -642,7 +723,7 @@ function CesiumGlobeInner({
     // When a render error occurs, Cesium stops its render loop (black screen).
     // Fix: restart the loop automatically.
     viewer.scene.renderError.addEventListener((_scene: unknown, _error: unknown) => {
-      console.warn('[VAYU] Cesium render error — restarting render loop');
+      console.warn('[VAYU] Cesium render error — restarting render loop', _error);
       try {
         viewer.useDefaultRenderLoop = false;
         setTimeout(() => {
@@ -933,8 +1014,22 @@ function CesiumGlobeInner({
     viewer.scene.canvas.addEventListener('gesturechange', preventNativeGesture, { passive: false });
 
     // ── OSM Buildings (free, Cesium Ion asset 96188) ──
+    // Cesium's 3D Tiles content (b3dm building models) has broken 2D/Columbus
+    // View support: updating its model matrix calls GeographicProjection.project
+    // with an undefined cartographic, throwing "Cannot read properties of
+    // undefined (reading 'longitude')" on every frame the tileset tries to
+    // update. That crashes scene.renderError repeatedly — the render loop
+    // auto-restarts (see the renderError listener above) but never stays up
+    // long enough to draw anything else, which is why switching to 2D looked
+    // like it broke everything (imagery, wind, station pins) at once rather
+    // than just the buildings. Fix: hide the tileset outright whenever the
+    // scene isn't in 3D mode (see the mapMode effect below) instead of asking
+    // it to render somewhere Cesium doesn't support.
     Cesium.createOsmBuildingsAsync()
       .then((tileset) => {
+        if (!viewerRef.current || viewerRef.current.isDestroyed()) return;
+        tileset.show = mapModeRef.current === '3d';
+        osmBuildingsRef.current = tileset;
         viewer.scene.primitives.add(tileset);
         setStatusMsg('ISRO Earth View ready');
       })
@@ -1010,10 +1105,20 @@ function CesiumGlobeInner({
   const windStyleRef = useRef(windStyle);
   windStyleRef.current = windStyle;
 
+  // Cache the fetched field so a mode-triggered rebuild doesn't re-fetch.
+  const windFieldDataRef = useRef<WindData | null>(null);
+  // Rebuilding on mapMode change (below) constructs a fresh WindLayer, which
+  // defaults to visible — read the current showWind here rather than relying
+  // solely on the separate toggle effect, which won't re-fire on a rebuild
+  // that wasn't itself triggered by a showWind change.
+  const showWindRef = useRef(showWind);
+  showWindRef.current = showWind;
+
   useEffect(() => {
     if (!isReady || !viewerRef.current) return;
     const viewer = viewerRef.current;
     if (viewer.isDestroyed()) return;
+    let cancelled = false;
 
     // Clean up previous wind layer
     if (windLayerRef.current) {
@@ -1021,39 +1126,74 @@ function CesiumGlobeInner({
       windLayerRef.current = null;
     }
 
-    fetch('/wind_field.json')
-      .then((r) => r.json())
-      .then((raw: {
-        width: number; height: number; u: number[]; v: number[];
-        uMin: number; uMax: number; vMin: number; vMax: number;
-        bounds: { west: number; south: number; east: number; north: number };
-      }) => {
-        if (!viewerRef.current || viewerRef.current.isDestroyed()) return;
+    const buildLayer = (windData: WindData) => {
+      if (cancelled || !viewerRef.current || viewerRef.current.isDestroyed()) return;
+      const wl = new WindLayer(viewerRef.current, windData, {
+        ...WIND_STYLE_PRESETS[windStyleRef.current],
+        particleHeight: 8000,
+        flipY: false,
+        useViewerBounds: true,
+        dynamic: true,
+      });
+      const wlUntyped = wl as unknown as Record<string, unknown>;
+      if ('show' in wlUntyped) wlUntyped.show = showWindRef.current;
+      windLayerRef.current = wl;
+    };
 
-        const windData: WindData = {
-          width: raw.width,
-          height: raw.height,
-          // Mock placeholder data (frontend/public/wind_field.json) until the
-          // backend exposes real uwnd_850/vwnd_850 per the data-parameters doc —
-          // bounds come from the file itself so real data's extent is honoured
-          // automatically once it's swapped in.
-          bounds: raw.bounds,
-          u: { array: new Float32Array(raw.u), min: raw.uMin, max: raw.uMax },
-          v: { array: new Float32Array(raw.v), min: raw.vMin, max: raw.vMax },
-        };
+    // cesium-wind-layer allocates GPU resources (a custom depth texture among
+    // them) sized/bound against whatever scene.mode is active *right now*.
+    // Building it while scene.mode === MORPHING (mid 2D/3D transition) races
+    // Cesium's own internal texture reallocation for the transition, which
+    // silently deletes textures the freshly-built wind layer already bound —
+    // surfacing later as "WebGL: bindTexture: attempt to use a deleted
+    // object" with no particles ever appearing. Rebuilding on every mapMode
+    // change (not just once at mount) and waiting for morphComplete when a
+    // morph is genuinely in flight avoids constructing into that transition.
+    const start = () => {
+      if (cancelled) return;
+      const proceed = (windData: WindData) => buildLayer(windData);
 
-        const wl = new WindLayer(viewerRef.current, windData, {
-          ...WIND_STYLE_PRESETS[windStyleRef.current],
-          particleHeight: 8000,
-          flipY: false,
-          useViewerBounds: true,
-          dynamic: true,
-        });
+      const withData = (cb: (d: WindData) => void) => {
+        if (windFieldDataRef.current) { cb(windFieldDataRef.current); return; }
+        fetch('/wind_field.json')
+          .then((r) => r.json())
+          .then((raw: {
+            width: number; height: number; u: number[]; v: number[];
+            uMin: number; uMax: number; vMin: number; vMax: number;
+            bounds: { west: number; south: number; east: number; north: number };
+          }) => {
+            if (cancelled) return;
+            const windData: WindData = {
+              width: raw.width,
+              height: raw.height,
+              // Mock placeholder data (frontend/public/wind_field.json) until
+              // the backend exposes real uwnd_850/vwnd_850 per the
+              // data-parameters doc — bounds come from the file itself so
+              // real data's extent is honoured automatically once swapped in.
+              bounds: raw.bounds,
+              u: { array: new Float32Array(raw.u), min: raw.uMin, max: raw.uMax },
+              v: { array: new Float32Array(raw.v), min: raw.vMin, max: raw.vMax },
+            };
+            windFieldDataRef.current = windData;
+            cb(windData);
+          })
+          .catch((e) => console.warn('[VAYU] Wind layer init failed:', e));
+      };
 
-        windLayerRef.current = wl;
-      })
-      .catch((e) => console.warn('[VAYU] Wind layer init failed:', e));
-  }, [isReady]);
+      withData(proceed);
+    };
+
+    if (viewer.scene.mode === Cesium.SceneMode.MORPHING) {
+      const removeListener = viewer.scene.morphComplete.addEventListener(() => {
+        removeListener();
+        start();
+      });
+      return () => { cancelled = true; removeListener(); };
+    }
+
+    start();
+    return () => { cancelled = true; };
+  }, [isReady, mapMode]);
 
   // ── Apply wind style preset changes without rebuilding the whole layer ─────
   useEffect(() => {
@@ -1314,6 +1454,34 @@ function CesiumGlobeInner({
       if (heatmapTimerRef.current) clearTimeout(heatmapTimerRef.current);
     };
   }, [gridCells, variable, isReady, colormap]);
+
+  // ── Ambient heatmap "breathing" animation ───────────────────────────────────
+  // Purely cosmetic: gently oscillates the imagery layer's alpha so a static
+  // raster reads as live/updating rather than a frozen paste-on. Reads
+  // heatmapLayerRef on every tick (rather than depending on it) so the same
+  // interval keeps animating across canvas rebuilds when date/variable/region
+  // changes swap in a new layer. Driven by setInterval, not requestAnimationFrame
+  // — same reasoning as the hero rotation above (clock.shouldAnimate is false,
+  // and rAF pauses in backgrounded/automated tabs).
+  useEffect(() => {
+    if (!isReady) return;
+
+    const PULSE_TICK_MS = 80;
+    const PULSE_PERIOD_MS = 3200;
+    const BASE_ALPHA = 0.78;
+    const PULSE_AMPLITUDE = 0.12;
+
+    let elapsed = 0;
+    const pulseTimer = window.setInterval(() => {
+      const layer = heatmapLayerRef.current;
+      if (!layer || layer.show === false) return;
+      elapsed += PULSE_TICK_MS;
+      const phase = (elapsed % PULSE_PERIOD_MS) / PULSE_PERIOD_MS;
+      layer.alpha = BASE_ALPHA + PULSE_AMPLITUDE * Math.sin(phase * Math.PI * 2);
+    }, PULSE_TICK_MS);
+
+    return () => window.clearInterval(pulseTimer);
+  }, [isReady]);
 
   // Request a measured resize cycle after persistent UI changes the canvas
   // bounds. The controller performs a final resize after the 300ms shell
