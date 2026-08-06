@@ -21,9 +21,10 @@ export interface RegionOption {
   bounds: RegionBounds;
 }
 
-// Camera framing extents. The four regional entries mirror `ai_engine/regions.py`.
-// `pilot` is an all-India display overview; model coverage must always be read
-// from runtime provenance metadata rather than inferred from this camera extent.
+// Camera framing extents. Mirrors `ai_engine/regions.py` REGION_BOUNDS.
+// `full_india` is the all-India display overview; model coverage must always
+// be read from runtime provenance metadata (see `real_data_regions` on
+// `/health`) rather than inferred from this camera extent.
 export const REGIONS: RegionOption[] = [
   {
     id: 'western_ghats',
@@ -58,8 +59,8 @@ export const REGIONS: RegionOption[] = [
     bounds: { latMin: 17.0, latMax: 25.5, lonMin: 74.0, lonMax: 84.5 },
   },
   {
-    id: 'pilot',
-    label: 'All India (Pilot)',
+    id: 'full_india',
+    label: 'All India',
     centerLat: 22.0,
     centerLon: 82.0,
     altitude: 2_200_000,
@@ -73,26 +74,37 @@ export const REGIONS: RegionOption[] = [
 interface RegionSelectorProps {
   selected: RegionId;
   onChange: (region: RegionId) => void;
+  /** Regions currently backed by a real model checkpoint (from /health). Undefined/empty = unknown, no indicator shown. */
+  realDataRegions?: RegionId[];
 }
 
-export default function RegionSelector({ selected, onChange }: RegionSelectorProps) {
+export default function RegionSelector({ selected, onChange, realDataRegions }: RegionSelectorProps) {
   return (
     <div className="panel-tight px-2 py-1.5 flex items-center gap-1.5">
       <span className="text-xs text-white/40 font-medium uppercase tracking-wider pr-1">Region</span>
-      {REGIONS.map((r) => (
-        <button
-          key={r.id}
-          onClick={() => onChange(r.id)}
-          title={r.label}
-          className={`text-xs px-2.5 py-1 rounded-md border transition-all duration-200 whitespace-nowrap ${
-            selected === r.id
-              ? 'bg-blue-500/20 border-blue-400/60 text-blue-300 font-medium shadow-[0_0_8px_rgba(59,130,246,0.3)] hover:scale-[1.03] active:scale-95'
-              : 'border-white/10 text-white/40 hover:text-white/70 hover:border-white/20 hover:bg-white/5 hover:scale-[1.03] active:scale-95'
-          }`}
-        >
-          {r.label}
-        </button>
-      ))}
+      {REGIONS.map((r) => {
+        const isLive = realDataRegions?.includes(r.id) ?? false;
+        return (
+          <button
+            key={r.id}
+            onClick={() => onChange(r.id)}
+            title={isLive ? `${r.label} — live model data` : r.label}
+            className={`relative text-xs px-2.5 py-1 rounded-md border transition-all duration-200 whitespace-nowrap ${
+              selected === r.id
+                ? 'bg-blue-500/20 border-blue-400/60 text-blue-300 font-medium shadow-[0_0_8px_rgba(59,130,246,0.3)] hover:scale-[1.03] active:scale-95'
+                : 'border-white/10 text-white/40 hover:text-white/70 hover:border-white/20 hover:bg-white/5 hover:scale-[1.03] active:scale-95'
+            }`}
+          >
+            {isLive && (
+              <span
+                className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 rounded-full bg-green-400 shadow-[0_0_4px_rgba(74,222,128,0.8)] animate-pulse"
+                aria-hidden="true"
+              />
+            )}
+            {r.label}
+          </button>
+        );
+      })}
     </div>
   );
 }

@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from 'react';
+import type { Ref } from 'react';
 import * as Cesium from 'cesium';
 import { WindLayer } from 'cesium-wind-layer';
 import type { WindData } from 'cesium-wind-layer';
@@ -15,7 +16,7 @@ import {
   type ResizeCompletionController,
 } from '../features/globe/resizeCompletion';
 import { REGIONS } from './RegionSelector';
-import { mapColor, COLOR_SCALES } from '../utils/colorScales';
+import { mapColor, COLOR_SCALES, rainfallToT } from '../utils/colorScales';
 import type { ColormapId } from '../utils/colorScales';
 import { TerminatorLayer } from '../features/globe/layers/TerminatorLayer';
 
@@ -57,6 +58,52 @@ const IMD_RAIN_COLORS: [number, string][] = [
   [1.00, '#990099'],  // exceptional
 ];
 
+// Wind particle animation style presets — density/speed/colour, in the spirit
+// of Ventusky's "Wind Animation: Normal / Soft / Dark / Fast-motion" selector.
+export type WindAnimationStyle = 'normal' | 'soft' | 'dark' | 'fast';
+
+const WIND_STYLE_PRESETS: Record<WindAnimationStyle, Pick<
+  import('cesium-wind-layer').WindLayerOptions,
+  'particlesTextureSize' | 'lineWidth' | 'lineLength' | 'speedFactor' | 'dropRate' | 'dropRateBump' | 'colors'
+>> = {
+  normal: {
+    particlesTextureSize: 40,   // 1600 particles — good perf/visual balance
+    lineWidth: { min: 1.0, max: 2.0 },
+    lineLength: { min: 20, max: 80 },
+    speedFactor: 3.0,
+    dropRate: 0.006,
+    dropRateBump: 0.02,
+    colors: ['rgba(80,160,255,0.4)', 'rgba(150,210,255,0.75)', 'rgba(255,255,255,0.9)'],
+  },
+  soft: {
+    particlesTextureSize: 30,   // fewer, thinner, slower — a gentle haze
+    lineWidth: { min: 0.6, max: 1.2 },
+    lineLength: { min: 15, max: 50 },
+    speedFactor: 1.6,
+    dropRate: 0.01,
+    dropRateBump: 0.03,
+    colors: ['rgba(150,200,255,0.25)', 'rgba(200,225,255,0.45)', 'rgba(255,255,255,0.6)'],
+  },
+  dark: {
+    particlesTextureSize: 55,   // dense, high-contrast — matches Ventusky's "Dark" storm look
+    lineWidth: { min: 1.2, max: 2.6 },
+    lineLength: { min: 25, max: 90 },
+    speedFactor: 2.6,
+    dropRate: 0.005,
+    dropRateBump: 0.018,
+    colors: ['rgba(40,80,160,0.55)', 'rgba(90,140,220,0.85)', 'rgba(220,235,255,1.0)'],
+  },
+  fast: {
+    particlesTextureSize: 45,   // longer, faster-moving trails
+    lineWidth: { min: 1.0, max: 2.2 },
+    lineLength: { min: 30, max: 110 },
+    speedFactor: 6.0,
+    dropRate: 0.008,
+    dropRateBump: 0.025,
+    colors: ['rgba(80,160,255,0.4)', 'rgba(150,210,255,0.75)', 'rgba(255,255,255,0.9)'],
+  },
+};
+
 // Variable display configuration
 const VARIABLE_CONFIG = {
   rainfall: { label: 'Rainfall', unit: 'mm/day', min: 0,  max: 50, extrudeScale: 8000 },
@@ -78,7 +125,12 @@ function _heatmapColor(t: number, variable: VariableId, colormapId: ColormapId, 
 /** Interpolate the IMD standard colormap for rainfall, perceptual colormaps for temperature */
 function valueToColor(value: number, variable: VariableId): Cesium.Color {
   const cfg = VARIABLE_CONFIG[variable];
-  const t = Math.max(0, Math.min(1, (value - cfg.min) / (cfg.max - cfg.min)));
+  // Rainfall is heavily zero-skewed (median 0mm/day) and its extremes run
+  // past any sane linear max, so it's mapped through the real IMD category
+  // thresholds instead of a plain (value-min)/(max-min) division.
+  const t = variable === 'rainfall'
+    ? rainfallToT(value)
+    : Math.max(0, Math.min(1, (value - cfg.min) / (cfg.max - cfg.min)));
 
   if (variable === 'rainfall') {
     // Walk through the IMD colormap stops
@@ -109,7 +161,7 @@ function valueToColor(value: number, variable: VariableId): Cesium.Color {
 export type EarthLayer =
   | 'vayu' | 'satellite' | 'modis' | 'precipitation' | 'cloud'
   | 'nightlights' | 'sst' | 'aerosol' | 'ndvi'
-  | 'fires' | 'owm_precip' | 'owm_temp' | 'owm_wind' | 'smap';
+  | 'fires' | 'owm_precip' | 'owm_temp' | 'owm_wind' | 'modis_lst';
 
 // OWM tile templates
 const OWM_KEY = import.meta.env.VITE_OPENWEATHERMAP_KEY ?? '';
@@ -149,6 +201,7 @@ interface CesiumGlobeProps {
   show3D?: boolean;         // 3D extruded rainfall columns
   selectedDate?: Date;      // for day/night terminator
   showWind?: boolean;       // toggle wind particle layer
+  windStyle?: WindAnimationStyle; // wind particle density/speed/colour preset
   showTerminator?: boolean; // toggle day/night terminator line + nightside shading
   mapMode?: '3d' | '2d';    // '2d' morphs to a top-down orthographic map focused on India
   /** One-time auto-rotate + auto-play-forecast hero sequence (e.g. right after
@@ -164,7 +217,15 @@ interface CesiumGlobeProps {
   viewportKey?: string;
 }
 
-export default function CesiumGlobe({
+/** Imperative controls exposed to the parent via ref — e.g. toolbar zoom buttons. */
+export interface CesiumGlobeHandle {
+  /** Zoom in. Works correctly in both 3D (perspective) and 2D (orthographic) — Cesium's
+   *  Camera.zoomIn dispatches to the right implementation for the current scene mode. */
+  zoomIn: (amount?: number) => void;
+  zoomOut: (amount?: number) => void;
+}
+
+function CesiumGlobeInner({
   gridCells,
   variable,
   region,
@@ -181,6 +242,7 @@ export default function CesiumGlobe({
   show3D = false,
   selectedDate,
   showWind = true,
+  windStyle = 'normal',
   showTerminator = false,
   mapMode = '3d',
   heroMode = false,
@@ -188,7 +250,7 @@ export default function CesiumGlobe({
   onHeroComplete,
   regionFlyTrigger,
   viewportKey,
-}: CesiumGlobeProps) {
+}: CesiumGlobeProps, ref: Ref<CesiumGlobeHandle>) {
   const containerRef = useRef<HTMLDivElement>(null);
   const viewerRef    = useRef<Cesium.Viewer | null>(null);
   const overlayRef   = useRef<Cesium.CustomDataSource | null>(null);
@@ -214,6 +276,30 @@ export default function CesiumGlobe({
   const zoomCenteringRef = useRef<PostZoomCenteringController | null>(null);
   const resizeCompletionRef = useRef<ResizeCompletionController | null>(null);
   const hasFlownInitialRegionRef = useRef(false);
+  const mapModeRef = useRef(mapMode);
+  mapModeRef.current = mapMode;
+
+  // ── Imperative zoom controls (toolbar +/- buttons) ──────────────────────────
+  // Camera.zoomIn/zoomOut dispatch to Cesium's zoom3D or zoom2D internally
+  // based on the scene's current mode, so the same call works whether the
+  // globe is in 3D perspective or has been morphed to the 2D orthographic map.
+  // The amount scales with current camera height (rather than a fixed meter
+  // value) so each click feels like a consistent ~35% step at any zoom level.
+  const zoomIn = useCallback((amount?: number) => {
+    const viewer = viewerRef.current;
+    if (!viewer || viewer.isDestroyed()) return;
+    const height = viewer.camera.positionCartographic.height;
+    viewer.camera.zoomIn(amount ?? height * 0.35);
+  }, []);
+
+  const zoomOut = useCallback((amount?: number) => {
+    const viewer = viewerRef.current;
+    if (!viewer || viewer.isDestroyed()) return;
+    const height = viewer.camera.positionCartographic.height;
+    viewer.camera.zoomOut(amount ?? height * 0.35);
+  }, []);
+
+  useImperativeHandle(ref, () => ({ zoomIn, zoomOut }), [zoomIn, zoomOut]);
 
   const setProgrammaticFlight = useCallback((active: boolean) => {
     isCameraAnimatingRef.current = active;
@@ -320,6 +406,13 @@ export default function CesiumGlobe({
   // in-progress programmatic flight, and stops the instant the user touches
   // the globe, handing off to the normal static, fully user-controlled
   // camera exactly as it works outside hero mode.
+  //
+  // The rotation itself is 3D-only: "rotating" the camera in Cesium's 2D
+  // orthographic mode just spins the flat map image in-plane, which reads as
+  // broken rather than ambient — so it's skipped while mapMode is '2d' (read
+  // from a ref, not a dependency, so toggling 2D/3D doesn't restart the whole
+  // sequence and reset the day-cycle timing). The forecast-day auto-cycle
+  // still runs in 2D since it's just data, not camera movement.
   useEffect(() => {
     if (!isReady || !viewerRef.current || !heroMode) return;
     const viewer = viewerRef.current;
@@ -338,7 +431,7 @@ export default function CesiumGlobe({
     // tabs. A short setInterval isn't subject to either limitation and is
     // more than smooth enough for a slow 2°/s ambient rotation.
     const rotateTimer = window.setInterval(() => {
-      if (viewer.isDestroyed() || isCameraAnimatingRef.current) {
+      if (viewer.isDestroyed() || isCameraAnimatingRef.current || mapModeRef.current === '2d') {
         lastTime = performance.now();
         return;
       }
@@ -911,6 +1004,12 @@ export default function CesiumGlobe({
   }, []);
 
   // ── Wind particle animation (cesium-wind-layer) ─────────────────────────────
+  // Kept in a ref (rather than a useEffect dependency) so changing style
+  // doesn't force a full data re-fetch/layer rebuild — see the updateOptions
+  // effect below, which applies style changes to the live layer in place.
+  const windStyleRef = useRef(windStyle);
+  windStyleRef.current = windStyle;
+
   useEffect(() => {
     if (!isReady || !viewerRef.current) return;
     const viewer = viewerRef.current;
@@ -924,27 +1023,28 @@ export default function CesiumGlobe({
 
     fetch('/wind_field.json')
       .then((r) => r.json())
-      .then((raw: { width: number; height: number; u: number[]; v: number[]; uMin: number; uMax: number; vMin: number; vMax: number }) => {
+      .then((raw: {
+        width: number; height: number; u: number[]; v: number[];
+        uMin: number; uMax: number; vMin: number; vMax: number;
+        bounds: { west: number; south: number; east: number; north: number };
+      }) => {
         if (!viewerRef.current || viewerRef.current.isDestroyed()) return;
 
         const windData: WindData = {
           width: raw.width,
           height: raw.height,
-          // India extent (NCEP approximate)
-          bounds: { west: 65, south: 5, east: 100, north: 40 },
+          // Mock placeholder data (frontend/public/wind_field.json) until the
+          // backend exposes real uwnd_850/vwnd_850 per the data-parameters doc —
+          // bounds come from the file itself so real data's extent is honoured
+          // automatically once it's swapped in.
+          bounds: raw.bounds,
           u: { array: new Float32Array(raw.u), min: raw.uMin, max: raw.uMax },
           v: { array: new Float32Array(raw.v), min: raw.vMin, max: raw.vMax },
         };
 
         const wl = new WindLayer(viewerRef.current, windData, {
-          particlesTextureSize: 40,   // 1600 particles — good perf/visual balance
+          ...WIND_STYLE_PRESETS[windStyleRef.current],
           particleHeight: 8000,
-          lineWidth: { min: 1.0, max: 2.0 },
-          lineLength: { min: 20, max: 80 },
-          speedFactor: 3.0,
-          dropRate: 0.006,
-          dropRateBump: 0.02,
-          colors: ['rgba(80,160,255,0.4)', 'rgba(150,210,255,0.75)', 'rgba(255,255,255,0.9)'],
           flipY: false,
           useViewerBounds: true,
           dynamic: true,
@@ -954,6 +1054,11 @@ export default function CesiumGlobe({
       })
       .catch((e) => console.warn('[VAYU] Wind layer init failed:', e));
   }, [isReady]);
+
+  // ── Apply wind style preset changes without rebuilding the whole layer ─────
+  useEffect(() => {
+    windLayerRef.current?.updateOptions(WIND_STYLE_PRESETS[windStyle]);
+  }, [windStyle]);
 
   // ── Toggle wind particle visibility ─────────────────────────────────────────
   useEffect(() => {
@@ -1049,10 +1154,10 @@ export default function CesiumGlobe({
         gibsLayerRef.current = ndviLayer;
         break;
       }
-      case 'smap': {
+      case 'modis_lst': {
         if (baseLayer) baseLayer.show = true;
-        const smapUrl = `${GIBS_BASE}/MODIS_Terra_Land_Surface_Temp_Day/default/${dateStr}/GoogleMapsCompatible_Level7/{z}/{y}/{x}.png`;
-        addGibs(smapUrl, 0.70, 7);
+        const lstUrl = `${GIBS_BASE}/MODIS_Terra_Land_Surface_Temp_Day/default/${dateStr}/GoogleMapsCompatible_Level7/{z}/{y}/{x}.png`;
+        addGibs(lstUrl, 0.70, 7);
         break;
       }
       case 'owm_precip':
@@ -1152,7 +1257,9 @@ export default function CesiumGlobe({
           const cell = cellMap.get(`${lat.toFixed(3)}_${lon.toFixed(3)}`);
           if (cell) {
             const val = cell[variable] as number;
-            const t = Math.max(0, Math.min(1, (val - cfg.min) / (cfg.max - cfg.min)));
+            const t = variable === 'rainfall'
+              ? rainfallToT(val)
+              : Math.max(0, Math.min(1, (val - cfg.min) / (cfg.max - cfg.min)));
             const distToEdge = Math.min(latIdx, nLat - 1 - latIdx, lonIdx, nLon - 1 - lonIdx);
             const edgeFactor = Math.min(1, (distToEdge + 0.5) / FEATHER_CELLS);
             rawCtx.fillStyle = _heatmapColor(t, variable, activeColormap, edgeFactor);
@@ -1279,13 +1386,12 @@ export default function CesiumGlobe({
     source.entities.removeAll();
     if (!show3D || variable !== 'rainfall' || gridCells.length === 0) return;
 
-    const cfg = VARIABLE_CONFIG.rainfall;
     const activeColormap: ColormapId = colormap ?? 'imd_rain';
 
     gridCells.forEach((cell) => {
       const val = cell.rainfall;
       if (val < 1) return; // skip dry cells
-      const t = Math.max(0, Math.min(1, (val - cfg.min) / (cfg.max - cfg.min)));
+      const t = rainfallToT(val);
       const height = t * 80_000; // up to 80km extrusion
 
       const [r, g, b] = COLOR_SCALES[activeColormap](t);
@@ -1471,7 +1577,7 @@ export default function CesiumGlobe({
                activeLayer === 'satellite'     ? '🌍 Satellite Imagery' :
                activeLayer === 'fires'         ? '🔥 MODIS Active Fires' :
                activeLayer === 'sst'           ? '🌊 Sea Surface Temp' :
-               activeLayer === 'smap'          ? '🌱 SMAP Soil Moisture' :
+               activeLayer === 'modis_lst'     ? '🌡 MODIS Land Surface Temp' :
                activeLayer === 'owm_precip'    ? '🌧 OWM Live Precipitation' :
                activeLayer === 'owm_temp'      ? '🌡 OWM Live Temperature' :
                activeLayer === 'owm_wind'      ? '💨 OWM Live Wind' : activeLayer}
@@ -1492,6 +1598,8 @@ export default function CesiumGlobe({
   );
 }
 
+const CesiumGlobe = forwardRef(CesiumGlobeInner);
+export default CesiumGlobe;
 
 // This module is dynamically imported by AsyncCesiumGlobe so Cesium stays out of
 // the initial bundle. Configure its token only once the renderer is requested.

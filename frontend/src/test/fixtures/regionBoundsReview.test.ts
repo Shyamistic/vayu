@@ -15,7 +15,7 @@ describe('reviewed region bounds fixture', () => {
   });
 
   it('captures the All India overview and authoritative North-East extents', () => {
-    expect(REGIONS.find((region) => region.id === 'pilot')?.bounds).toEqual(
+    expect(REGIONS.find((region) => region.id === 'full_india')?.bounds).toEqual(
       ALL_INDIA_OVERVIEW_BOUNDS,
     );
     expect(REGION_BOUNDS_REVIEW.northEastModelExtent).toEqual({
@@ -26,7 +26,7 @@ describe('reviewed region bounds fixture', () => {
     });
   });
 
-  it('preserves pilot as a display overview rather than a coverage claim', () => {
+  it('preserves full_india as a display overview rather than a coverage claim', () => {
     expect(MODEL_PILOT_BOUNDS).not.toEqual(ALL_INDIA_OVERVIEW_BOUNDS);
     expect(REGION_BOUNDS_REVIEW.coverageCaveat).toContain('display overview only');
     expect(REGION_BOUNDS_REVIEW.coverageCaveat).toContain('runtime provenance metadata');

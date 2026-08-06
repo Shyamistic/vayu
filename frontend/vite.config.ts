@@ -37,7 +37,6 @@ export default defineConfig({
     alias: {
       '@': path.resolve(__dirname, './src'),
       'plotly.js/dist/plotly': 'plotly.js-dist-min',
-      'cesium-wind-layer': path.resolve(__dirname, './src/stubs/cesium-wind-layer.ts'),
     },
   },
   server: {

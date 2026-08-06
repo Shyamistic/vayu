@@ -169,6 +169,8 @@ export interface HealthResponse {
   last_prediction_timestamp: string | null;
   uptime_seconds: number;
   device: string;
+  /** Regions currently backed by a real trained model checkpoint, vs. mock/fallback data. */
+  real_data_regions: RegionId[];
 }
 
 // ── UI state types ─────────────────────────────────────────────────────────────
@@ -180,7 +182,7 @@ export type RegionId =
   | 'north_east_india'
   | 'indo_gangetic_plain'
   | 'central_india'
-  | 'pilot';
+  | 'full_india';
 
 export type ViewMode = 'prediction' | 'historical' | 'scenario' | 'metrics' | 'agriculture' | 'environment' | 'case-study';
 

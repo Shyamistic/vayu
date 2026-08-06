@@ -450,7 +450,7 @@ export interface MultiHazardViewProps {
 export const MultiHazardView: React.FC<MultiHazardViewProps> = ({
   gridCells = [],
   warnings: externalWarnings,
-  region = 'pilot',
+  region = 'full_india',
   enabled = true,
   thresholds = DEFAULT_HAZARD_THRESHOLDS,
 }) => {

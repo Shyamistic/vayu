@@ -42,7 +42,7 @@ async function _loadMockPrediction(): Promise<PredictionResponse> {
 
 export async function fetchPrediction(
   date: string,
-  region = 'pilot',
+  region = 'full_india',
   forecastDay = 1,
 ): Promise<PredictionResponse> {
   try {
@@ -119,7 +119,7 @@ export async function fetchHistorical(params: {
 
 export async function fetchMetrics(
   variable: VariableId,
-  region = 'pilot',
+  region = 'full_india',
   options?: {
     denormalized?: boolean;
     sourceModel?: 'vayu' | 'persistence' | 'climatology' | 'random_forest' | 'xgboost';

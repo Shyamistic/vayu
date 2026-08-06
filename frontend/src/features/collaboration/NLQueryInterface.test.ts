@@ -131,8 +131,12 @@ describe('extractRegion', () => {
     expect(extractRegion('heat wave in central india')).toBe('central_india');
   });
 
-  it('extracts pilot region from "pilot"', () => {
-    expect(extractRegion('data for pilot')).toBe('pilot');
+  it('extracts full_india from "pilot" (legacy alias)', () => {
+    expect(extractRegion('data for pilot')).toBe('full_india');
+  });
+
+  it('extracts full_india from "all india"', () => {
+    expect(extractRegion('rainfall in all india')).toBe('full_india');
   });
 
   it('returns undefined for no recognisable region', () => {
@@ -236,12 +240,12 @@ describe('buildDescription', () => {
   });
 
   it('builds comparative description', () => {
-    const desc = buildDescription('comparative', 'temp_min', undefined, 'pilot', undefined);
+    const desc = buildDescription('comparative', 'temp_min', undefined, 'full_india', undefined);
     expect(desc.toLowerCase()).toContain('compare');
   });
 
   it('falls back to "variable" label when no variable provided', () => {
-    const desc = buildDescription('threshold', undefined, 100, 'pilot', undefined);
+    const desc = buildDescription('threshold', undefined, 100, 'full_india', undefined);
     expect(desc).toContain('variable');
   });
 });

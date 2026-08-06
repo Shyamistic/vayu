@@ -120,7 +120,7 @@ export const VIDEO_WALKTHROUGHS = VIEWPORTS.map((viewport) => ({
 }));
 
 export const REGION_CHANGE_CONTRACT = {
-  from: 'pilot',
+  from: 'full_india',
   to: 'north_east_india',
   bounds: { latMin: 22, latMax: 29.5, lonMin: 88, lonMax: 97.5 },
   rule: 'North-East must remain readable above the timeline within the measured clear globe rectangle; no manual altitude baseline is accepted.',

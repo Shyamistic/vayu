@@ -11,7 +11,7 @@ export const MODEL_REGION_BOUNDS = {
   north_east_india: { latMin: 22.0, latMax: 29.5, lonMin: 88.0, lonMax: 97.5 },
   indo_gangetic_plain: { latMin: 23.0, latMax: 31.5, lonMin: 74.0, lonMax: 89.5 },
   central_india: { latMin: 17.0, latMax: 25.5, lonMin: 74.0, lonMax: 84.5 },
-} as const satisfies Record<Exclude<RegionId, 'pilot'>, RegionBounds>;
+} as const satisfies Record<Exclude<RegionId, 'full_india'>, RegionBounds>;
 
 /** The model's pilot box is not the same thing as the product's overview. */
 export const MODEL_PILOT_BOUNDS = {
@@ -33,5 +33,5 @@ export const REGION_BOUNDS_REVIEW = {
   allIndiaOverview: ALL_INDIA_OVERVIEW_BOUNDS,
   northEastModelExtent: MODEL_REGION_BOUNDS.north_east_india,
   coverageCaveat:
-    'pilot is a display overview only; it must not be presented as model coverage. Read supported coverage from runtime provenance metadata.',
+    'full_india is a display overview only; it must not be presented as model coverage. Read supported coverage from runtime provenance metadata.',
 } as const;

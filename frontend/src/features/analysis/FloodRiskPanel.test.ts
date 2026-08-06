@@ -249,7 +249,7 @@ describe('Property 13: Flood Risk Threshold Classification', () => {
     'indo_gangetic_plain',
     'north_east_india',
     'central_india',
-    'pilot',
+    'full_india',
   );
 
   /**
@@ -296,9 +296,9 @@ describe('Property 13: Flood Risk Threshold Classification', () => {
   );
 
   test.prop([
-    fc.constantFrom<RegionId>('western_ghats', 'pilot', 'central_india'),
+    fc.constantFrom<RegionId>('western_ghats', 'full_india', 'central_india'),
   ])(
-    'western_ghats / pilot / central_india use 100mm base threshold',
+    'western_ghats / full_india / central_india use 100mm base threshold',
     (region) => {
       expect(REGION_THRESHOLDS[region].base).toBe(100);
       expect(classifyFloodRisk(100, region)).toBe('none');
