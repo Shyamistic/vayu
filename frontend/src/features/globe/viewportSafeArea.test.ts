@@ -12,16 +12,16 @@ const base = {
 
 describe('getGlobeViewportInsets', () => {
   it('centers the usable canvas between persistent desktop chrome', () => {
-    expect(getGlobeViewportInsets(base)).toEqual({ top: 56, bottom: 156, right: 0 });
+    expect(getGlobeViewportInsets(base)).toEqual({ top: 56, bottom: 150, right: 0 });
   });
 
-  it('reserves the open desktop drawer without changing vertical clearance', () => {
-    expect(getGlobeViewportInsets({ ...base, drawerOpen: true })).toEqual({ top: 56, bottom: 156, right: 392 });
+  it('does not reserve canvas width for the desktop analytics panel — it floats over the globe instead', () => {
+    expect(getGlobeViewportInsets({ ...base, drawerOpen: true })).toEqual({ top: 56, bottom: 150, right: 0 });
   });
 
   it('uses the taller mobile drawer rather than allowing it to cover the globe', () => {
     expect(getGlobeViewportInsets({ ...base, isDesktop: false, drawerOpen: true, mobileDrawerHeight: 250 }))
-      .toEqual({ top: 56, bottom: 266, right: 0 });
+      .toEqual({ top: 56, bottom: 260, right: 0 });
   });
 
   it('restores the full canvas in globe focus mode', () => {

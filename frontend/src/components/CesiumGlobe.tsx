@@ -178,12 +178,41 @@ const WIND_STYLE_PRESETS: Record<WindAnimationStyle, Pick<
   },
 };
 
-// Variable display configuration
+// Variable display configuration. extrudeScale is the 3D column's max height
+// (meters, at t=1) — same budget for all three so switching variables in 3D
+// mode doesn't also change the vertical scale being compared.
 const VARIABLE_CONFIG = {
-  rainfall: { label: 'Rainfall', unit: 'mm/day', min: 0,  max: 50, extrudeScale: 8000 },
-  temp_max: { label: 'Tmax',     unit: '°C',     min: 20, max: 45, extrudeScale: 0    },
-  temp_min: { label: 'Tmin',     unit: '°C',     min: 10, max: 35, extrudeScale: 0    },
+  rainfall: { label: 'Rainfall', unit: 'mm/day', min: 0,  max: 50, extrudeScale: 80_000 },
+  temp_max: { label: 'Tmax',     unit: '°C',     min: 20, max: 45, extrudeScale: 80_000 },
+  temp_min: { label: 'Tmin',     unit: '°C',     min: 10, max: 35, extrudeScale: 80_000 },
 };
+
+/** Is (lon,lat) inside India? `polygons` null means "outline not loaded yet",
+ *  treated as "don't hide anything" rather than clipping everything out before
+ *  the fetch resolves.
+ *
+ *  Delegates to `pointInIndia` in features/globe/indiaClip.ts rather than
+ *  testing each ring independently. Two reasons that matters:
+ *
+ *   - Holes. "Inside ANY ring" returns true for a point in the middle of a lake,
+ *     because that point is inside both the exterior ring and the interior one.
+ *     `pointInIndia` counts crossings across every ring and takes odd/even, so a
+ *     lake correctly reads as outside — matching `ctx.fill('evenodd')` used for
+ *     the raster mask, so the 3D columns, the heatmap, and the scenario overlay
+ *     all agree on the same coastline.
+ *   - Cost. It takes a precomputed per-polygon bounding box and rejects most of
+ *     the outline's ~144 polygons before touching their vertices, which matters
+ *     when this runs per grid cell over a 4,288-cell national grid.
+ */
+function isInsideIndia(
+  lon: number,
+  lat: number,
+  polygons: IndiaPolygon[] | null,
+  bboxes?: ReturnType<typeof polygonBBox>[],
+): boolean {
+  if (!polygons) return true;
+  return pointInIndia(lon, lat, polygons, bboxes);
+}
 
 /**
  * Return CSS color string for heatmap canvas rendering — uses fluid-earth colormaps.
@@ -277,6 +306,9 @@ interface CesiumGlobeProps {
   showWind?: boolean;       // toggle wind particle layer
   windStyle?: WindAnimationStyle; // wind particle density/speed/colour preset
   showTerminator?: boolean; // toggle day/night terminator line + nightside shading
+  /** Toggle IoT sensor station pins — hidden by default (opt-in via toolbar),
+   *  same "hidden until you ask for it" treatment as Wind/Terminator. */
+  showIoT?: boolean;
   mapMode?: '3d' | '2d';    // '2d' morphs to a top-down orthographic map focused on India
   /** One-time auto-rotate + auto-play-forecast hero sequence (e.g. right after
    *  the cinematic intro). Cancels immediately on any real user input and
@@ -289,15 +321,12 @@ interface CesiumGlobeProps {
   regionFlyTrigger?: number; // increment to force fly-to even same region
   /** Changes whenever persistent UI changes the usable globe viewport. */
   viewportKey?: string;
-  /**
-   * Show the IoT station pins. Off by default.
-   *
-   * There is exactly one physical station (Sivasagar), so a pin permanently
-   * planted on the globe reads as a sensor network rather than as one site. It
-   * is scoped to the Environment view, where the station panel that explains it
-   * is also on screen.
-   */
-  showStations?: boolean;
+  /** Base alpha (0–1) for the heatmap imagery layer — the "Opacity" control
+   *  in VariableDataPanel. Defaults to the layer's original baseline. */
+  heatmapOpacity?: number;
+  /** Whether the heatmap's ambient "breathing" alpha pulse animates. Off
+   *  pins alpha to `heatmapOpacity` with no oscillation. Defaults on. */
+  heatmapAnimated?: boolean;
 }
 
 /** Imperative controls exposed to the parent via ref — e.g. toolbar zoom buttons. */
@@ -327,13 +356,15 @@ function CesiumGlobeInner({
   showWind = true,
   windStyle = 'normal',
   showTerminator = false,
+  showIoT = false,
   mapMode = '3d',
   heroMode = false,
   onHeroDayChange,
   onHeroComplete,
   regionFlyTrigger,
   viewportKey,
-  showStations = false,
+  heatmapOpacity = 0.78,
+  heatmapAnimated = true,
 }: CesiumGlobeProps, ref: Ref<CesiumGlobeHandle>) {
   const containerRef = useRef<HTMLDivElement>(null);
   const viewerRef    = useRef<Cesium.Viewer | null>(null);
@@ -371,9 +402,13 @@ function CesiumGlobeInner({
   const mapModeRef = useRef(mapMode);
   mapModeRef.current = mapMode;
   // Read inside the data-source creation effect, which must not re-run (and
-  // rebuild every pin) just because the active view changed.
-  const showStationsRef = useRef(showStations);
-  showStationsRef.current = showStations;
+  // rebuild every pin) just because the toggle flipped.
+  const showIoTRef = useRef(showIoT);
+  showIoTRef.current = showIoT;
+  // Latest opacity, for the one place the render effect needs it without taking
+  // it as a dependency (see the heatmap effect below).
+  const heatmapOpacityRef = useRef(heatmapOpacity);
+  heatmapOpacityRef.current = heatmapOpacity;
 
   // ── Load the India outline used to clip the heatmap raster ─────────────────
   // Independent of viewer setup — a plain fetch, not a Cesium data source —
@@ -514,12 +549,16 @@ function CesiumGlobeInner({
       osmBuildingsRef.current.show = mapMode === '3d';
     }
 
-    // Station pins hidden in 2D — see the CustomDataSource comment above — and
-    // scoped to the Environment view. Read from a ref, not the prop: adding
-    // `showStations` to this effect's dependencies would re-run the 2D/3D morph
-    // and its camera flight every time the active view changed.
+    // Station pins are opt-in (showIoT) and additionally hidden in 2D — see the
+    // CustomDataSource comment above.
+    //
+    // Read from a ref rather than the prop, and keep `showIoT` OUT of this
+    // effect's dependency list. The 2D branch below calls flyToIndiaTopDown, so
+    // depending on showIoT here means toggling the pins while the scene is in 2D
+    // resets the camera and throws away the user's pan and zoom. The dedicated
+    // effect immediately after this one owns pin visibility instead.
     if (iotStationsSourceRef.current) {
-      iotStationsSourceRef.current.show = mapMode === '3d' && showStationsRef.current;
+      iotStationsSourceRef.current.show = showIoTRef.current && mapMode === '3d';
     }
 
     if (mapMode === '2d') {
@@ -543,8 +582,8 @@ function CesiumGlobeInner({
   // switching views never rebuilds the pins.
   useEffect(() => {
     if (!isReady || !iotStationsSourceRef.current) return;
-    iotStationsSourceRef.current.show = mapMode === '3d' && showStations;
-  }, [isReady, showStations, mapMode]);
+    iotStationsSourceRef.current.show = mapMode === '3d' && showIoT;
+  }, [isReady, showIoT, mapMode]);
 
   // ── Hero auto-rotate + auto-play forecast (indefinite, cancels on user input) ─
   // An ambient sequence — camera slowly spins over India while the forecast
@@ -628,11 +667,12 @@ function CesiumGlobeInner({
     if (!isReady || !viewerRef.current) return;
     const viewer = viewerRef.current;
     const source = new Cesium.CustomDataSource('vayu-iot-sensors');
-    // Station pins are hidden in 2D by product decision (grouped with Wind
+    // Station pins are opt-in (hidden by default, toggled on via the toolbar)
+    // and additionally hidden in 2D by product decision (grouped with Wind
     // and Inspect, which are hidden for real technical reasons — see their
-    // comments). Start hidden if already in 2D; the mapMode effect below
-    // keeps it in sync on later mode switches.
-    source.show = mapModeRef.current === '3d' && showStationsRef.current;
+    // comments). The dedicated visibility effect above keeps both in sync going
+    // forward; refs here so creating the pins does not depend on either value.
+    source.show = showIoTRef.current && mapModeRef.current === '3d';
     iotStationsSourceRef.current = source;
     viewer.dataSources.add(source);
     const hoverHandler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
@@ -1535,7 +1575,8 @@ function CesiumGlobeInner({
           try { viewer.imageryLayers.remove(newLayer, true); } catch {}
           return;
         }
-        newLayer.alpha = 0.78;
+        // Via the ref, so this effect need not depend on heatmapOpacity.
+        newLayer.alpha = heatmapOpacityRef.current;
         heatmapLayerRef.current = newLayer;
 
         if (oldLayer && oldLayer !== newLayer) {
@@ -1553,6 +1594,14 @@ function CesiumGlobeInner({
       }
       if (heatmapTimerRef.current) clearTimeout(heatmapTimerRef.current);
     };
+    // `heatmapOpacity` is deliberately NOT a dependency. This effect repaints the
+    // whole canvas, encodes a PNG data URL, awaits SingleTileImageryProvider, and
+    // swaps an imagery layer. The opacity control is a range input with
+    // step=0.01, so dragging it would reset the 500 ms debounce and trigger a
+    // full raster rebuild per pixel of travel — wasted work plus visible flicker
+    // as layers swap. Opacity only needs `layer.alpha`, which the pulse effect
+    // below applies on every tick; the initial value is read from
+    // heatmapOpacityRef so a newly created layer is still correct.
   }, [gridCells, variable, isReady, colormap, outlineLoaded]);
 
   // ── Ambient heatmap "breathing" animation ───────────────────────────────────
@@ -1566,9 +1615,16 @@ function CesiumGlobeInner({
   useEffect(() => {
     if (!isReady) return;
 
+    // Not animated: pin alpha to the chosen opacity and skip the interval
+    // entirely — no oscillation to disable mid-tick.
+    if (!heatmapAnimated) {
+      const layer = heatmapLayerRef.current;
+      if (layer) layer.alpha = heatmapOpacity;
+      return;
+    }
+
     const PULSE_TICK_MS = 80;
     const PULSE_PERIOD_MS = 3200;
-    const BASE_ALPHA = 0.78;
     const PULSE_AMPLITUDE = 0.12;
 
     let elapsed = 0;
@@ -1577,11 +1633,14 @@ function CesiumGlobeInner({
       if (!layer || layer.show === false) return;
       elapsed += PULSE_TICK_MS;
       const phase = (elapsed % PULSE_PERIOD_MS) / PULSE_PERIOD_MS;
-      layer.alpha = BASE_ALPHA + PULSE_AMPLITUDE * Math.sin(phase * Math.PI * 2);
+      // Clamped: ImageryLayer.alpha is defined on [0, 1], and at
+      // heatmapOpacity = 1 the +0.12 pulse amplitude would push it to 1.12.
+      const pulsed = heatmapOpacity + PULSE_AMPLITUDE * Math.sin(phase * Math.PI * 2);
+      layer.alpha = Math.min(1, Math.max(0, pulsed));
     }, PULSE_TICK_MS);
 
     return () => window.clearInterval(pulseTimer);
-  }, [isReady]);
+  }, [isReady, heatmapOpacity, heatmapAnimated]);
 
   // Request a measured resize cycle after persistent UI changes the canvas
   // bounds. The controller performs a final resize after the 300ms shell
@@ -1647,20 +1706,43 @@ function CesiumGlobeInner({
     });
   }, [isReady, tourStep, flyCameraTo]);
 
-  // ── 3D Extruded Rainfall Columns (Feature 1) ───────────────────────────────
+  // ── 3D Extruded Grid — Rainfall, Tmax, Tmin ─────────────────────────────────
+  // Column height/color use the same t-normalization and default colormap as
+  // the 2D heatmap (rainfallToT for rainfall, linear min/max for temperature;
+  // imd_rain/sunset/ocean_violet defaults) so switching between 2D and 3D
+  // reads as the same data, not a different visualization.
   useEffect(() => {
     if (!isReady || !extrude3DRef.current) return;
     const source = extrude3DRef.current;
     source.entities.removeAll();
-    if (!show3D || variable !== 'rainfall' || gridCells.length === 0) return;
+    if (!show3D || gridCells.length === 0) return;
 
-    const activeColormap: ColormapId = colormap ?? 'imd_rain';
+    const cfg = VARIABLE_CONFIG[variable];
+    const activeColormap: ColormapId = colormap ?? (
+      variable === 'rainfall' ? 'imd_rain' : variable === 'temp_max' ? 'sunset' : 'ocean_violet'
+    );
+    // Keep the per-polygon grouping rather than flattening to a ring list: the
+    // grouping is what lets holes be excluded (even-odd across a polygon's own
+    // rings) and what the bounding-box fast path is keyed on. Boxes are computed
+    // once here because the test below runs for every grid cell.
+    const outlinePolygons = indiaOutlineRef.current;
+    const outlineBoxes = outlinePolygons?.map(polygonBBox);
 
     gridCells.forEach((cell) => {
-      const val = cell.rainfall;
-      if (val < 1) return; // skip dry cells
-      const t = rainfallToT(val);
-      const height = t * 80_000; // up to 80km extrusion
+      const val = cell[variable] as number;
+      if (!Number.isFinite(val)) return;
+      // Rainfall is heavily zero-skewed — skip dry cells so the grid isn't
+      // mostly near-invisible slivers. Temperature has no such "dry" concept;
+      // every cell gets a column.
+      if (variable === 'rainfall' && val < 1) return;
+      // Clip to India's landmass — otherwise columns stand in the ocean
+      // wherever the region's data bbox overhangs the coastline.
+      if (!isInsideIndia(cell.lon, cell.lat, outlinePolygons, outlineBoxes)) return;
+
+      const t = variable === 'rainfall'
+        ? rainfallToT(val)
+        : Math.max(0, Math.min(1, (val - cfg.min) / (cfg.max - cfg.min)));
+      const height = t * cfg.extrudeScale;
 
       const [r, g, b] = COLOR_SCALES[activeColormap](t);
       const color = new Cesium.Color(r / 255, g / 255, b / 255, 0.8);
@@ -1675,10 +1757,10 @@ function CesiumGlobeInner({
           extrudedHeight: height,
           outline: false,
         },
-        description: `${val.toFixed(1)} mm/day`,
+        description: `${val.toFixed(1)} ${cfg.unit}`,
       });
     });
-  }, [isReady, show3D, gridCells, variable, colormap]);
+  }, [isReady, show3D, gridCells, variable, colormap, outlineLoaded]);
 
   // ── Day / Night Terminator Line + Nightside Lighting (Feature 6) ───────────
   // Re-enabled after fixing why it was disabled: (1) this effect now
@@ -1849,32 +1931,15 @@ function CesiumGlobeInner({
 
       {/* ── Status badge REMOVED — reduces clutter ── */}
 
-      {/* ── Active layer indicator (bottom-right) ── */}
-      {isReady && activeLayer !== 'vayu' && (
-        <div className="absolute bottom-28 right-4 z-10 pointer-events-none animate-slide-in-up">
-          <div className="px-3 py-1.5 rounded-lg bg-blue-600/20 border border-blue-400/30 backdrop-blur-sm">
-            <span className="text-blue-300 text-xs font-medium">
-              {activeLayer === 'modis'         ? '🛰 MODIS Terra TrueColor' :
-               activeLayer === 'precipitation' ? '🌧 NASA IMERG Precipitation' :
-               activeLayer === 'cloud'         ? '☁ MODIS Cloud Fraction' :
-               activeLayer === 'nightlights'   ? '🌃 Earth at Night' :
-               activeLayer === 'satellite'     ? '🌍 Satellite Imagery' :
-               activeLayer === 'fires'         ? '🔥 MODIS Active Fires' :
-               activeLayer === 'sst'           ? '🌊 Sea Surface Temp' :
-               activeLayer === 'modis_lst'     ? '🌡 MODIS Land Surface Temp' :
-               activeLayer === 'owm_precip'    ? '🌧 OWM Live Precipitation' :
-               activeLayer === 'owm_temp'      ? '🌡 OWM Live Temperature' :
-               activeLayer === 'owm_wind'      ? '💨 OWM Live Wind' : activeLayer}
-            </span>
-          </div>
-        </div>
-      )}
+      {/* ── Active layer indicator — moved to App.tsx (top-left, next to the
+          Region selector) so it no longer competes with the zoom controls
+          and Satellite Imagery badge that used to both live bottom-right. ── */}
 
       {/* ── 3D mode badge ── */}
       {isReady && show3D && (
         <div className="absolute top-20 left-[140px] z-10 pointer-events-none animate-slide-in-up">
           <div className="px-3 py-1.5 rounded-lg backdrop-blur-sm" style={{ background: 'rgba(249,115,22,0.2)', border: '1px solid rgba(249,115,22,0.4)' }}>
-            <span className="text-orange-300 text-xs font-medium">3D Rainfall Columns</span>
+            <span className="text-orange-300 text-xs font-medium">3D {VARIABLE_CONFIG[variable].label} Columns</span>
           </div>
         </div>
       )}
