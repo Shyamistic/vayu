@@ -1,11 +1,15 @@
-import { lazy, Suspense } from 'react';
-import type { ComponentProps } from 'react';
+import { forwardRef, lazy, Suspense } from 'react';
+import type { ComponentProps, Ref } from 'react';
+import type { CesiumGlobeHandle } from './CesiumGlobe';
 
 const CesiumGlobe = lazy(() => import('./CesiumGlobe'));
 type CesiumGlobeProps = ComponentProps<typeof import('./CesiumGlobe').default>;
 
 /** Loads the WebGL renderer outside the initial JavaScript critical path. */
-export default function AsyncCesiumGlobe(props: CesiumGlobeProps) {
+const AsyncCesiumGlobe = forwardRef(function AsyncCesiumGlobe(
+  props: CesiumGlobeProps,
+  ref: Ref<CesiumGlobeHandle>,
+) {
   return (
     <Suspense
       fallback={
@@ -18,7 +22,9 @@ export default function AsyncCesiumGlobe(props: CesiumGlobeProps) {
         </div>
       }
     >
-      <CesiumGlobe {...props} />
+      <CesiumGlobe {...props} ref={ref} />
     </Suspense>
   );
-}
+});
+
+export default AsyncCesiumGlobe;

@@ -84,7 +84,11 @@ export const REGION_ALIASES: ReadonlyMap<string, RegionId> = new Map([
   ['central india', 'central_india'],
   ['central_india', 'central_india'],
   ['central', 'central_india'],
-  ['pilot', 'pilot'],
+  ['full india', 'full_india'],
+  ['full_india', 'full_india'],
+  ['all india', 'full_india'],
+  ['pan india', 'full_india'],
+  ['pilot', 'full_india'],
 ]);
 
 /** Default suggestions displayed when a query cannot be parsed (Requirement 43.4) */

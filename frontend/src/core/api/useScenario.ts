@@ -36,13 +36,13 @@ export function useScenarioResult(params: {
 } | null) {
   return useQuery<ScenarioResponse>({
     queryKey: params
-      ? ['scenario', params.scenario_type, params.magnitude, params.target_region ?? 'pilot']
+      ? ['scenario', params.scenario_type, params.magnitude, params.target_region ?? 'full_india']
       : ['scenario', 'none'],
     queryFn: () =>
       runScenario({
         scenario_type: params!.scenario_type as ScenarioRequest['scenario_type'],
         magnitude: params!.magnitude,
-        target_region: params?.target_region ?? 'pilot',
+        target_region: params?.target_region ?? 'full_india',
       }),
     enabled: !!params,
     staleTime: 10 * 60 * 1000, // 10 minutes — scenarios are computationally expensive

@@ -132,7 +132,7 @@ const LOCATION_ITEMS: Omit<CommandItem, 'action'>[] = [
   { id: 'loc-north_east_india',    name: 'North East India',       description: 'Seven Sisters region',       type: 'location', icon: '🌿' },
   { id: 'loc-indo_gangetic_plain', name: 'Indo-Gangetic Plain',    description: 'North India plains belt',    type: 'location', icon: '🌾' },
   { id: 'loc-central_india',       name: 'Central India',          description: 'Deccan plateau region',      type: 'location', icon: '🗺️' },
-  { id: 'loc-pilot',               name: 'Pilot Region',           description: 'Default pilot study area',  type: 'location', icon: '📍' },
+  { id: 'loc-full_india',           name: 'All India',              description: 'Countrywide overview',       type: 'location', icon: '📍' },
 ];
 
 /** Variable / layer toggle items */

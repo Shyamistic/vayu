@@ -5,7 +5,7 @@ import { fetchMetrics } from '../../api/client';
 export interface UseMetricsParams {
   /** Climate variable: rainfall, temp_max, or temp_min */
   variable: VariableId;
-  /** Region identifier (default: 'pilot') */
+  /** Region identifier (default: 'full_india') */
   region?: string;
   /** Whether to use denormalized physical-unit metrics */
   denormalized?: boolean;
@@ -25,7 +25,7 @@ export interface UseMetricsParams {
 export function useMetrics(params: UseMetricsParams) {
   const {
     variable,
-    region = 'pilot',
+    region = 'full_india',
     denormalized,
     sourceModel,
     leadTime,

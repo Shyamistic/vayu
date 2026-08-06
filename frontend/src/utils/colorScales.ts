@@ -76,8 +76,12 @@ function fromLUT(lut: RGB[]): ColorScale {
 
 // ── IMD Rainfall Colormap ────────────────────────────────────────────────────
 
-/** IMD operational rainfall colormap (0→50 mm/day) */
-export const imd_rain: ColorScale = segmented([
+/**
+ * IMD operational rainfall colour stops, keyed by t ∈ [0,1]. Single source of
+ * truth for both the `imd_rain` ColorScale and the on-screen legend gradient
+ * (`ColorLegend.tsx`), so the two can never drift apart.
+ */
+export const IMD_RAIN_STOPS: [number, RGB][] = [
   [0.00, [255, 255, 255]],  // dry / no rain
   [0.05, [180, 240, 167]],  // trace
   [0.15, [102, 204, 0  ]],  // light
@@ -86,7 +90,49 @@ export const imd_rain: ColorScale = segmented([
   [0.70, [255, 102, 0  ]],  // very heavy
   [0.85, [255, 0,   0  ]],  // extremely heavy
   [1.00, [153, 0,   153]],  // exceptional
-]);
+];
+
+/** IMD operational rainfall colormap, parameterised by t ∈ [0,1]. Use `rainfallToT` to get `t` from a physical mm/day value — do not divide by a fixed max. */
+export const imd_rain: ColorScale = segmented(IMD_RAIN_STOPS);
+
+/**
+ * IMD daily rainfall category thresholds (mm/day) — the same categories the
+ * model's POD/FAR/CSI verification scores are computed against, so the map
+ * legend and the metrics agree. Each `t` below is the `imd_rain` stop that
+ * category's colour band starts at.
+ */
+export const IMD_RAIN_THRESHOLDS_MM = [
+  { mm: 0,     t: 0.00, category: 'No rain' },
+  { mm: 1,     t: 0.05, category: 'Trace' },
+  { mm: 2.5,   t: 0.15, category: 'Light' },
+  { mm: 15.6,  t: 0.30, category: 'Moderate' },
+  { mm: 64.5,  t: 0.50, category: 'Heavy' },
+  { mm: 115.6, t: 0.70, category: 'Very heavy' },
+  { mm: 204.5, t: 0.85, category: 'Extremely heavy' },
+  { mm: 250,   t: 1.00, category: 'Extremely heavy' },
+] as const;
+
+/**
+ * Map a physical rainfall value (mm/day) to a `t ∈ [0,1]` for `imd_rain`,
+ * piecewise-anchored at the real IMD category thresholds instead of a linear
+ * 0→50 (or any fixed max) division. The median day is 0mm and the measured
+ * max is 200+mm in some regions — a linear ramp renders almost every cell as
+ * the bottom colour and clips true extremes to a single top colour.
+ */
+export function rainfallToT(mm: number): number {
+  if (mm <= 0) return 0;
+  const stops = IMD_RAIN_THRESHOLDS_MM;
+  if (mm >= stops[stops.length - 1].mm) return 1;
+  for (let i = 0; i < stops.length - 1; i++) {
+    const lo = stops[i];
+    const hi = stops[i + 1];
+    if (mm >= lo.mm && mm <= hi.mm) {
+      const frac = hi.mm === lo.mm ? 0 : (mm - lo.mm) / (hi.mm - lo.mm);
+      return lo.t + (hi.t - lo.t) * frac;
+    }
+  }
+  return 1;
+}
 
 // ── Earth/cambecc Temperature Colormap ───────────────────────────────────────
 // Ported from fluid-earth/src/map/colormaps/earth.js

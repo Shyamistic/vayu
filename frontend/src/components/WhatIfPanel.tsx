@@ -40,7 +40,7 @@ export default function WhatIfPanel({ onResult, onReset }: WhatIfPanelProps) {
     const request: ScenarioRequest = {
       scenario_type: selectedScenario.id,
       magnitude,
-      target_region: 'pilot',
+      target_region: 'full_india',
       target_season: targetSeason,
     };
 

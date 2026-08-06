@@ -175,12 +175,13 @@ export interface HealthResponse {
    *
    * - `cache_backend`: 'redis' | 'in-process' | 'none'
    * - `persistence_connected`: false on the lean profile, which runs no PostgreSQL
-   * - `real_data_regions`: regions with a normalized_*.nc present. A region absent
-   *   here is served from synthetic grids and must not be presented as a forecast.
+   * - `real_data_regions`: regions with a normalized_*.nc present, i.e. backed by
+   *   a real trained model checkpoint rather than mock/synthetic data. A region
+   *   absent here must not be presented as a forecast.
    */
   cache_backend?: string;
   persistence_connected?: boolean;
-  real_data_regions?: string[];
+  real_data_regions?: RegionId[];
 }
 
 // ── UI state types ─────────────────────────────────────────────────────────────
@@ -192,7 +193,7 @@ export type RegionId =
   | 'north_east_india'
   | 'indo_gangetic_plain'
   | 'central_india'
-  | 'pilot';
+  | 'full_india';
 
 export type ViewMode =
   | 'prediction' | 'historical' | 'scenario' | 'metrics'

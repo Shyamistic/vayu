@@ -22,7 +22,7 @@
     "@radix-ui/react-tooltip": "^1.0.7",
     "@tanstack/react-query": "^5.101.4",
     "cesium": "^1.118.0",
-    "cesium-wind-layer": "file:../cesium-wind-layer/packages/cesium-wind-layer",
+    "cesium-wind-layer": "^0.10.1",
     "clsx": "^2.1.1",
     "date-fns": "^3.6.0",
     "framer-motion": "^12.42.2",

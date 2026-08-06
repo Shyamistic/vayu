@@ -44,8 +44,11 @@ const VALID_VIEW_MODES = new Set<ViewMode>([
 ]);
 
 const VALID_REGIONS = new Set<RegionId>([
-  'western_ghats', 'north_east_india', 'indo_gangetic_plain', 'central_india', 'pilot',
+  'western_ghats', 'north_east_india', 'indo_gangetic_plain', 'central_india', 'full_india',
 ]);
+
+/** Old region id, kept decodable so pre-rename shared links still resolve. */
+const LEGACY_REGION_ALIASES: Record<string, RegionId> = { pilot: 'full_india' };
 
 const VALID_VARIABLES = new Set<VariableId>(['rainfall', 'temp_max', 'temp_min']);
 
@@ -169,8 +172,8 @@ export function decodeAppState(urlOrSearch: string): ShareableAppState {
     ? (rawVm as ViewMode)
     : DEFAULT_STATE.viewMode;
 
-  // region
-  const rawR = params.get('r') ?? '';
+  // region — resolve legacy ids (e.g. old shared links using "pilot") first
+  const rawR = LEGACY_REGION_ALIASES[params.get('r') ?? ''] ?? (params.get('r') ?? '');
   const region: RegionId = VALID_REGIONS.has(rawR as RegionId)
     ? (rawR as RegionId)
     : DEFAULT_STATE.region;

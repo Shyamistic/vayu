@@ -6,7 +6,7 @@ import { fetchPrediction } from '../../api/client';
 export interface UsePredictionParams {
   /** Target date in YYYY-MM-DD format */
   date: string;
-  /** Region identifier (default: 'pilot') */
+  /** Region identifier (default: 'full_india') */
   region?: string;
   /** Forecast lead day 1–7 (default: 1) */
   lead_day?: number;
@@ -20,7 +20,7 @@ export interface UsePredictionParams {
  * Validates: Requirements 1.1, 1.5, 7.4
  */
 export function usePrediction(params: UsePredictionParams) {
-  const { date, region = 'pilot', lead_day = 1 } = params;
+  const { date, region = 'full_india', lead_day = 1 } = params;
   const [isUsingMockData, setIsUsingMockData] = useState(false);
 
   const query = useQuery<PredictionResponse>({

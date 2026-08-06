@@ -60,7 +60,7 @@ export const REGION_THRESHOLDS: Record<RegionId, RegionThresholds> = {
   indo_gangetic_plain: { base: 150, low: 200, moderate: 250, high: 350 },
   north_east_india: { base: 120, low: 180, moderate: 240, high: 350 },
   central_india: { base: 100, low: 160, moderate: 220, high: 320 },
-  pilot: { base: 100, low: 150, moderate: 200, high: 300 },
+  full_india: { base: 100, low: 150, moderate: 200, high: 300 },
 };
 
 /** Color palette for flood risk levels (blue family per Req 20.2) */

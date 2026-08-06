@@ -5,6 +5,7 @@ import {
   BarChart2, Database, Layers, BookOpen,
   SplitSquareHorizontal, Mountain, Leaf, Wind,
   Radio, Waves, Download, BarChart, Menu, X, Search, Eye, Map, Moon,
+  Plus, Minus,
 } from 'lucide-react';
 import { format, addDays } from 'date-fns';
 import CesiumGlobe from './components/AsyncCesiumGlobe';
@@ -17,7 +18,7 @@ import DataProvenancePanel from './components/DataProvenancePanel';
 import ColorLegend from './components/ColorLegend';
 import LayerControlPanel from './components/LayerControlPanel';
 import LanguageToggle from './components/LanguageToggle';
-import type { EarthLayer, TourCameraStep } from './components/CesiumGlobe';
+import type { CesiumGlobeHandle, EarthLayer, TourCameraStep, WindAnimationStyle } from './components/CesiumGlobe';
 
 import ExtremeAlerts from './components/ExtremeAlerts';
 import CellInfoCard from './components/CellInfoCard';
@@ -169,6 +170,7 @@ export default function App() {
   // (or press Esc, or Cesium's LEFT_CLICK on empty sky) to restore it.
   const [focusMode, setFocusMode] = useState(false);
   const [showWind, setShowWind] = useState(false);
+  const [windStyle, setWindStyle] = useState<WindAnimationStyle>('normal');
   const [showTerminator, setShowTerminator] = useState(false);
   const [mapMode, setMapMode] = useState<'3d' | '2d'>('3d');
   // One-time auto-rotate + auto-play-forecast hero moment, right after the
@@ -181,6 +183,7 @@ export default function App() {
     typeof window !== 'undefined' && window.matchMedia('(min-width: 768px)').matches,
   );
   const [chromeHeights, setChromeHeights] = useState({ header: 56, timeline: 160, mobileDrawer: 0 });
+  const globeRef = useRef<CesiumGlobeHandle>(null);
   const headerRef = useRef<HTMLElement>(null);
   const rightPanelRef = useRef<HTMLDivElement>(null);
   const timelineRef = useRef<HTMLDivElement>(null);
@@ -387,6 +390,7 @@ export default function App() {
       >
         <GlobeErrorBoundary>
           <CesiumGlobe
+            ref={globeRef}
             gridCells={showHeatmap && (state.viewMode === 'prediction' || state.viewMode === 'scenario') ? gridCells : []}
             variable={state.selectedVariable}
             region={state.selectedRegion}
@@ -403,6 +407,7 @@ export default function App() {
             show3D={show3D}
             selectedDate={state.timeState.selectedDate}
             showWind={showWind}
+            windStyle={windStyle}
             showTerminator={showTerminator}
             mapMode={mapMode}
             heroMode={heroPlaying}
@@ -412,6 +417,29 @@ export default function App() {
             viewportKey={globeViewportKey}
           />
         </GlobeErrorBoundary>
+
+        {/* ── Zoom controls — work in both 3D and 2D map mode ── */}
+        <div className="absolute top-4 right-4 z-10 flex flex-col rounded-lg overflow-hidden" style={{ border: '1px solid rgba(255,255,255,0.08)' }}>
+          <button
+            onClick={() => globeRef.current?.zoomIn()}
+            className="flex items-center justify-center w-8 h-8 transition-colors hover:bg-white/10"
+            style={{ background: 'rgba(6,10,22,0.92)', color: 'rgba(255,255,255,0.7)' }}
+            title="Zoom in"
+            aria-label="Zoom in"
+          >
+            <Plus size={15} />
+          </button>
+          <div style={{ height: 1, background: 'rgba(255,255,255,0.08)' }} />
+          <button
+            onClick={() => globeRef.current?.zoomOut()}
+            className="flex items-center justify-center w-8 h-8 transition-colors hover:bg-white/10"
+            style={{ background: 'rgba(6,10,22,0.92)', color: 'rgba(255,255,255,0.7)' }}
+            title="Zoom out"
+            aria-label="Zoom out"
+          >
+            <Minus size={15} />
+          </button>
+        </div>
       </div>
 
       {/* ── Extreme event alerts (Feature 21) ── */}
@@ -434,6 +462,7 @@ export default function App() {
           <RegionSelector
             selected={state.selectedRegion}
             onChange={(r: RegionId) => { update({ selectedRegion: r }); setRegionFlyTrigger(n => n + 1); }}
+            realDataRegions={health?.real_data_regions}
           />
         </div>
 
@@ -590,21 +619,45 @@ export default function App() {
           </button>
         )}
 
-        {/* Wind particle toggle */}
+        {/* Wind particle toggle — the GPU wind renderer doesn't draw anything
+            in Cesium's 2D orthographic mode, so the control is disabled there
+            rather than presenting a switch that silently does nothing. */}
         <button
-          onClick={() => setShowWind((v) => !v)}
+          onClick={() => mapMode === '3d' && setShowWind((v) => !v)}
+          disabled={mapMode === '2d'}
           className="flex flex-col items-center gap-1 px-3 py-2.5 rounded-lg mt-1 transition-all"
           style={{
             background: 'rgba(6,10,22,0.92)',
-            border: showWind ? '1px solid #0ea5e9' : '1px solid rgba(255,255,255,0.08)',
-            color: showWind ? '#0ea5e9' : 'rgba(255,255,255,0.3)',
-            boxShadow: showWind ? '0 0 8px rgba(14,165,233,0.25)' : 'none',
+            border: showWind && mapMode === '3d' ? '1px solid #0ea5e9' : '1px solid rgba(255,255,255,0.08)',
+            color: mapMode === '2d' ? 'rgba(255,255,255,0.15)' : showWind ? '#0ea5e9' : 'rgba(255,255,255,0.3)',
+            boxShadow: showWind && mapMode === '3d' ? '0 0 8px rgba(14,165,233,0.25)' : 'none',
+            cursor: mapMode === '2d' ? 'not-allowed' : 'pointer',
           }}
-          title="Toggle wind particles"
+          title={mapMode === '2d' ? 'Wind particles are only available in 3D mode' : 'Toggle wind particles'}
         >
           <Wind size={14} />
           <span className="text-[9px] font-medium">Wind</span>
         </button>
+
+        {/* Wind animation style preset — only meaningful while wind is on and visible */}
+        {showWind && mapMode === '3d' && (
+          <select
+            value={windStyle}
+            onChange={(e) => setWindStyle(e.target.value as WindAnimationStyle)}
+            title="Wind animation style"
+            className="mt-1 text-[9px] font-medium rounded-md px-1.5 py-1 outline-none cursor-pointer"
+            style={{
+              background: 'rgba(6,10,22,0.92)',
+              border: '1px solid rgba(14,165,233,0.3)',
+              color: '#0ea5e9',
+            }}
+          >
+            <option value="normal">Normal</option>
+            <option value="soft">Soft</option>
+            <option value="dark">Dark</option>
+            <option value="fast">Fast-motion</option>
+          </select>
+        )}
 
         {/* Day/night terminator toggle */}
         <button
@@ -762,7 +815,7 @@ export default function App() {
               <IndiaClimateStats gridCells={gridCells} selectedDate={state.timeState.selectedDate} />
               <IMDAlertBanner gridCells={gridCells} />
               <ClimateRiskScore gridCells={gridCells} variable={state.selectedVariable} />
-              <PredictionSummaryPanel gridCells={gridCells} variable={state.selectedVariable} isLoading={state.isLoading} date={state.timeState.selectedDate} />
+              <PredictionSummaryPanel gridCells={gridCells} variable={state.selectedVariable} isLoading={state.isLoading} date={state.timeState.selectedDate} region={state.selectedRegion} />
               <TrendSparklines gridCells={gridCells} variable={state.selectedVariable} dateLabel={format(state.timeState.selectedDate, 'dd MMM')} />
               <ColormapSelector
                 variable={state.selectedVariable}
@@ -930,11 +983,13 @@ function PredictionSummaryPanel({
   variable,
   isLoading,
   date,
+  region,
 }: {
   gridCells: GridCell[];
   variable: VariableId;
   isLoading: boolean;
   date: Date;
+  region: RegionId;
 }) {
   if (isLoading) {
     return (
@@ -978,7 +1033,7 @@ function PredictionSummaryPanel({
       </div>
 
       <p className="text-xs text-white/30 text-center">
-        {gridCells.length} grid cells · 0.25° resolution
+        {gridCells.length} grid cells · {region === 'full_india' ? '0.5°' : '0.25°'} resolution
       </p>
       <p className="text-xs text-white/20 text-center">
         T+1 to T+7 day forecast · Click a cell for details

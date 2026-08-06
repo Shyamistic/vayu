@@ -10,9 +10,9 @@
  *  - VAYU climate model output only
  *  - FIRMS Active Fires (NASA GIBS, free) — Feature 17
  *  - OpenWeatherMap live tiles — Feature 12
- *  - NASA SMAP Soil Moisture (NASA GIBS, free) — Feature 16
+ *  - MODIS Land Surface Temperature (NASA GIBS, free) — Feature 16
  */
-import { Layers, Satellite, CloudRain, Cloud, Activity, Thermometer, TreePine, Wind, Droplets, Leaf } from 'lucide-react';
+import { Layers, Satellite, CloudRain, Cloud, Activity, Thermometer, TreePine, Wind, Droplets } from 'lucide-react';
 import type { EarthLayer } from './CesiumGlobe';
 
 interface LayerOption {
@@ -90,11 +90,11 @@ const LAYER_OPTIONS: LayerOption[] = [
     group: 'NASA',
   },
   {
-    id: 'smap',
-    label: 'Soil Moisture',
-    sublabel: 'NASA SMAP L4',
-    icon: <Leaf size={13} />,
-    color: '#84cc16',
+    id: 'modis_lst',
+    label: 'Land Surface T.',
+    sublabel: 'MODIS Terra LST Day',
+    icon: <Thermometer size={13} />,
+    color: '#eab308',
     badge: 'NASA GIBS',
     group: 'NASA',
   },
@@ -150,7 +150,7 @@ export default function LayerControlPanel({
   onDateChange,
 }: LayerControlPanelProps) {
   const today = new Date().toISOString().split('T')[0];
-  const timeAwareLayers = ['modis', 'precipitation', 'cloud', 'sst', 'aerosol', 'ndvi', 'fires', 'smap'];
+  const timeAwareLayers = ['modis', 'precipitation', 'cloud', 'sst', 'aerosol', 'ndvi', 'fires', 'modis_lst'];
 
   return (
     <div className="flex flex-col gap-2">

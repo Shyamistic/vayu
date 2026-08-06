@@ -312,13 +312,13 @@ export default function WhatIfScenarioEngine({
       ? chainedSteps.map((s) => ({
           scenario_type: s.scenario_type,
           magnitude: s.magnitude,
-          target_region: 'pilot',
+          target_region: 'full_india',
           target_season: targetSeason,
         }))
       : [{
           scenario_type: selectedScenario.id,
           magnitude,
-          target_region: 'pilot',
+          target_region: 'full_india',
           target_season: targetSeason,
         }];
 

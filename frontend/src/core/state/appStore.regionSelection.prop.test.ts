@@ -42,7 +42,7 @@ const VALID_REGIONS = [
   'north_east_india',
   'indo_gangetic_plain',
   'central_india',
-  'pilot',
+  'full_india',
 ] as const;
 
 type ValidRegion = typeof VALID_REGIONS[number];

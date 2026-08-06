@@ -52,7 +52,7 @@ const REGION_LABELS: Record<RegionId, string> = {
   north_east_india: 'North-East India',
   indo_gangetic_plain: 'Indo-Gangetic Plain',
   central_india: 'Central India',
-  pilot: 'Pilot Region',
+  full_india: 'All India',
 };
 
 // ── Pure helper utilities ─────────────────────────────────────────────────────

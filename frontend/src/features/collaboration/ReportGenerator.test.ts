@@ -40,7 +40,7 @@ function makeCell(overrides: Partial<GridCell> = {}): GridCell {
 }
 
 const EMPTY_ANOMALIES: AnomalySummaryEntry[] = [];
-const BASE_REGION: RegionId = 'pilot';
+const BASE_REGION: RegionId = 'full_india';
 
 // ── computeDayStats ───────────────────────────────────────────────────────────
 

@@ -29,7 +29,7 @@ const viewModeArb = fc.constantFrom<ViewMode>(
 );
 
 const regionArb = fc.constantFrom<RegionId>(
-  'western_ghats', 'north_east_india', 'indo_gangetic_plain', 'central_india', 'pilot',
+  'western_ghats', 'north_east_india', 'indo_gangetic_plain', 'central_india', 'full_india',
 );
 
 const variableArb = fc.constantFrom<VariableId>('rainfall', 'temp_max', 'temp_min');
@@ -173,7 +173,7 @@ describe('encodeAppState', () => {
       new URLSearchParams(
         encodeAppState({
           viewMode: 'prediction',
-          region: 'pilot',
+          region: 'full_india',
           variable: 'rainfall',
           forecastDay: 1,
           camera: { latitude: 20, longitude: 78, altitude: 5_000_000, heading: 0, pitch: -90, roll: 0 },
@@ -253,17 +253,22 @@ describe('decodeAppState', () => {
   });
 
   it('accepts a query string with a leading "?"', () => {
-    const qs = '?vm=historical&r=pilot&v=rainfall&fd=7';
+    const qs = '?vm=historical&r=full_india&v=rainfall&fd=7';
     const decoded = decodeAppState(qs);
     expect(decoded.viewMode).toBe('historical');
-    expect(decoded.region).toBe('pilot');
+    expect(decoded.region).toBe('full_india');
     expect(decoded.forecastDay).toBe(7);
   });
 
   it('falls back to defaults for unknown viewMode', () => {
-    const decoded = decodeAppState('vm=UNKNOWN_MODE&r=pilot');
+    const decoded = decodeAppState('vm=UNKNOWN_MODE&r=full_india');
     expect(decoded.viewMode).toBe('prediction');
-    expect(decoded.region).toBe('pilot');
+    expect(decoded.region).toBe('full_india');
+  });
+
+  it('resolves the legacy "pilot" region id to "full_india" for old shared links', () => {
+    const decoded = decodeAppState('r=pilot');
+    expect(decoded.region).toBe('full_india');
   });
 
   it('falls back to defaults for unknown region', () => {

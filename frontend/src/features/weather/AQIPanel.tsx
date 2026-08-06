@@ -335,7 +335,7 @@ const REGION_BBOX: Record<string, { latMin: number; latMax: number; lonMin: numb
   north_east_india:  { latMin: 22.0, latMax: 29.0, lonMin: 88.0, lonMax: 97.0 },
   indo_gangetic_plain: { latMin: 24.0, latMax: 30.0, lonMin: 75.0, lonMax: 88.0 },
   central_india:     { latMin: 18.0, latMax: 26.0, lonMin: 74.0, lonMax: 84.0 },
-  pilot:             { latMin: 8.0,  latMax: 37.0, lonMin: 68.0, lonMax: 97.0 },
+  full_india:        { latMin: 8.0,  latMax: 37.0, lonMin: 68.0, lonMax: 97.0 },
 };
 
 /** Spacing between sampled grid points (degrees) */
@@ -343,7 +343,7 @@ const SAMPLE_SPACING = 1.0; // 1° spacing to limit API calls
 
 /** Generate a coarse grid of lat/lon points for a region */
 function sampleGridPoints(region: RegionId): Array<{ lat: number; lon: number }> {
-  const bbox = REGION_BBOX[region] ?? REGION_BBOX['pilot'];
+  const bbox = REGION_BBOX[region] ?? REGION_BBOX['full_india'];
   const points: Array<{ lat: number; lon: number }> = [];
   for (let lat = bbox.latMin; lat <= bbox.latMax; lat += SAMPLE_SPACING) {
     for (let lon = bbox.lonMin; lon <= bbox.lonMax; lon += SAMPLE_SPACING) {
@@ -688,7 +688,7 @@ export interface AQIPanelProps {
  * Validates: Requirements 23.1, 23.2, 23.3, 23.4
  */
 export const AQIPanel: React.FC<AQIPanelProps> = ({
-  region = 'pilot',
+  region = 'full_india',
   enabled = true,
   windCells = [],
   onCellSelect,
