@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
-import { Play, Pause, ChevronLeft, ChevronRight, Calendar, X } from 'lucide-react';
+import { Play, Pause, ChevronLeft, ChevronRight, ChevronDown, Plus, Minus, Calendar, X } from 'lucide-react';
 import {
   format,
   addDays,
@@ -129,6 +129,11 @@ export default function TimeSlider({ timeState, onChange }: TimeSliderProps) {
       : `${format(rangeStart, 'yyyy')} → ${format(rangeEnd, 'yyyy')}`
     : null;
 
+  // Default collapsed to a slim pill (play + date + expand) — the full
+  // slider/granularity/range controls below are opt-in via "Expand Timeline",
+  // matching the redesign reference (reference-supplied mockup).
+  const [expanded, setExpanded] = useState(false);
+
   // ── Calendar popover ─────────────────────────────────────────────────────────
   const [calendarOpen, setCalendarOpen] = useState(false);
   const [pickerMode, setPickerMode] = useState<'single' | 'range'>(rangeStart ? 'range' : 'single');
@@ -235,6 +240,225 @@ export default function TimeSlider({ timeState, onChange }: TimeSliderProps) {
     [viewDate.getFullYear()],
   );
 
+  // Shared calendar popover — anchored inside whichever "relative"-positioned
+  // date-button wrapper is currently rendered (collapsed pill or expanded
+  // header), so it's built once and reused rather than duplicated per branch.
+  const calendarPopover = calendarOpen && (
+    <div
+      ref={popoverRef}
+      className="absolute bottom-full mb-2 z-50 w-[280px] rounded-xl p-3 flex flex-col gap-2 shadow-2xl"
+      style={{
+        background: 'rgba(var(--panel-bg-rgb),0.98)',
+        border: '1px solid rgba(var(--fg-rgb),var(--fg-a12))',
+        backdropFilter: 'blur(16px)',
+        WebkitBackdropFilter: 'blur(16px)',
+      }}
+    >
+      {/* Mode toggle */}
+      <div className="flex items-center justify-between">
+        <div className="flex gap-1">
+          {(['single', 'range'] as const).map((m) => (
+            <button
+              key={m}
+              onClick={() => { setPickerMode(m); setPendingStart(null); }}
+              className={`text-[10px] px-2 py-0.5 rounded capitalize transition-colors ${
+                pickerMode === m
+                  ? 'bg-vayu-blue text-foreground'
+                  : 'text-foreground/40 hover:text-foreground/70'
+              }`}
+            >
+              {m}
+            </button>
+          ))}
+        </div>
+        <button onClick={() => setCalendarOpen(false)} className="text-foreground/40 hover:text-foreground/80">
+          <X size={13} />
+        </button>
+      </div>
+
+      {/* Fixed height regardless of mode/pending-state so the grid below
+          never reflows mid-selection — a shifting grid meant a second
+          click could land on the wrong cell right after the first. */}
+      <div className="h-3.5 text-[10px] text-foreground/50 text-center">
+        {pickerMode === 'range' && (
+          pendingStart
+            ? `Pick an end ${granularity === 'daily' ? 'date' : granularity === 'monthly' ? 'month' : 'year'}…`
+            : `Pick a start ${granularity === 'daily' ? 'date' : granularity === 'monthly' ? 'month' : 'year'}`
+        )}
+      </div>
+
+      {/* Daily grid */}
+      {granularity === 'daily' && (
+        <>
+          <div className="flex items-center justify-between">
+            <button onClick={() => setViewDate(addMonths(viewDate, -1))} className="btn-ghost p-1">
+              <ChevronLeft size={14} />
+            </button>
+            <span className="text-xs font-medium text-foreground/80">{format(viewDate, 'MMMM yyyy')}</span>
+            <button onClick={() => setViewDate(addMonths(viewDate, 1))} className="btn-ghost p-1">
+              <ChevronRight size={14} />
+            </button>
+          </div>
+          <div className="grid grid-cols-7 gap-0.5 text-center">
+            {WEEKDAY_LABELS.map((w, i) => (
+              <span key={i} className="text-[9px] text-foreground/40">{w}</span>
+            ))}
+            {Array.from({ length: dayGrid.leadingBlanks }).map((_, i) => <span key={`b${i}`} />)}
+            {dayGrid.days.map((d) => {
+              const outOfBounds = d < MIN_DATE || d > MAX_DATE;
+              const selected = pickerMode === 'single'
+                ? isSameDay(d, selectedDate)
+                : pendingStart
+                  ? isSameDay(d, pendingStart)
+                  : isInCommittedRange(d);
+              const inPreview = pickerMode === 'range' && isInPreviewRange(d);
+              return (
+                <button
+                  key={d.toISOString()}
+                  disabled={outOfBounds}
+                  onClick={() => handleDayClick(d)}
+                  onMouseEnter={() => setHoverDate(d)}
+                  className={`text-[10px] py-1 rounded transition-colors ${
+                    outOfBounds
+                      ? 'text-foreground/15 cursor-not-allowed'
+                      : selected
+                      ? 'bg-vayu-blue text-foreground font-semibold'
+                      : inPreview
+                      ? 'bg-vayu-blue/25 text-foreground'
+                      : 'text-foreground/70 hover:bg-foreground/10'
+                  }`}
+                >
+                  {format(d, 'd')}
+                </button>
+              );
+            })}
+          </div>
+        </>
+      )}
+
+      {/* Monthly grid */}
+      {granularity === 'monthly' && (
+        <>
+          <div className="flex items-center justify-between">
+            <button onClick={() => setViewDate(addYears(viewDate, -1))} className="btn-ghost p-1">
+              <ChevronLeft size={14} />
+            </button>
+            <span className="text-xs font-medium text-foreground/80">{format(viewDate, 'yyyy')}</span>
+            <button onClick={() => setViewDate(addYears(viewDate, 1))} className="btn-ghost p-1">
+              <ChevronRight size={14} />
+            </button>
+          </div>
+          <div className="grid grid-cols-3 gap-1">
+            {monthGrid.map((m) => {
+              const outOfBounds = endOfMonth(m) < MIN_DATE || startOfMonth(m) > MAX_DATE;
+              const selected = pickerMode === 'single'
+                ? isSameMonth(m, selectedDate)
+                : pendingStart
+                  ? isSameMonth(m, pendingStart)
+                  : isInCommittedRange(m);
+              const inPreview = pickerMode === 'range' && isInPreviewRange(m);
+              return (
+                <button
+                  key={m.toISOString()}
+                  disabled={outOfBounds}
+                  onClick={() => handleMonthClick(m)}
+                  onMouseEnter={() => setHoverDate(m)}
+                  className={`text-[10px] py-2 rounded transition-colors ${
+                    outOfBounds
+                      ? 'text-foreground/15 cursor-not-allowed'
+                      : selected
+                      ? 'bg-vayu-blue text-foreground font-semibold'
+                      : inPreview
+                      ? 'bg-vayu-blue/25 text-foreground'
+                      : 'text-foreground/70 hover:bg-foreground/10'
+                  }`}
+                >
+                  {format(m, 'MMM')}
+                </button>
+              );
+            })}
+          </div>
+        </>
+      )}
+
+      {/* Yearly grid — small enough range (2010–2025) to show in full, no paging */}
+      {granularity === 'yearly' && (
+        <div className="grid grid-cols-4 gap-1">
+          {YEARS.map((y) => {
+            const yearStart = new Date(y, 0, 1);
+            const selected = pickerMode === 'single'
+              ? y === selectedDate.getFullYear()
+              : pendingStart
+                ? y === pendingStart.getFullYear()
+                : isInCommittedRange(yearStart);
+            const inPreview = pickerMode === 'range' && isInPreviewRange(yearStart);
+            return (
+              <button
+                key={y}
+                onClick={() => handleYearClick(y)}
+                onMouseEnter={() => setHoverDate(yearStart)}
+                className={`text-[10px] py-2 rounded transition-colors ${
+                  selected
+                    ? 'bg-vayu-blue text-foreground font-semibold'
+                    : inPreview
+                    ? 'bg-vayu-blue/25 text-foreground'
+                    : 'text-foreground/70 hover:bg-foreground/10'
+                }`}
+              >
+                {y}
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+
+  // ── Collapsed (default) — a slim pill: play, date, expand ──────────────────
+  if (!expanded) {
+    return (
+      <div
+        className="flex items-center gap-2 px-2 py-2 select-none animate-slide-in-up rounded-full"
+        style={{
+          background: 'rgba(var(--panel-bg-rgb),0.92)',
+          border: '1px solid rgba(var(--fg-rgb),var(--fg-a08))',
+          backdropFilter: 'blur(12px)',
+          WebkitBackdropFilter: 'blur(12px)',
+        }}
+      >
+        <button
+          onClick={() => onChange({ isPlaying: !isPlaying })}
+          className="w-9 h-9 shrink-0 rounded-full flex items-center justify-center bg-vayu-blue hover:bg-sky-400 text-white transition-all active:scale-95"
+        >
+          {isPlaying ? <Pause size={14} /> : <Play size={14} className="ml-0.5" />}
+        </button>
+
+        <div className="relative">
+          <button
+            onClick={openCalendar}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-colors"
+            style={{ background: 'rgba(var(--fg-rgb),var(--fg-a05))', color: 'rgba(var(--fg-rgb),var(--fg-a75))' }}
+          >
+            <Calendar size={13} />
+            {dateLabel}
+            <ChevronDown size={12} />
+          </button>
+          {calendarPopover}
+        </div>
+
+        <button
+          onClick={() => setExpanded(true)}
+          title="Expand"
+          className="w-8 h-8 shrink-0 rounded-full flex items-center justify-center transition-colors ml-auto"
+          style={{ background: 'rgba(var(--fg-rgb),var(--fg-a05))', color: 'rgba(var(--fg-rgb),var(--fg-a75))' }}
+        >
+          <Plus size={15} />
+        </button>
+      </div>
+    );
+  }
+
+  // ── Expanded — full slider, granularity, range and playback controls ───────
   return (
     <div
       className="px-3 py-2 flex flex-col gap-1 select-none animate-slide-in-up rounded-xl"
@@ -267,7 +491,7 @@ export default function TimeSlider({ timeState, onChange }: TimeSliderProps) {
           </button>
         </div>
         {/* Granularity selector — also controls which grid the calendar shows */}
-        <div className="flex gap-1">
+        <div className="flex items-center gap-1">
           {(['daily', 'monthly', 'yearly'] as const).map((g) => (
             <button
               key={g}
@@ -281,6 +505,14 @@ export default function TimeSlider({ timeState, onChange }: TimeSliderProps) {
               {g.charAt(0).toUpperCase() + g.slice(1)}
             </button>
           ))}
+          <button
+            onClick={() => setExpanded(false)}
+            title="Collapse"
+            className="w-6 h-6 shrink-0 rounded-full flex items-center justify-center transition-colors ml-1"
+            style={{ background: 'rgba(var(--fg-rgb),var(--fg-a08))', color: 'rgba(var(--fg-rgb),var(--fg-a75))' }}
+          >
+            <Minus size={12} />
+          </button>
         </div>
       </div>
 
@@ -293,176 +525,7 @@ export default function TimeSlider({ timeState, onChange }: TimeSliderProps) {
           {dateLabel}
         </button>
 
-        {calendarOpen && (
-          <div
-            ref={popoverRef}
-            className="absolute bottom-full mb-2 z-50 w-[280px] rounded-xl p-3 flex flex-col gap-2 shadow-2xl"
-            style={{
-              background: 'rgba(var(--panel-bg-rgb),0.98)',
-              border: '1px solid rgba(var(--fg-rgb),var(--fg-a12))',
-              backdropFilter: 'blur(16px)',
-              WebkitBackdropFilter: 'blur(16px)',
-            }}
-          >
-            {/* Mode toggle */}
-            <div className="flex items-center justify-between">
-              <div className="flex gap-1">
-                {(['single', 'range'] as const).map((m) => (
-                  <button
-                    key={m}
-                    onClick={() => { setPickerMode(m); setPendingStart(null); }}
-                    className={`text-[10px] px-2 py-0.5 rounded capitalize transition-colors ${
-                      pickerMode === m
-                        ? 'bg-vayu-blue text-foreground'
-                        : 'text-foreground/40 hover:text-foreground/70'
-                    }`}
-                  >
-                    {m}
-                  </button>
-                ))}
-              </div>
-              <button onClick={() => setCalendarOpen(false)} className="text-foreground/40 hover:text-foreground/80">
-                <X size={13} />
-              </button>
-            </div>
-
-            {/* Fixed height regardless of mode/pending-state so the grid below
-                never reflows mid-selection — a shifting grid meant a second
-                click could land on the wrong cell right after the first. */}
-            <div className="h-3.5 text-[10px] text-foreground/50 text-center">
-              {pickerMode === 'range' && (
-                pendingStart
-                  ? `Pick an end ${granularity === 'daily' ? 'date' : granularity === 'monthly' ? 'month' : 'year'}…`
-                  : `Pick a start ${granularity === 'daily' ? 'date' : granularity === 'monthly' ? 'month' : 'year'}`
-              )}
-            </div>
-
-            {/* Daily grid */}
-            {granularity === 'daily' && (
-              <>
-                <div className="flex items-center justify-between">
-                  <button onClick={() => setViewDate(addMonths(viewDate, -1))} className="btn-ghost p-1">
-                    <ChevronLeft size={14} />
-                  </button>
-                  <span className="text-xs font-medium text-foreground/80">{format(viewDate, 'MMMM yyyy')}</span>
-                  <button onClick={() => setViewDate(addMonths(viewDate, 1))} className="btn-ghost p-1">
-                    <ChevronRight size={14} />
-                  </button>
-                </div>
-                <div className="grid grid-cols-7 gap-0.5 text-center">
-                  {WEEKDAY_LABELS.map((w, i) => (
-                    <span key={i} className="text-[9px] text-foreground/40">{w}</span>
-                  ))}
-                  {Array.from({ length: dayGrid.leadingBlanks }).map((_, i) => <span key={`b${i}`} />)}
-                  {dayGrid.days.map((d) => {
-                    const outOfBounds = d < MIN_DATE || d > MAX_DATE;
-                    const selected = pickerMode === 'single'
-                      ? isSameDay(d, selectedDate)
-                      : pendingStart
-                        ? isSameDay(d, pendingStart)
-                        : isInCommittedRange(d);
-                    const inPreview = pickerMode === 'range' && isInPreviewRange(d);
-                    return (
-                      <button
-                        key={d.toISOString()}
-                        disabled={outOfBounds}
-                        onClick={() => handleDayClick(d)}
-                        onMouseEnter={() => setHoverDate(d)}
-                        className={`text-[10px] py-1 rounded transition-colors ${
-                          outOfBounds
-                            ? 'text-foreground/15 cursor-not-allowed'
-                            : selected
-                            ? 'bg-vayu-blue text-foreground font-semibold'
-                            : inPreview
-                            ? 'bg-vayu-blue/25 text-foreground'
-                            : 'text-foreground/70 hover:bg-foreground/10'
-                        }`}
-                      >
-                        {format(d, 'd')}
-                      </button>
-                    );
-                  })}
-                </div>
-              </>
-            )}
-
-            {/* Monthly grid */}
-            {granularity === 'monthly' && (
-              <>
-                <div className="flex items-center justify-between">
-                  <button onClick={() => setViewDate(addYears(viewDate, -1))} className="btn-ghost p-1">
-                    <ChevronLeft size={14} />
-                  </button>
-                  <span className="text-xs font-medium text-foreground/80">{format(viewDate, 'yyyy')}</span>
-                  <button onClick={() => setViewDate(addYears(viewDate, 1))} className="btn-ghost p-1">
-                    <ChevronRight size={14} />
-                  </button>
-                </div>
-                <div className="grid grid-cols-3 gap-1">
-                  {monthGrid.map((m) => {
-                    const outOfBounds = endOfMonth(m) < MIN_DATE || startOfMonth(m) > MAX_DATE;
-                    const selected = pickerMode === 'single'
-                      ? isSameMonth(m, selectedDate)
-                      : pendingStart
-                        ? isSameMonth(m, pendingStart)
-                        : isInCommittedRange(m);
-                    const inPreview = pickerMode === 'range' && isInPreviewRange(m);
-                    return (
-                      <button
-                        key={m.toISOString()}
-                        disabled={outOfBounds}
-                        onClick={() => handleMonthClick(m)}
-                        onMouseEnter={() => setHoverDate(m)}
-                        className={`text-[10px] py-2 rounded transition-colors ${
-                          outOfBounds
-                            ? 'text-foreground/15 cursor-not-allowed'
-                            : selected
-                            ? 'bg-vayu-blue text-foreground font-semibold'
-                            : inPreview
-                            ? 'bg-vayu-blue/25 text-foreground'
-                            : 'text-foreground/70 hover:bg-foreground/10'
-                        }`}
-                      >
-                        {format(m, 'MMM')}
-                      </button>
-                    );
-                  })}
-                </div>
-              </>
-            )}
-
-            {/* Yearly grid — small enough range (2010–2025) to show in full, no paging */}
-            {granularity === 'yearly' && (
-              <div className="grid grid-cols-4 gap-1">
-                {YEARS.map((y) => {
-                  const yearStart = new Date(y, 0, 1);
-                  const selected = pickerMode === 'single'
-                    ? y === selectedDate.getFullYear()
-                    : pendingStart
-                      ? y === pendingStart.getFullYear()
-                      : isInCommittedRange(yearStart);
-                  const inPreview = pickerMode === 'range' && isInPreviewRange(yearStart);
-                  return (
-                    <button
-                      key={y}
-                      onClick={() => handleYearClick(y)}
-                      onMouseEnter={() => setHoverDate(yearStart)}
-                      className={`text-[10px] py-2 rounded transition-colors ${
-                        selected
-                          ? 'bg-vayu-blue text-foreground font-semibold'
-                          : inPreview
-                          ? 'bg-vayu-blue/25 text-foreground'
-                          : 'text-foreground/70 hover:bg-foreground/10'
-                      }`}
-                    >
-                      {y}
-                    </button>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-        )}
+        {calendarPopover}
       </div>
 
       {/* Slider — bounded to the active range when one is set */}

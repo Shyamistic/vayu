@@ -1,3 +1,5 @@
+import { useEffect, useRef, useState } from 'react';
+import { ChevronDown } from 'lucide-react';
 import type { RegionId } from '../types';
 
 export interface RegionBounds {
@@ -79,32 +81,66 @@ interface RegionSelectorProps {
 }
 
 export default function RegionSelector({ selected, onChange, realDataRegions }: RegionSelectorProps) {
+  const [open, setOpen] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const selectedRegion = REGIONS.find((r) => r.id === selected) ?? REGIONS[REGIONS.length - 1];
+
+  useEffect(() => {
+    if (!open) return;
+    const onDocClick = (e: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener('mousedown', onDocClick);
+    return () => document.removeEventListener('mousedown', onDocClick);
+  }, [open]);
+
   return (
-    <div className="panel-tight px-2 py-1.5 flex items-center gap-1.5">
-      <span className="text-xs text-foreground/40 font-medium uppercase tracking-wider pr-1">Region</span>
-      {REGIONS.map((r) => {
-        const isLive = realDataRegions?.includes(r.id) ?? false;
-        return (
-          <button
-            key={r.id}
-            onClick={() => onChange(r.id)}
-            title={isLive ? `${r.label} — live model data` : r.label}
-            className={`relative text-xs px-2.5 py-1 rounded-md border transition-all duration-200 whitespace-nowrap ${
-              selected === r.id
-                ? 'bg-blue-500/20 border-blue-400/60 text-blue-300 font-medium shadow-[0_0_8px_rgba(59,130,246,0.3)] hover:scale-[1.03] active:scale-95'
-                : 'border-foreground/10 text-foreground/40 hover:text-foreground/70 hover:border-foreground/20 hover:bg-foreground/5 hover:scale-[1.03] active:scale-95'
-            }`}
-          >
-            {isLive && (
-              <span
-                className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 rounded-full bg-green-400 shadow-[0_0_4px_rgba(74,222,128,0.8)] animate-pulse"
-                aria-hidden="true"
-              />
-            )}
-            {r.label}
-          </button>
-        );
-      })}
+    <div ref={containerRef} className="relative">
+      <button
+        onClick={() => setOpen((v) => !v)}
+        className="panel-tight flex items-center gap-2 px-3 py-1.5 text-xs"
+      >
+        <span className="text-foreground/40 font-medium uppercase tracking-wider">Region</span>
+        <span className="text-foreground/85 font-medium whitespace-nowrap">{selectedRegion.label}</span>
+        <ChevronDown size={13} className={`text-foreground/40 transition-transform duration-150 ${open ? 'rotate-180' : ''}`} />
+      </button>
+
+      {open && (
+        <div
+          className="absolute top-full mt-1.5 left-0 z-50 min-w-[200px] rounded-xl p-1 flex flex-col gap-0.5 shadow-2xl"
+          style={{
+            background: 'rgba(var(--panel-bg-rgb),0.98)',
+            border: '1px solid rgba(var(--fg-rgb),var(--fg-a12))',
+            backdropFilter: 'blur(16px)',
+            WebkitBackdropFilter: 'blur(16px)',
+          }}
+        >
+          {REGIONS.map((r) => {
+            const isLive = realDataRegions?.includes(r.id) ?? false;
+            const isSelected = selected === r.id;
+            return (
+              <button
+                key={r.id}
+                onClick={() => { onChange(r.id); setOpen(false); }}
+                title={isLive ? `${r.label} — live model data` : r.label}
+                className={`flex items-center justify-between gap-2 text-xs px-2.5 py-1.5 rounded-lg transition-colors text-left whitespace-nowrap ${
+                  isSelected
+                    ? 'bg-blue-500/20 text-blue-300 font-medium'
+                    : 'text-foreground/70 hover:bg-foreground/10 hover:text-foreground/90'
+                }`}
+              >
+                {r.label}
+                {isLive && (
+                  <span
+                    className="w-1.5 h-1.5 rounded-full bg-green-400 shadow-[0_0_4px_rgba(74,222,128,0.8)] animate-pulse shrink-0"
+                    aria-hidden="true"
+                  />
+                )}
+              </button>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }
