@@ -281,6 +281,8 @@ class VayuBackendStack(Stack):
         lean: bool = True,
         data_s3_prefix: str | None = None,
         data_regions: str = "processed_western_ghats",
+        region_models: str = "",
+        static_regions: str = "",
         **kwargs,
     ):
         super().__init__(scope, id, **kwargs)
@@ -399,9 +401,19 @@ class VayuBackendStack(Stack):
         )
 
         # Task definition
+        # 6 GB, not 2. Inference holds the torch runtime, a per-region checkpoint,
+        # the ClimateGraphBuilder edge list and an open NetCDF handle (up to 900 MB
+        # for the full_india bundle, plus its HDF5 chunk cache) at the same time.
+        # 2 GB was OOM-killed on the first /api/predict call; 4 GB survived one
+        # region but was OOM-killed after three regions were touched in quick
+        # succession even with MAX_CACHED_REGIONS=1, because the kill can land
+        # mid-request while the previous region's entry is still being evicted.
+        # 6 GB is the largest size 1 vCPU Fargate supports in 1 GB steps below the
+        # 8 GB ceiling, and costs roughly +$0.02/h over the 2 GB lean-profile
+        # baseline this stack started from.
         task_def = ecs.FargateTaskDefinition(
             self, "TaskDef",
-            memory_limit_mib=2048, cpu=1024,
+            memory_limit_mib=6144, cpu=1024,
             execution_role=execution_role, task_role=task_role,
         )
 
@@ -413,6 +425,20 @@ class VayuBackendStack(Stack):
         environment = {
             "MODEL_PATH": "/app/checkpoints/vayu_best.pt",
             "MODEL_S3_URI": f"s3://{model_bucket.bucket_name}/checkpoints/vayu_best.pt",
+            # Per-region checkpoints. main.py resolves
+            # checkpoints/regions/<region>/vayu_best.pt per request and silently
+            # shares the global checkpoint when one is absent, so these must be
+            # shipped explicitly for a deployment to actually serve per-region
+            # models rather than one model wearing five labels.
+            "REGION_MODELS_S3_PREFIX": f"s3://{model_bucket.bucket_name}/checkpoints/regions",
+            "REGION_MODELS": region_models,
+            # Static rasters are model inputs, not decoration. STATIC_RASTER_ROOT
+            # defaults to "D:/" in main.py, which exists on the dev workstation
+            # and never inside the container, so it must be set explicitly or
+            # every region silently falls back to synthetic terrain.
+            "STATIC_RASTER_ROOT": "/app/static",
+            "STATIC_S3_PREFIX": f"s3://{model_bucket.bucket_name}/static",
+            "STATIC_REGIONS": static_regions,
             "CLIMATE_DATA_ROOT": "/app/data",
             "DATA_S3_PREFIX": prefix,
             "DATA_REGIONS": data_regions,
@@ -524,7 +550,25 @@ LEAN = _ctx_bool("lean", True)
 API_PROXY = _ctx_bool("api_proxy", LEAN)
 
 DATA_S3_PREFIX = app.node.try_get_context("data_s3_prefix") or None
-DATA_REGIONS = app.node.try_get_context("data_regions") or "processed_western_ghats"
+# The 1981-2025 rebuild lives in processed_<region>_1981 directories; the older
+# 2010-2025 layout used processed_<region>. _resolve_dataset_path globs
+# `processed_<region>*`, so the directory name shipped here must match what was
+# actually uploaded or the region resolves to None and serves synthetic grids.
+DATA_REGIONS = app.node.try_get_context("data_regions") or (
+    "processed_western_ghats_1981 processed_north_east_india_1981 "
+    "processed_indo_gangetic_plain_1981 processed_central_india_1981 "
+    "processed_full_india_05"
+)
+REGION_MODELS = app.node.try_get_context("region_models") or (
+    "western_ghats north_east_india indo_gangetic_plain central_india full_india"
+)
+# Must match main.py _REGION_STATIC_DIRS. full_india uses the 0.5 deg product:
+# the 0.25 deg static_full_india shares no latitude value with the 0.5 deg grid,
+# so reusing it yields an empty intersection rather than an error.
+STATIC_REGIONS = app.node.try_get_context("static_regions") or (
+    "static_western_ghats static_north_east_india static_indo_gangetic_plain "
+    "static_central_india static_full_india_05"
+)
 
 # Phase 1 stacks (no Docker)
 storage = VayuStorageStack(app, "VayuStorage", env=env)
@@ -537,6 +581,8 @@ backend = VayuBackendStack(
     lean=LEAN,
     data_s3_prefix=DATA_S3_PREFIX,
     data_regions=DATA_REGIONS,
+    region_models=REGION_MODELS,
+    static_regions=STATIC_REGIONS,
     env=env,
 )
 backend.add_dependency(storage)

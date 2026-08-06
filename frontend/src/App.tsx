@@ -1,4 +1,4 @@
-import { Component, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { Component, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import {
   CloudRain, Thermometer, Activity,
@@ -13,7 +13,7 @@ import type { LucideIcon } from 'lucide-react';
 import { format, addDays } from 'date-fns';
 import CesiumGlobe from './components/AsyncCesiumGlobe';
 import TimeSlider from './components/TimeSlider';
-import WhatIfPanel from './components/WhatIfPanel';
+import WhatIfStudio from './features/analysis/WhatIfStudio';
 import MetricsDashboard from './components/AsyncMetricsDashboard';
 import ModelComparisonPanel from './components/ModelComparisonPanel';
 import RegionSelector from './components/RegionSelector';
@@ -51,12 +51,14 @@ import HistoricalFloodValidation from './features/model/HistoricalFloodValidatio
 import FeaturePanels from './features/FeaturePanels';
 import type { FeatureCategory } from './features/FeaturePanels';
 import type { ColormapId } from './utils/colorScales';
+import { useForecastSeries } from './core/api/useForecastSeries';
+import { selectNodeSeries } from './core/api/selectNodeSeries';
 import { fetchPrediction, fetchHealth } from './api/client';
 import { getTimelineSwipeDirection } from './features/platform/mobileGestures';
 import { getGlobeViewportInsets } from './features/globe/viewportSafeArea';
 import type {
   AppState, GridCell, HealthResponse, RegionId, ScenarioResponse,
-  TimeState, VariableId, ViewMode,
+  TimeState, VariableId, ViewMode, WhatIfResponse,
 } from './types';
 
 // ── Globe Error Boundary ──────────────────────────────────────────────────────
@@ -491,13 +493,47 @@ export default function App() {
       .catch((err) => update({ error: err.message, isLoading: false }));
   }, [state.timeState.selectedDate, state.viewMode, state.selectedRegion, state.forecastDay]);
 
-  // ── Scenario handler ─────────────────────────────────────────────────────────
-  const handleScenarioResult = useCallback((result: ScenarioResponse) => {
-    update({ activeScenario: result, showSplitScreen: true });
-  }, [update]);
-
+  // ── Scenario handlers ────────────────────────────────────────────────────────
   const handleScenarioReset = useCallback(() => {
     update({ activeScenario: null, showSplitScreen: false });
+  }, [update]);
+
+  /**
+   * Feed a What-If Studio projection into the split-screen globe.
+   *
+   * The globe already consumes the ScenarioResponse shape, so the empirical
+   * before/after field is adapted onto it rather than duplicating the rendering
+   * path. Nulls become NaN: the sensitivity grid is land-only, and a missing
+   * ocean cell must not render as a real zero-change value.
+   */
+  const handleWhatIfResult = useCallback((res: WhatIfResponse) => {
+    const toNumbers = (arr: (number | null)[] | undefined) =>
+      (arr ?? []).map((v) => (v === null ? NaN : v));
+
+    const adapted: ScenarioResponse = {
+      scenario_type: 'temperature_offset',
+      magnitude: res.delta_predictor ?? 0,
+      baseline: { rainfall: toNumbers(res.cell_baseline) },
+      scenario: { rainfall: toNumbers(res.cell_scenario) },
+      delta: { rainfall: toNumbers(res.cell_delta) },
+      hotspots: res.hotspots.map((h) => ({
+        node_idx: h.node_idx,
+        delta_value: h.delta_value ?? 0,
+        percentile_rank: h.percentile_rank,
+      })),
+      summary: {
+        rainfall: {
+          avg_delta: res.regional.delta ?? 0,
+          max_delta: Math.max(0, ...res.hotspots.map((h) => Math.abs(h.delta_value ?? 0))),
+          avg_pct_change: res.regional.delta_percent ?? 0,
+          affected_cells: res.distribution.cells_drier + res.distribution.cells_wetter,
+        },
+      },
+      clamped: res.distribution.clamped_cells > 0,
+      clamp_message: res.caveats[0],
+      computation_time_s: res.computation_time_s,
+    };
+    update({ activeScenario: adapted, showSplitScreen: true });
   }, [update]);
 
   // ── Keyboard shortcuts (Feature 28) ─────────────────────────────────────────
@@ -575,6 +611,22 @@ export default function App() {
       }));
     }
   }, [update]);
+
+  // ── Forecast series for the cell inspector ───────────────────────────────────
+  // `activePrediction` holds a single lead day, so the cell card had no real
+  // T+1..T+7 data and was inventing its sparkline. This fetches the whole series
+  // — but only once a cell is actually selected, so the 7 parallel requests are
+  // not paid for on load. The query key matches the one FeaturePanels uses, so
+  // react-query serves both from one cache entry.
+  const forecastSeriesQuery = useForecastSeries({
+    date: format(state.timeState.selectedDate, 'yyyy-MM-dd'),
+    region: state.selectedRegion,
+    enabled: selectedCell !== null,
+  });
+  const selectedCellSeries = useMemo(
+    () => selectNodeSeries(forecastSeriesQuery.data?.daysCells, selectedCell?.cell),
+    [forecastSeriesQuery.data, selectedCell],
+  );
 
   // ── Render ────────────────────────────────────────────────────────────────────
 
@@ -1322,7 +1374,15 @@ export default function App() {
           onClose={() => update({ viewMode: 'prediction' })}
         >
           {state.viewMode === 'scenario' && (
-            <WhatIfPanel onResult={handleScenarioResult} onReset={handleScenarioReset} />
+            <WhatIfStudio
+              initialRegion={state.selectedRegion}
+              // Coverage is a runtime fact, so the studio's region control is
+              // driven by what the backend actually has bundles for rather than
+              // by a hardcoded list that can go stale.
+              availableRegions={health?.real_data_regions}
+              onResult={handleWhatIfResult}
+              onReset={handleScenarioReset}
+            />
           )}
           {state.viewMode === 'metrics' && (
             <div className="flex flex-col gap-3">
@@ -1413,6 +1473,9 @@ export default function App() {
         <CellInfoCard
           cell={selectedCell.cell}
           variable={state.selectedVariable}
+          forecastCells={selectedCellSeries.cells}
+          forecastPending={forecastSeriesQuery.isPending || forecastSeriesQuery.isFetching}
+          forecastIsMock={forecastSeriesQuery.data?.containsMock ?? false}
           modelVersion={state.activePrediction?.model_version}
           inputDataTimestamp={state.activePrediction?.input_data_timestamp}
           cached={state.activePrediction?.cached}
