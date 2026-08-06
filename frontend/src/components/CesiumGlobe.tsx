@@ -340,6 +340,10 @@ function CesiumGlobeInner({
   const [isReady, setIsReady] = useState(false);
   const [statusMsg, setStatusMsg] = useState('Loading ISRO Earth View…');
   const [coords, setCoords] = useState<{ lat: number; lon: number; x: number; y: number } | null>(null);
+  // India landmass outline (simplified), used to clip the heatmap raster so it
+  // doesn't paint ocean/neighboring countries beyond the data bbox rectangle.
+  const indiaOutlineRef = useRef<[number, number][][] | null>(null);
+  const [outlineLoaded, setOutlineLoaded] = useState(false);
   // Programmatic flights suppress post-zoom normalization until completion.
   const isCameraAnimatingRef = useRef(false);
   const zoomCenteringRef = useRef<PostZoomCenteringController | null>(null);
@@ -347,6 +351,35 @@ function CesiumGlobeInner({
   const hasFlownInitialRegionRef = useRef(false);
   const mapModeRef = useRef(mapMode);
   mapModeRef.current = mapMode;
+
+  // ── Load the India outline used to clip the heatmap raster ─────────────────
+  // Independent of viewer setup — a plain fetch, not a Cesium data source —
+  // so it can resolve in parallel with globe initialization.
+  useEffect(() => {
+    let cancelled = false;
+    fetch('/india_outline_simplified.geojson')
+      .then((res) => res.json())
+      .then((geojson: { features: { geometry: { type: string; coordinates: unknown } }[] }) => {
+        if (cancelled) return;
+        const rings: [number, number][][] = [];
+        for (const feature of geojson.features) {
+          const { type, coordinates } = feature.geometry;
+          // Only exterior rings are needed for a fill-based clip mask —
+          // interior holes (lakes etc.) aren't present at this simplification.
+          if (type === 'Polygon') {
+            const poly = coordinates as [number, number][][];
+            if (poly[0]) rings.push(poly[0]);
+          } else if (type === 'MultiPolygon') {
+            const multi = coordinates as [number, number][][][];
+            for (const poly of multi) if (poly[0]) rings.push(poly[0]);
+          }
+        }
+        indiaOutlineRef.current = rings;
+        setOutlineLoaded(true);
+      })
+      .catch(() => { /* clip is a visual nicety — heatmap still renders unclipped if this fails */ });
+    return () => { cancelled = true; };
+  }, []);
 
   // ── Imperative zoom controls (toolbar +/- buttons) ──────────────────────────
   // Camera.zoomIn/zoomOut dispatch to Cesium's zoom3D or zoom2D internally
@@ -1380,7 +1413,7 @@ function CesiumGlobeInner({
       }
 
       const activeColormap: ColormapId = colormap ?? (
-        variable === 'rainfall' ? 'imd_rain' : variable === 'temp_max' ? 'plasma' : 'viridis'
+        variable === 'rainfall' ? 'imd_rain' : variable === 'temp_max' ? 'sunset' : 'ocean_violet'
       );
 
       // Paint a raw, one-pixel-per-cell raster first, then smooth-scale it
@@ -1440,6 +1473,40 @@ function CesiumGlobeInner({
       const south = lats[0] - cellSize / 2;
       const north = lats[nLat - 1] + cellSize / 2;
 
+      // ── Clip to India's landmass ──────────────────────────────────────────
+      // The raster above is always a plain lon/lat rectangle, so without this
+      // it paints ocean and neighboring countries wherever the data bbox
+      // overhangs the coastline (e.g. Western Ghats' bbox includes Arabian
+      // Sea west of the coast). Masks out anything outside the outline with
+      // a destination-in composite instead of reshaping the raster itself.
+      const outlineRings = indiaOutlineRef.current;
+      if (outlineRings && outlineRings.length > 0) {
+        const lonSpan = east - west;
+        const latSpan = north - south;
+        ctx.beginPath();
+        for (const ring of outlineRings) {
+          // Cheap bbox reject — most of the 144 rings are irrelevant for any
+          // single region's small tile (only a handful ever overlap it).
+          let ringMinLon = Infinity, ringMaxLon = -Infinity, ringMinLat = Infinity, ringMaxLat = -Infinity;
+          for (const [lon, lat] of ring) {
+            if (lon < ringMinLon) ringMinLon = lon;
+            if (lon > ringMaxLon) ringMaxLon = lon;
+            if (lat < ringMinLat) ringMinLat = lat;
+            if (lat > ringMaxLat) ringMaxLat = lat;
+          }
+          if (ringMaxLon < west || ringMinLon > east || ringMaxLat < south || ringMinLat > north) continue;
+          ring.forEach(([lon, lat], i) => {
+            const px = ((lon - west) / lonSpan) * canvas.width;
+            const py = ((north - lat) / latSpan) * canvas.height;
+            if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+          });
+          ctx.closePath();
+        }
+        ctx.globalCompositeOperation = 'destination-in';
+        ctx.fill();
+        ctx.globalCompositeOperation = 'source-over';
+      }
+
       // Create new layer FIRST, then remove old one only after new is ready
       const oldLayer = heatmapLayerRef.current;
 
@@ -1462,7 +1529,7 @@ function CesiumGlobeInner({
     return () => {
       if (heatmapTimerRef.current) clearTimeout(heatmapTimerRef.current);
     };
-  }, [gridCells, variable, isReady, colormap]);
+  }, [gridCells, variable, isReady, colormap, outlineLoaded]);
 
   // ── Ambient heatmap "breathing" animation ───────────────────────────────────
   // Purely cosmetic: gently oscillates the imagery layer's alpha so a static
