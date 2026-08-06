@@ -74,7 +74,17 @@ export function classifyAnomaly(
   const sigmas = Math.abs(value - mean) / stdDev;
   // Preserve inclusive threshold semantics after the unavoidable rounding in
   // `(mean ± n * stdDev) - mean` used by real measurements and callers.
-  const thresholdTolerance = Number.EPSILON * Math.max(1, Math.abs(sigmas)) * 16;
+  //
+  // The tolerance must scale with the CANCELLATION in `value - mean`, not with
+  // `sigmas`. When |mean| >> stdDev the subtraction loses absolute precision of
+  // order ulp(max(|mean|,|value|)); dividing by stdDev turns that into the error
+  // in `sigmas`. Scaling by `sigmas` alone under-sizes the tolerance and lets a
+  // value constructed as exactly mean + 3σ classify as 'severe':
+  //   mean=-16.317285250627148, stdDev=0.10576175020904838 -> sigmas
+  //   2.9999999999999956, needing ~1.7e-14 of slack where sigmas-scaling gives
+  //   only ~1.07e-14.
+  const cancellationScale = Math.max(1, Math.abs(mean), Math.abs(value));
+  const thresholdTolerance = (Number.EPSILON * cancellationScale * 16) / stdDev;
 
   if (sigmas + thresholdTolerance >= 3) return 'extreme';
   if (sigmas + thresholdTolerance >= 2) return 'severe';

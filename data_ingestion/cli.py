@@ -132,6 +132,21 @@ def preprocess(
         help="Directory containing CHIRPS subsetted files (chirps_YYYY_WG.nc) or global "
              "chirps-v2.0.YYYY.days_p25.nc files. CHIRPS is retained as an auxiliary predictor.",
     ),
+    oisst_dir: Path | None = typer.Option(
+        None, "--oisst-dir",
+        help="Directory containing NOAA OISST v2.1 daily files "
+             "(oisst-avhrr-v02r01.YYYYMMDD.nc). Fills the insat_sst feature slot as a "
+             "DISCLOSED SUBSTITUTE for INSAT-3D SST — MOSDAC access was never approved. "
+             "See DATA_ACQUISITION_TASKS.md section 2.",
+    ),
+    era5_lst_dir: Path | None = typer.Option(
+        None, "--era5-lst-dir",
+        help="Directory containing ERA5-Land skin-temperature files "
+             "(era5_land_lst_india_YYYY.nc). Fills the insat_lst feature slot as a "
+             "DISCLOSED SUBSTITUTE for INSAT-3D LST — MOSDAC access was never approved. "
+             "12-hourly input is averaged to daily and converted K->degC. "
+             "See DATA_ACQUISITION_TASKS.md section 2.",
+    ),
     normalization_fit_start_year: int = typer.Option(
         2010, "--normalization-fit-start-year", help="First year used to fit normalization statistics"
     ),
@@ -159,6 +174,8 @@ def preprocess(
         ncep_dir=str(ncep_wind_dir) if ncep_wind_dir else None,
         era5_dir=str(era5_dir) if era5_dir else None,
         chirps_dir=str(chirps_dir) if chirps_dir else None,
+        oisst_dir=str(oisst_dir) if oisst_dir else None,
+        era5_lst_dir=str(era5_lst_dir) if era5_lst_dir else None,
         start_year=start_year,
         end_year=end_year,
         normalization_fit_start_year=normalization_fit_start_year,
@@ -166,8 +183,15 @@ def preprocess(
     )
 
     out_path = output_dir / f"normalized_{start_year}-{end_year}.nc"
-    normalized.to_netcdf(out_path)
-    typer.echo(f"Saved to {out_path}")
+    # zlib-compress: this file is the one that must be uploaded to Kaggle for
+    # --all-windows training, and the upload has repeatedly failed on large
+    # files. Measured on the real Western Ghats file: 207.0 MB -> 77.0 MB
+    # (2.69x smaller) at complevel=4, costing 9s to write. Lossless.
+    normalized.to_netcdf(
+        out_path,
+        encoding={v: {"zlib": True, "complevel": 4} for v in normalized.data_vars},
+    )
+    typer.echo(f"Saved to {out_path} ({out_path.stat().st_size / 1e6:.0f} MB, zlib complevel=4)")
 
     # Persist full normalization parameters for denormalized evaluation.
     norm_ds_vars = {}

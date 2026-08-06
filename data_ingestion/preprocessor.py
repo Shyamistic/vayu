@@ -442,6 +442,8 @@ class ClimatePreprocessor:
         ncep_dir: str | None = None,
         era5_dir: str | None = None,
         chirps_dir: str | None = None,
+        oisst_dir: str | None = None,
+        era5_lst_dir: str | None = None,
         start_year: int = 2010,
         end_year: int = 2025,
         normalization_fit_start_year: int | None = None,
@@ -571,7 +573,204 @@ class ClimatePreprocessor:
                 reanalysis_source, list(reanalysis_ds.data_vars),
             )
 
+        # 8. Merge sea-surface temperature into the insat_sst slot.
+        #
+        # DISCLOSURE: this is NOAA OISST v2.1 (optimum-interpolation AVHRR + in-situ
+        # blend), NOT INSAT-3D SST. MOSDAC access for the real 3RIMG_L3B_SST_DLY
+        # product was never approved (see DATA_ACQUISITION_TASKS.md section 2 —
+        # still open as of this commit). OISST is used as a stand-in for the
+        # `insat_sst` feature slot until/unless MOSDAC access is granted, and this
+        # substitution must be stated in any manifest or report that cites this
+        # feature — never presented as real INSAT-3D data.
+        #
+        # insat_lst is filled from ERA5-Land skin temperature when
+        # *era5_lst_dir* is supplied (see step 9 below); without it the channel
+        # stays zero with `insat_lst_available=0`.
+        if oisst_dir is not None:
+            oisst = self._load_oisst_sst(oisst_dir, start_year, end_year)
+            if oisst is not None:
+                oisst_aligned = oisst.reindex(
+                    time=normalized.time, method="nearest", tolerance="1D"
+                )
+                sst = oisst_aligned["sst"]
+                normalized["insat_sst_available"] = xr.where(
+                    sst.notnull(), 1.0, 0.0
+                ).astype(np.float32)
+                normalized["insat_sst"] = sst.fillna(0.0).astype(np.float32)
+                logger.info(
+                    "Merged NOAA OISST v2.1 into 'insat_sst' slot (SUBSTITUTE for "
+                    "INSAT-3D SST — MOSDAC access not yet approved): %d days",
+                    int(sst.notnull().any(dim=[d for d in sst.dims if d != "time"]).sum()),
+                )
+
+        # 9. Merge land-surface temperature into the insat_lst slot.
+        #
+        # DISCLOSURE: this is ERA5-Land skin temperature (`skt`), NOT INSAT-3D
+        # LST. MOSDAC access for the real 3RIMG_L2B_LST product was never
+        # approved (see DATA_ACQUISITION_TASKS.md section 2). ERA5-Land skin
+        # temperature is a documented, widely-used proxy for land surface
+        # temperature, but it is a reanalysis land-model diagnostic rather than
+        # a satellite thermal-infrared retrieval, and must be described as such
+        # in any manifest or report that cites this feature.
+        #
+        # ERA5-Land is land-only, so ocean cells arrive as NaN and end up with
+        # insat_lst=0 / insat_lst_available=0. That is correct rather than a
+        # defect: LST is a land quantity, and ocean is covered by insat_sst.
+        if era5_lst_dir is not None:
+            lst = self._load_era5_land_lst(era5_lst_dir, start_year, end_year)
+            if lst is not None:
+                lst_aligned = lst.reindex(
+                    time=normalized.time, method="nearest", tolerance="1D"
+                )
+                skt = lst_aligned["skt"]
+                normalized["insat_lst_available"] = xr.where(
+                    skt.notnull(), 1.0, 0.0
+                ).astype(np.float32)
+                normalized["insat_lst"] = skt.fillna(0.0).astype(np.float32)
+                logger.info(
+                    "Merged ERA5-Land skin temperature into 'insat_lst' slot "
+                    "(SUBSTITUTE for INSAT-3D LST — MOSDAC access not "
+                    "approved): %d days",
+                    int(skt.notnull().any(
+                        dim=[d for d in skt.dims if d != "time"]).sum()),
+                )
+
         return normalized, norm_params
+
+    def _load_era5_land_lst(
+        self,
+        era5_lst_dir: str,
+        start_year: int,
+        end_year: int,
+    ) -> xr.Dataset | None:
+        """Load ERA5-Land skin temperature, aggregate to daily, regrid to 0.25°.
+
+        Expects per-year files named ``era5_land_lst_india_YYYY.nc`` (the format
+        produced by ``scripts/download_era5_land_lst.py``) holding the ``skt``
+        variable on ERA5-Land's native 0.1° grid.
+
+        Two source-specific details are handled here:
+
+        * The files are **12-hourly** (06:00 and 18:00 UTC, roughly 11:30 and
+          23:30 IST — a day/night pair). The model consumes daily fields, so
+          these are averaged per calendar day. Note this makes the channel a
+          daily *mean* skin temperature, not a daytime maximum, so it is not
+          directly comparable to MODIS daytime LST.
+        * ``skt`` is in **kelvin**; it is converted to °C so the channel is on
+          the same scale as the IMD tmax/tmin and OISST insat_sst channels
+          before the shared normalization step sees it.
+
+        Coordinates are ``valid_time``/``latitude``/``longitude`` in CDS output
+        and are renamed to the ``time``/``lat``/``lon`` convention used
+        throughout this preprocessor.
+
+        Returns None (with a warning) if no files are found, matching the
+        graceful-degradation behaviour of ``_load_oisst_sst`` and
+        ``load_ncep_wind_at_850``.
+        """
+        import glob as _glob
+
+        lst_path = Path(era5_lst_dir)
+        frames: list[xr.DataArray] = []
+
+        for year in range(start_year, end_year + 1):
+            files = sorted(_glob.glob(str(lst_path / f"*{year}*.nc")))
+            if not files:
+                logger.debug("No ERA5-Land LST file for %d in %s", year, lst_path)
+                continue
+            ds = xr.open_dataset(files[0])
+            if "skt" not in ds.data_vars:
+                logger.warning(
+                    "ERA5-Land file %s has no 'skt' variable (has %s) — skipping",
+                    files[0], list(ds.data_vars),
+                )
+                continue
+            da = ds["skt"]
+            rename: dict[str, str] = {}
+            if "valid_time" in da.dims:
+                rename["valid_time"] = "time"
+            if "latitude" in da.dims:
+                rename["latitude"] = "lat"
+            if "longitude" in da.dims:
+                rename["longitude"] = "lon"
+            if rename:
+                da = da.rename(rename)
+            # Drop CDS singleton coords that would otherwise block concat.
+            for extra in ("number", "expver"):
+                if extra in da.coords:
+                    da = da.drop_vars(extra)
+            # 12-hourly -> daily mean, via manual numpy groupby rather than
+            # xr.resample(). Measured on a real file (1990, 716 steps,
+            # 289x294): xr.resample(time="1D").mean() takes ~121s just to
+            # build (before .load() even runs), while load-then-numpy-groupby
+            # takes ~7s total -- a ~17x difference. Across 45 years that is
+            # the difference between roughly 90 minutes and 5 minutes, and a
+            # Western Ghats preprocess run stalled here for several minutes
+            # with CPU pegged before being investigated. xarray's resample
+            # appears to have per-call overhead independent of data size in
+            # this environment, mirroring the ~30x per-file overhead already
+            # found and fixed for OISST (see consolidate_oisst_yearly.py).
+            # Clip to this region (+margin for the later bilinear regrid)
+            # BEFORE concatenating across all 45 years. The source files
+            # cover the FULL INDIA domain (289x294 at 0.1 deg) by design, so
+            # each region can reuse the same download -- but concatenating
+            # that full extent across 45 years before regridding builds a
+            # single ~5.16 GiB float32 array (16303, 289, 294) and OOM'd a
+            # real Western Ghats run (MemoryError, 289x294 grid, 16303 days).
+            # CHIRPS/OISST both clip per-file already; this loader did not.
+            margin = 5.0
+            lat_dim = "lat" if "lat" in da.dims else da.dims[1]
+            lon_dim = "lon" if "lon" in da.dims else da.dims[2]
+            lat_vals = da[lat_dim].values
+            lat_ascending = lat_vals[0] < lat_vals[-1]
+            lat_slice = (
+                slice(self.lat_min - margin, self.lat_max + margin)
+                if lat_ascending
+                else slice(self.lat_max + margin, self.lat_min - margin)
+            )
+            da = da.sel(
+                {lat_dim: lat_slice,
+                 lon_dim: slice(self.lon_min - margin, self.lon_max + margin)}
+            )
+
+            values = da.values  # (T, lat, lon), forces the actual read
+            times = da["time"].values
+            days = times.astype("datetime64[D]")
+            uniq_days, inv = np.unique(days, return_inverse=True)
+            out = np.zeros((len(uniq_days), *values.shape[1:]), dtype=np.float64)
+            counts = np.zeros(len(uniq_days), dtype=np.int64)
+            np.add.at(out, inv, values)
+            np.add.at(counts, inv, 1)
+            out /= counts[:, None, None]
+            daily = xr.DataArray(
+                out.astype("float32"),
+                dims=("time", *da.dims[1:]),
+                coords={"time": uniq_days, **{
+                    d: da.coords[d] for d in da.dims[1:] if d in da.coords
+                }},
+            )
+            frames.append(daily)
+            ds.close()
+
+        if not frames:
+            logger.warning(
+                "No ERA5-Land LST files found in %s — insat_lst stays zero-filled",
+                era5_lst_dir,
+            )
+            return None
+
+        merged = xr.concat(frames, dim="time").sortby("time")
+        # Kelvin → Celsius, matching tmax/tmin and insat_sst.
+        merged = merged - 273.15
+        merged.name = "skt"
+
+        lst_ds = xr.Dataset({"skt": merged}).sortby("lat").sortby("lon")
+        result = self._regrid_reanalysis_dataset(lst_ds, margin=5.0)
+        logger.info(
+            "ERA5-Land LST loaded: %d days, regridded to model grid",
+            len(result.time),
+        )
+        return result
 
     def load_ncep_wind_at_850(
         self,
@@ -672,10 +871,35 @@ class ClimatePreprocessor:
         """
         target_lats = np.arange(self.lat_min, self.lat_max + self.resolution / 2, self.resolution)
         target_lons = np.arange(self.lon_min, self.lon_max + self.resolution / 2, self.resolution)
-        clipped = ds.sel(
-            lat=slice(self.lat_min - margin, self.lat_max + margin),
-            lon=slice(self.lon_min - margin, self.lon_max + margin),
-        )
+
+        # Bilinear interpolation needs >=2 source points per axis. A fixed margin
+        # is too narrow when the source is coarser than the region is wide (e.g.
+        # NCEP's 2.5deg grid over a 3deg-tall region), and with fill_value=NaN that
+        # would silently produce an all-NaN -> all-zero dead channel rather than an
+        # error. Widen until the clip is usable, then give up and use the full grid.
+        clipped = ds
+        for attempt_margin in (margin, margin * 2, margin * 4, margin * 8):
+            candidate = ds.sel(
+                lat=slice(self.lat_min - attempt_margin, self.lat_max + attempt_margin),
+                lon=slice(self.lon_min - attempt_margin, self.lon_max + attempt_margin),
+            )
+            if candidate.sizes.get("lat", 0) >= 2 and candidate.sizes.get("lon", 0) >= 2:
+                clipped = candidate
+                if attempt_margin != margin:
+                    logger.warning(
+                        "Source grid is coarse relative to the region: widened clip "
+                        "margin %.1f -> %.1f deg to retain >=2 points per axis "
+                        "(kept %dx%d)",
+                        margin, attempt_margin,
+                        candidate.sizes["lat"], candidate.sizes["lon"],
+                    )
+                break
+        else:
+            logger.warning(
+                "Source grid too coarse to clip (%dx%d within +/-%.1f deg of region) "
+                "- interpolating from the full source grid",
+                ds.sizes.get("lat", 0), ds.sizes.get("lon", 0), margin * 8,
+            )
 
         src_lats = clipped.lat.values.astype(float)
         src_lons = clipped.lon.values.astype(float)
@@ -693,9 +917,17 @@ class ClimatePreprocessor:
                     from scipy.ndimage import distance_transform_edt
                     idx = distance_transform_edt(nan_mask, return_distances=False, return_indices=True)
                     slab = slab[tuple(idx)]
+                # fill_value=None would have SciPy linearly extrapolate points
+                # outside the source grid instead of masking them. That is silent
+                # and unbounded: at full-India's 0.5° extent, ERA5-Land LST (source
+                # coverage caps at 35.5N) extrapolated to insat_lst=-4252 at 38.125N
+                # margin degrees beyond the source bounds — a 2-3 cell strip, not
+                # the whole record, so it was easy to miss without a range check.
+                # NaN is correct here: `_available` flag channels already exist
+                # for exactly this "source has no coverage" case.
                 interp = RegularGridInterpolator(
                     (src_lats, src_lons), slab,
-                    method="linear", bounds_error=False, fill_value=None,
+                    method="linear", bounds_error=False, fill_value=np.nan,
                 )
                 tlon, tlat = np.meshgrid(target_lons, target_lats)
                 out[t] = interp(np.stack([tlat.ravel(), tlon.ravel()], axis=1)).reshape(
@@ -798,6 +1030,93 @@ class ClimatePreprocessor:
             "ERA5 850 hPa loaded: %d days, years_covered=%s (of %d-%d requested), variables=%s",
             len(result.time), sorted(years_found), start_year, end_year, list(result.data_vars),
         )
+        return result
+
+    def _load_oisst_sst(
+        self,
+        oisst_dir: str,
+        start_year: int,
+        end_year: int,
+    ) -> xr.Dataset | None:
+        """Load NOAA OISST v2.1 daily SST, clipped and regridded to the target grid.
+
+        Two file layouts are supported, checked per year (mirroring
+        ``_load_chirps``'s subsetted-vs-global preference):
+
+        * PREFERRED: one consolidated file per year, ``oisst-avhrr-v02r01.
+          YYYY_india.nc`` or ``oisst-avhrr-v02r01.YYYY.nc`` (produced by
+          ``scripts/consolidate_oisst_yearly.py``).
+        * FALLBACK: the raw per-day files as downloaded,
+          ``oisst-avhrr-v02r01.YYYYMMDD*.nc``.
+
+        The fallback exists for compatibility but should be avoided for large
+        date ranges: opening thousands of individual daily files (measured:
+        16,193 files for 1981-2025) is slow without dask installed, since
+        xarray has no lazy chunking to fall back on and builds the whole
+        concatenation eagerly in memory. A Western Ghats preprocess run
+        stalled on this step for 12+ minutes with CPU pegged before being
+        killed; consolidating to 45 yearly files first turned the same load
+        into 45 file opens.
+
+        Expects longitude in OISST's native 0-360 convention; it is converted
+        to -180..180 before clipping since the preprocessor's region bounds
+        use that convention.
+
+        SST is a scalar field (not a directional/vector quantity like wind), so no
+        component-alignment concerns apply here the way they do for uwnd/vwnd —
+        unlike wind, no bilinear-regrid-then-recombine step is needed beyond the
+        same nearest/linear regrid already used for reanalysis fields.
+
+        Returns None (with a warning) if no files are found, matching the
+        graceful-degradation behavior of ``_load_chirps`` / ``load_ncep_wind_at_850``.
+        """
+        import glob as _glob
+
+        oisst_path = Path(oisst_dir)
+        frames: list[xr.DataArray] = []
+
+        for year in range(start_year, end_year + 1):
+            yearly = (
+                sorted(_glob.glob(str(oisst_path / f"oisst-avhrr-v02r01.{year}_india.nc")))
+                or sorted(_glob.glob(str(oisst_path / f"oisst-avhrr-v02r01.{year}.nc")))
+            )
+            files = yearly or sorted(
+                _glob.glob(str(oisst_path / f"oisst-avhrr-v02r01.{year}*.nc"))
+            )
+            if not files:
+                logger.debug("No OISST files for %d in %s", year, oisst_path)
+                continue
+            if not yearly and len(files) > 31:
+                logger.warning(
+                    "OISST %d: reading %d individual daily files (no consolidated "
+                    "yearly file found) — this is slow. Run "
+                    "scripts/consolidate_oisst_yearly.py first.",
+                    year, len(files),
+                )
+            for f in files:
+                ds = xr.open_dataset(f)
+                if "sst" not in ds.data_vars:
+                    logger.warning("OISST file %s has no 'sst' variable — skipping", f)
+                    continue
+                da = ds["sst"]
+                if "zlev" in da.dims:
+                    da = da.isel(zlev=0, drop=True)
+                frames.append(da.load())
+                ds.close()
+
+        if not frames:
+            logger.warning("No OISST files found in %s — insat_sst stays zero-filled", oisst_dir)
+            return None
+
+        merged = xr.concat(frames, dim="time").sortby("time")
+
+        # OISST longitude is 0..360; region bounds (this project) use -180..180.
+        lon_180 = ((merged.lon.values + 180) % 360) - 180
+        merged = merged.assign_coords(lon=lon_180).sortby("lon")
+
+        oisst_ds = xr.Dataset({"sst": merged}).sortby("lat")
+        result = self._regrid_reanalysis_dataset(oisst_ds, margin=5.0)
+        logger.info("OISST SST loaded: %d days, region clipped to model grid", len(result.time))
         return result
 
     def _load_chirps(

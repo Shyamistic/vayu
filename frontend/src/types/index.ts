@@ -169,8 +169,19 @@ export interface HealthResponse {
   last_prediction_timestamp: string | null;
   uptime_seconds: number;
   device: string;
-  /** Regions currently backed by a real trained model checkpoint, vs. mock/fallback data. */
-  real_data_regions: RegionId[];
+  /**
+   * Degradation reporting. Optional because older backend deployments do not
+   * send these fields; treat `undefined` as "unknown", never as "fine".
+   *
+   * - `cache_backend`: 'redis' | 'in-process' | 'none'
+   * - `persistence_connected`: false on the lean profile, which runs no PostgreSQL
+   * - `real_data_regions`: regions with a normalized_*.nc present, i.e. backed by
+   *   a real trained model checkpoint rather than mock/synthetic data. A region
+   *   absent here must not be presented as a forecast.
+   */
+  cache_backend?: string;
+  persistence_connected?: boolean;
+  real_data_regions?: RegionId[];
 }
 
 // ── UI state types ─────────────────────────────────────────────────────────────
@@ -184,7 +195,12 @@ export type RegionId =
   | 'central_india'
   | 'full_india';
 
-export type ViewMode = 'prediction' | 'historical' | 'scenario' | 'metrics' | 'agriculture' | 'environment' | 'case-study';
+export type ViewMode =
+  | 'prediction' | 'historical' | 'scenario' | 'metrics'
+  | 'agriculture' | 'environment' | 'case-study'
+  // Categories added when the previously unmounted `features/` panels were wired
+  // in. See features/FeaturePanels.tsx.
+  | 'analysis' | 'sectors' | 'model-lab' | 'collaborate';
 
 export interface TimeState {
   selectedDate: Date;

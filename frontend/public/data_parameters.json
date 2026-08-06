@@ -106,35 +106,49 @@
         "rainfall_qc_flag": {
           "kind": "flag",
           "units": "boolean",
-          "distinct_values": [0.0, 1.0],
+          "distinct_values": [
+            0.0,
+            1.0
+          ],
           "fraction_nonzero": 0.021,
           "meaning": "0 = observed, 1 = gap-filled, 2 = flagged by QC"
         },
         "tmax_qc_flag": {
           "kind": "flag",
           "units": "boolean",
-          "distinct_values": [0.0, 1.0],
+          "distinct_values": [
+            0.0,
+            1.0
+          ],
           "fraction_nonzero": 0.0043,
           "meaning": "0 = observed, 1 = gap-filled, 2 = flagged by QC"
         },
         "tmin_qc_flag": {
           "kind": "flag",
           "units": "boolean",
-          "distinct_values": [0.0, 1.0],
+          "distinct_values": [
+            0.0,
+            1.0
+          ],
           "fraction_nonzero": 0.0028,
           "meaning": "0 = observed, 1 = gap-filled, 2 = flagged by QC"
         },
         "chirps_rain_available": {
           "kind": "flag",
           "units": "boolean",
-          "distinct_values": [0.0, 1.0],
+          "distinct_values": [
+            0.0,
+            1.0
+          ],
           "fraction_nonzero": 0.5919,
           "meaning": "1 = source data present for this cell/day, 0 = absent (the paired value channel is 0 and must not be coloured as a real measurement)"
         },
         "uwnd_850_available": {
           "kind": "flag",
           "units": "boolean",
-          "distinct_values": [1.0],
+          "distinct_values": [
+            1.0
+          ],
           "fraction_nonzero": 1.0,
           "meaning": "1 = source data present for this cell/day, 0 = absent (the paired value channel is 0 and must not be coloured as a real measurement)"
         },
@@ -164,7 +178,9 @@
         "vwnd_850_available": {
           "kind": "flag",
           "units": "boolean",
-          "distinct_values": [1.0],
+          "distinct_values": [
+            1.0
+          ],
           "fraction_nonzero": 1.0,
           "meaning": "1 = source data present for this cell/day, 0 = absent (the paired value channel is 0 and must not be coloured as a real measurement)"
         },
@@ -194,7 +210,9 @@
         "shum_850_available": {
           "kind": "flag",
           "units": "boolean",
-          "distinct_values": [1.0],
+          "distinct_values": [
+            1.0
+          ],
           "fraction_nonzero": 1.0,
           "meaning": "1 = source data present for this cell/day, 0 = absent (the paired value channel is 0 and must not be coloured as a real measurement)"
         },
@@ -224,7 +242,10 @@
         "insat_sst_available": {
           "kind": "flag",
           "units": "boolean",
-          "distinct_values": [0.0, 1.0],
+          "distinct_values": [
+            0.0,
+            1.0
+          ],
           "fraction_nonzero": 0.9852,
           "meaning": "1 = source data present for this cell/day, 0 = absent (the paired value channel is 0 and must not be coloured as a real measurement)"
         },
@@ -254,7 +275,9 @@
         "insat_lst_available": {
           "kind": "flag",
           "units": "boolean",
-          "distinct_values": [1.0],
+          "distinct_values": [
+            1.0
+          ],
           "fraction_nonzero": 1.0,
           "meaning": "1 = source data present for this cell/day, 0 = absent (the paired value channel is 0 and must not be coloured as a real measurement)"
         },
@@ -426,35 +449,51 @@
         "rainfall_qc_flag": {
           "kind": "flag",
           "units": "boolean",
-          "distinct_values": [0.0, 1.0],
+          "distinct_values": [
+            0.0,
+            1.0
+          ],
           "fraction_nonzero": 0.0168,
           "meaning": "0 = observed, 1 = gap-filled, 2 = flagged by QC"
         },
         "tmax_qc_flag": {
           "kind": "flag",
           "units": "code",
-          "distinct_values": [0.0, 1.0, 2.0],
+          "distinct_values": [
+            0.0,
+            1.0,
+            2.0
+          ],
           "fraction_nonzero": 0.004,
           "meaning": "0 = observed, 1 = gap-filled, 2 = flagged by QC"
         },
         "tmin_qc_flag": {
           "kind": "flag",
           "units": "code",
-          "distinct_values": [0.0, 1.0, 2.0],
+          "distinct_values": [
+            0.0,
+            1.0,
+            2.0
+          ],
           "fraction_nonzero": 0.0027,
           "meaning": "0 = observed, 1 = gap-filled, 2 = flagged by QC"
         },
         "chirps_rain_available": {
           "kind": "flag",
           "units": "boolean",
-          "distinct_values": [0.0, 1.0],
+          "distinct_values": [
+            0.0,
+            1.0
+          ],
           "fraction_nonzero": 0.9983,
           "meaning": "1 = source data present for this cell/day, 0 = absent (the paired value channel is 0 and must not be coloured as a real measurement)"
         },
         "uwnd_850_available": {
           "kind": "flag",
           "units": "boolean",
-          "distinct_values": [1.0],
+          "distinct_values": [
+            1.0
+          ],
           "fraction_nonzero": 1.0,
           "meaning": "1 = source data present for this cell/day, 0 = absent (the paired value channel is 0 and must not be coloured as a real measurement)"
         },
@@ -484,7 +523,9 @@
         "vwnd_850_available": {
           "kind": "flag",
           "units": "boolean",
-          "distinct_values": [1.0],
+          "distinct_values": [
+            1.0
+          ],
           "fraction_nonzero": 1.0,
           "meaning": "1 = source data present for this cell/day, 0 = absent (the paired value channel is 0 and must not be coloured as a real measurement)"
         },
@@ -514,7 +555,9 @@
         "shum_850_available": {
           "kind": "flag",
           "units": "boolean",
-          "distinct_values": [1.0],
+          "distinct_values": [
+            1.0
+          ],
           "fraction_nonzero": 1.0,
           "meaning": "1 = source data present for this cell/day, 0 = absent (the paired value channel is 0 and must not be coloured as a real measurement)"
         },
@@ -544,7 +587,10 @@
         "insat_sst_available": {
           "kind": "flag",
           "units": "boolean",
-          "distinct_values": [0.0, 1.0],
+          "distinct_values": [
+            0.0,
+            1.0
+          ],
           "fraction_nonzero": 0.9852,
           "meaning": "1 = source data present for this cell/day, 0 = absent (the paired value channel is 0 and must not be coloured as a real measurement)"
         },
@@ -574,7 +620,9 @@
         "insat_lst_available": {
           "kind": "flag",
           "units": "boolean",
-          "distinct_values": [1.0],
+          "distinct_values": [
+            1.0
+          ],
           "fraction_nonzero": 1.0,
           "meaning": "1 = source data present for this cell/day, 0 = absent (the paired value channel is 0 and must not be coloured as a real measurement)"
         },
@@ -746,35 +794,50 @@
         "rainfall_qc_flag": {
           "kind": "flag",
           "units": "boolean",
-          "distinct_values": [0.0, 1.0],
+          "distinct_values": [
+            0.0,
+            1.0
+          ],
           "fraction_nonzero": 0.0264,
           "meaning": "0 = observed, 1 = gap-filled, 2 = flagged by QC"
         },
         "tmax_qc_flag": {
           "kind": "flag",
           "units": "code",
-          "distinct_values": [0.0, 1.0, 2.0],
+          "distinct_values": [
+            0.0,
+            1.0,
+            2.0
+          ],
           "fraction_nonzero": 0.004,
           "meaning": "0 = observed, 1 = gap-filled, 2 = flagged by QC"
         },
         "tmin_qc_flag": {
           "kind": "flag",
           "units": "code",
-          "distinct_values": [0.0, 1.0, 2.0],
+          "distinct_values": [
+            0.0,
+            1.0,
+            2.0
+          ],
           "fraction_nonzero": 0.0016,
           "meaning": "0 = observed, 1 = gap-filled, 2 = flagged by QC"
         },
         "chirps_rain_available": {
           "kind": "flag",
           "units": "boolean",
-          "distinct_values": [1.0],
+          "distinct_values": [
+            1.0
+          ],
           "fraction_nonzero": 1.0,
           "meaning": "1 = source data present for this cell/day, 0 = absent (the paired value channel is 0 and must not be coloured as a real measurement)"
         },
         "uwnd_850_available": {
           "kind": "flag",
           "units": "boolean",
-          "distinct_values": [1.0],
+          "distinct_values": [
+            1.0
+          ],
           "fraction_nonzero": 1.0,
           "meaning": "1 = source data present for this cell/day, 0 = absent (the paired value channel is 0 and must not be coloured as a real measurement)"
         },
@@ -804,7 +867,9 @@
         "vwnd_850_available": {
           "kind": "flag",
           "units": "boolean",
-          "distinct_values": [1.0],
+          "distinct_values": [
+            1.0
+          ],
           "fraction_nonzero": 1.0,
           "meaning": "1 = source data present for this cell/day, 0 = absent (the paired value channel is 0 and must not be coloured as a real measurement)"
         },
@@ -834,7 +899,9 @@
         "shum_850_available": {
           "kind": "flag",
           "units": "boolean",
-          "distinct_values": [1.0],
+          "distinct_values": [
+            1.0
+          ],
           "fraction_nonzero": 1.0,
           "meaning": "1 = source data present for this cell/day, 0 = absent (the paired value channel is 0 and must not be coloured as a real measurement)"
         },
@@ -864,7 +931,10 @@
         "insat_sst_available": {
           "kind": "flag",
           "units": "boolean",
-          "distinct_values": [0.0, 1.0],
+          "distinct_values": [
+            0.0,
+            1.0
+          ],
           "fraction_nonzero": 0.9852,
           "meaning": "1 = source data present for this cell/day, 0 = absent (the paired value channel is 0 and must not be coloured as a real measurement)"
         },
@@ -894,7 +964,9 @@
         "insat_lst_available": {
           "kind": "flag",
           "units": "boolean",
-          "distinct_values": [1.0],
+          "distinct_values": [
+            1.0
+          ],
           "fraction_nonzero": 1.0,
           "meaning": "1 = source data present for this cell/day, 0 = absent (the paired value channel is 0 and must not be coloured as a real measurement)"
         },
@@ -1066,35 +1138,51 @@
         "rainfall_qc_flag": {
           "kind": "flag",
           "units": "boolean",
-          "distinct_values": [0.0, 1.0],
+          "distinct_values": [
+            0.0,
+            1.0
+          ],
           "fraction_nonzero": 0.0364,
           "meaning": "0 = observed, 1 = gap-filled, 2 = flagged by QC"
         },
         "tmax_qc_flag": {
           "kind": "flag",
           "units": "code",
-          "distinct_values": [0.0, 1.0, 2.0],
+          "distinct_values": [
+            0.0,
+            1.0,
+            2.0
+          ],
           "fraction_nonzero": 0.0054,
           "meaning": "0 = observed, 1 = gap-filled, 2 = flagged by QC"
         },
         "tmin_qc_flag": {
           "kind": "flag",
           "units": "code",
-          "distinct_values": [0.0, 1.0, 2.0],
+          "distinct_values": [
+            0.0,
+            1.0,
+            2.0
+          ],
           "fraction_nonzero": 0.0024,
           "meaning": "0 = observed, 1 = gap-filled, 2 = flagged by QC"
         },
         "chirps_rain_available": {
           "kind": "flag",
           "units": "boolean",
-          "distinct_values": [0.0, 1.0],
+          "distinct_values": [
+            0.0,
+            1.0
+          ],
           "fraction_nonzero": 0.9787,
           "meaning": "1 = source data present for this cell/day, 0 = absent (the paired value channel is 0 and must not be coloured as a real measurement)"
         },
         "uwnd_850_available": {
           "kind": "flag",
           "units": "boolean",
-          "distinct_values": [1.0],
+          "distinct_values": [
+            1.0
+          ],
           "fraction_nonzero": 1.0,
           "meaning": "1 = source data present for this cell/day, 0 = absent (the paired value channel is 0 and must not be coloured as a real measurement)"
         },
@@ -1124,7 +1212,9 @@
         "vwnd_850_available": {
           "kind": "flag",
           "units": "boolean",
-          "distinct_values": [1.0],
+          "distinct_values": [
+            1.0
+          ],
           "fraction_nonzero": 1.0,
           "meaning": "1 = source data present for this cell/day, 0 = absent (the paired value channel is 0 and must not be coloured as a real measurement)"
         },
@@ -1154,7 +1244,9 @@
         "shum_850_available": {
           "kind": "flag",
           "units": "boolean",
-          "distinct_values": [1.0],
+          "distinct_values": [
+            1.0
+          ],
           "fraction_nonzero": 1.0,
           "meaning": "1 = source data present for this cell/day, 0 = absent (the paired value channel is 0 and must not be coloured as a real measurement)"
         },
@@ -1184,7 +1276,10 @@
         "insat_sst_available": {
           "kind": "flag",
           "units": "boolean",
-          "distinct_values": [0.0, 1.0],
+          "distinct_values": [
+            0.0,
+            1.0
+          ],
           "fraction_nonzero": 0.9852,
           "meaning": "1 = source data present for this cell/day, 0 = absent (the paired value channel is 0 and must not be coloured as a real measurement)"
         },
@@ -1214,7 +1309,9 @@
         "insat_lst_available": {
           "kind": "flag",
           "units": "boolean",
-          "distinct_values": [1.0],
+          "distinct_values": [
+            1.0
+          ],
           "fraction_nonzero": 1.0,
           "meaning": "1 = source data present for this cell/day, 0 = absent (the paired value channel is 0 and must not be coloured as a real measurement)"
         },
@@ -1386,35 +1483,52 @@
         "rainfall_qc_flag": {
           "kind": "flag",
           "units": "code",
-          "distinct_values": [0.0, 1.0, 2.0],
+          "distinct_values": [
+            0.0,
+            1.0,
+            2.0
+          ],
           "fraction_nonzero": 0.0116,
           "meaning": "0 = observed, 1 = gap-filled, 2 = flagged by QC"
         },
         "tmax_qc_flag": {
           "kind": "flag",
           "units": "code",
-          "distinct_values": [0.0, 1.0, 2.0],
+          "distinct_values": [
+            0.0,
+            1.0,
+            2.0
+          ],
           "fraction_nonzero": 0.0022,
           "meaning": "0 = observed, 1 = gap-filled, 2 = flagged by QC"
         },
         "tmin_qc_flag": {
           "kind": "flag",
           "units": "code",
-          "distinct_values": [0.0, 1.0, 2.0],
+          "distinct_values": [
+            0.0,
+            1.0,
+            2.0
+          ],
           "fraction_nonzero": 0.0012,
           "meaning": "0 = observed, 1 = gap-filled, 2 = flagged by QC"
         },
         "chirps_rain_available": {
           "kind": "flag",
           "units": "boolean",
-          "distinct_values": [0.0, 1.0],
+          "distinct_values": [
+            0.0,
+            1.0
+          ],
           "fraction_nonzero": 0.6684,
           "meaning": "1 = source data present for this cell/day, 0 = absent (the paired value channel is 0 and must not be coloured as a real measurement)"
         },
         "uwnd_850_available": {
           "kind": "flag",
           "units": "boolean",
-          "distinct_values": [1.0],
+          "distinct_values": [
+            1.0
+          ],
           "fraction_nonzero": 1.0,
           "meaning": "1 = source data present for this cell/day, 0 = absent (the paired value channel is 0 and must not be coloured as a real measurement)"
         },
@@ -1444,7 +1558,9 @@
         "vwnd_850_available": {
           "kind": "flag",
           "units": "boolean",
-          "distinct_values": [1.0],
+          "distinct_values": [
+            1.0
+          ],
           "fraction_nonzero": 1.0,
           "meaning": "1 = source data present for this cell/day, 0 = absent (the paired value channel is 0 and must not be coloured as a real measurement)"
         },
@@ -1474,7 +1590,9 @@
         "shum_850_available": {
           "kind": "flag",
           "units": "boolean",
-          "distinct_values": [1.0],
+          "distinct_values": [
+            1.0
+          ],
           "fraction_nonzero": 1.0,
           "meaning": "1 = source data present for this cell/day, 0 = absent (the paired value channel is 0 and must not be coloured as a real measurement)"
         },
@@ -1504,7 +1622,10 @@
         "insat_sst_available": {
           "kind": "flag",
           "units": "boolean",
-          "distinct_values": [0.0, 1.0],
+          "distinct_values": [
+            0.0,
+            1.0
+          ],
           "fraction_nonzero": 0.8405,
           "meaning": "1 = source data present for this cell/day, 0 = absent (the paired value channel is 0 and must not be coloured as a real measurement)"
         },
@@ -1534,7 +1655,10 @@
         "insat_lst_available": {
           "kind": "flag",
           "units": "boolean",
-          "distinct_values": [0.0, 1.0],
+          "distinct_values": [
+            0.0,
+            1.0
+          ],
           "fraction_nonzero": 0.7843,
           "meaning": "1 = source data present for this cell/day, 0 = absent (the paired value channel is 0 and must not be coloured as a real measurement)"
         },

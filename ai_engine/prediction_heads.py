@@ -148,17 +148,27 @@ class PredictionHeads(nn.Module):
     # per-region values — and the weights are learnable, so each region refines
     # them during training.
     #
+    # Re-measured on the 1981-2025 rebuild (train 1981-2021, val 2022, all 17
+    # channels populated) via scripts/skill_ceiling_probe.py. The previous
+    # table came from the 16-year 2010-2025 bundles; the optimal weights barely
+    # moved, which is itself a useful result -- the blend is stable to a ~3x
+    # change in training-record length.
+    #
     #   region          | best w_persist rain | tmax | tmin
-    #   western_ghats   |                0.15 | 0.45 | 0.40
-    #   north_east      |                0.15 | 0.50 | 0.55
-    #   indo_gangetic   |                0.10 | 0.45 | 0.40
-    #   central_india   |                0.10 | 0.40 | 0.40
+    #   western_ghats   |                0.20 | 0.45 | 0.35
+    #   north_east      |                0.15 | 0.50 | 0.60
+    #   indo_gangetic   |                0.10 | 0.50 | 0.45
+    #   central_india   |                0.10 | 0.45 | 0.40
+    #   ----------------+---------------------+------+-----
+    #   mean            |                0.14 | 0.48 | 0.45
     #
     # Rainfall leans almost entirely on climatology because persistence is
-    # actively harmful for it (R² between -0.30 and -0.49 across regions).
+    # actively harmful for it (R² between -0.30 and -0.48 across regions).
+    # These are only INITIALISATIONS of learnable scalars, so the small
+    # per-region spread does not warrant per-region configs.
     BASELINE_INIT = {
-        "rainfall": (0.12, 0.88),
-        "temp_max": (0.45, 0.55),
+        "rainfall": (0.14, 0.86),
+        "temp_max": (0.48, 0.52),
         "temp_min": (0.45, 0.55),
     }
 

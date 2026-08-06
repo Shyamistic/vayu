@@ -6,6 +6,8 @@ Property 14: API rejects invalid parameters with descriptive errors
 from __future__ import annotations
 
 import json
+import math
+
 import pytest
 from fastapi.testclient import TestClient
 
@@ -139,11 +141,18 @@ def test_historical_reversed_dates(client):
 # ── Metrics endpoint ────────────────────────────────────────────────────────────
 
 def test_metrics_valid_variable(client):
+    # R² has an upper bound of 1 but no lower bound: any model worse than
+    # predicting the mean scores below zero, which is a real and reportable
+    # outcome. The endpoint reads whatever benchmark report is on disk, so
+    # asserting r2 >= 0 here was asserting that the checked-in report happens to
+    # describe a good model — it currently describes a 2-epoch sanity run with
+    # r2_rain = -0.087. Bound only what is mathematically guaranteed.
     for var in ["rainfall", "temp_max", "temp_min"]:
         resp = client.get(f"/api/metrics?variable={var}")
         assert resp.status_code == 200
         body = resp.json()
-        assert 0.0 <= body["r2_score"] <= 1.0
+        assert body["r2_score"] <= 1.0
+        assert math.isfinite(body["r2_score"])
         assert body["variable"] == var
 
 

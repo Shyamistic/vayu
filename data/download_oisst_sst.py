@@ -42,9 +42,15 @@ BASE_URL = "https://noaa-cdr-sea-surface-temp-optimum-interpolation-pds.s3.amazo
 # real files are consistently ~1.6-1.7 MB.
 MIN_EXPECTED_BYTES = 500_000
 
+# Verified via byte-range probe: 1981-06-01 and 1981-08-01 both 404, while
+# 1981-09-01 returns 206. The daily AVHRR OISST v2.1 record begins here; dates
+# before this will always 404, so daterange() clamps to it rather than
+# spending retries/log noise on requests that can never succeed.
+RECORD_START = _dt.date(1981, 9, 1)
+
 
 def daterange(start_year: int, end_year: int):
-    current = _dt.date(start_year, 1, 1)
+    current = max(_dt.date(start_year, 1, 1), RECORD_START)
     end = _dt.date(end_year, 12, 31)
     while current <= end:
         yield current

@@ -131,3 +131,79 @@ def test_climatology_rejects_empty_fit_range():
     dense = _dense()
     with pytest.raises(ValueError, match="No timesteps"):
         build_doy_climatology(dense, fit_years=(1990, 1991))
+
+
+# ── Channel scaling / dead-channel detection ──────────────────────────────────
+
+def test_rescales_only_unstandardized_channels():
+    """Atmospheric channels reach the model in raw units (measured: uwnd std 6.38,
+    shum std 0.0027) while the rest are z-scores, a ~2400x range. Rescale those
+    two kinds of channel and leave bounded ones (day_sin, lat, lsm) alone."""
+    from ai_engine.windowed_dataset import rescale_unstandardized_channels
+
+    dense = _dense()
+    x = dense.x.clone()
+    # ch0 huge (raw wind-like), ch1 tiny (raw humidity-like), ch2/3 already sane
+    x[:, :, 0] *= 6.5
+    x[:, :, 1] *= 0.0027
+    before_ok = x[:, :, 2].clone()
+
+    names = ["wind_like", "humid_like", "already_z", "bounded"]
+    rescaled = rescale_unstandardized_channels(
+        x, names, dense.times, fit_years=(2010, 2013)
+    )
+
+    assert any("wind_like" in r for r in rescaled)
+    assert any("humid_like" in r for r in rescaled)
+    assert not any("already_z" in r for r in rescaled)
+
+    for c in (0, 1):
+        assert abs(float(x[:, :, c].std()) - 1.0) < 0.05
+    assert torch.allclose(x[:, :, 2], before_ok), "sane channel must be untouched"
+
+
+def test_rescaling_uses_train_years_only():
+    """Leakage guard: rescaling stats must ignore out-of-sample years."""
+    from ai_engine.windowed_dataset import rescale_unstandardized_channels
+
+    years = xr.DataArray(_dense().times).dt.year.values
+
+    def run(perturb: bool) -> torch.Tensor:
+        d = _dense()
+        x = d.x.clone()
+        x[:, :, 0] *= 6.5
+        if perturb:
+            x[:, years >= 2012, 0] += 500.0
+        rescale_unstandardized_channels(
+            x, ["a", "b", "c", "d"], d.times, fit_years=(2010, 2011)
+        )
+        return x[:, years < 2012, 0]
+
+    # Train-period values must be scaled identically regardless of later years.
+    assert torch.allclose(run(False), run(True), atol=1e-4)
+
+
+def test_dead_channels_are_reported():
+    """insat_lst / insat_sst / chirps_rain are 100% zeros in every real region,
+    and IGP/Central additionally have no wind or humidity at all."""
+    from ai_engine.windowed_dataset import report_dead_channels
+
+    dense = _dense()
+    x = dense.x.clone()
+    x[:, :, 3] = 0.0
+    dead = report_dead_channels(x, ["a", "b", "c", "dead_one"])
+    assert dead == ["dead_one"]
+
+
+def test_dead_channel_is_not_rescaled():
+    """Rescaling a constant channel would divide by ~zero."""
+    from ai_engine.windowed_dataset import rescale_unstandardized_channels
+
+    dense = _dense()
+    x = dense.x.clone()
+    x[:, :, 3] = 0.0
+    rescaled = rescale_unstandardized_channels(
+        x, ["a", "b", "c", "dead_one"], dense.times, fit_years=(2010, 2013)
+    )
+    assert not any("dead_one" in r for r in rescaled)
+    assert float(x[:, :, 3].std()) == 0.0
