@@ -296,6 +296,9 @@ interface CesiumGlobeProps {
   showWind?: boolean;       // toggle wind particle layer
   windStyle?: WindAnimationStyle; // wind particle density/speed/colour preset
   showTerminator?: boolean; // toggle day/night terminator line + nightside shading
+  /** Toggle IoT sensor station pins — hidden by default (opt-in via toolbar),
+   *  same "hidden until you ask for it" treatment as Wind/Terminator. */
+  showIoT?: boolean;
   mapMode?: '3d' | '2d';    // '2d' morphs to a top-down orthographic map focused on India
   /** One-time auto-rotate + auto-play-forecast hero sequence (e.g. right after
    *  the cinematic intro). Cancels immediately on any real user input and
@@ -337,6 +340,7 @@ function CesiumGlobeInner({
   showWind = true,
   windStyle = 'normal',
   showTerminator = false,
+  showIoT = false,
   mapMode = '3d',
   heroMode = false,
   onHeroDayChange,
@@ -377,6 +381,8 @@ function CesiumGlobeInner({
   const hasFlownInitialRegionRef = useRef(false);
   const mapModeRef = useRef(mapMode);
   mapModeRef.current = mapMode;
+  const showIoTRef = useRef(showIoT);
+  showIoTRef.current = showIoT;
 
   // ── Load the India outline used to clip the heatmap raster ─────────────────
   // Independent of viewer setup — a plain fetch, not a Cesium data source —
@@ -528,9 +534,10 @@ function CesiumGlobeInner({
       osmBuildingsRef.current.show = mapMode === '3d';
     }
 
-    // Station pins hidden in 2D — see the CustomDataSource comment above.
+    // Station pins are opt-in (showIoT) and additionally hidden in 2D — see
+    // the CustomDataSource comment above.
     if (iotStationsSourceRef.current) {
-      iotStationsSourceRef.current.show = mapMode === '3d';
+      iotStationsSourceRef.current.show = showIoT && mapMode === '3d';
     }
 
     if (mapMode === '2d') {
@@ -546,7 +553,7 @@ function CesiumGlobeInner({
     } else if (viewer.scene.mode !== Cesium.SceneMode.SCENE3D) {
       viewer.scene.morphTo3D(1.0);
     }
-  }, [isReady, mapMode]);
+  }, [isReady, mapMode, showIoT]);
 
   // ── Hero auto-rotate + auto-play forecast (indefinite, cancels on user input) ─
   // An ambient sequence — camera slowly spins over India while the forecast
@@ -630,11 +637,11 @@ function CesiumGlobeInner({
     if (!isReady || !viewerRef.current) return;
     const viewer = viewerRef.current;
     const source = new Cesium.CustomDataSource('vayu-iot-sensors');
-    // Station pins are hidden in 2D by product decision (grouped with Wind
+    // Station pins are opt-in (hidden by default, toggled on via the toolbar)
+    // and additionally hidden in 2D by product decision (grouped with Wind
     // and Inspect, which are hidden for real technical reasons — see their
-    // comments). Start hidden if already in 2D; the mapMode effect below
-    // keeps it in sync on later mode switches.
-    source.show = mapModeRef.current === '3d';
+    // comments). The mapMode effect below keeps both in sync going forward.
+    source.show = showIoTRef.current && mapModeRef.current === '3d';
     iotStationsSourceRef.current = source;
     viewer.dataSources.add(source);
     const hoverHandler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);

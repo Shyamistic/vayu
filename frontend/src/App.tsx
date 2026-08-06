@@ -6,7 +6,10 @@ import {
   SplitSquareHorizontal, Mountain, Leaf, Wind,
   Radio, Waves, Download, BarChart, Menu, X, Search, Eye, Map, Moon, Sun,
   Plus, Minus, Box,
+  Cloud, Zap, FileText, Sparkles, ChevronDown,
+  ChevronsLeft, ChevronsRight, Ruler, Upload, Globe2,
 } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 import { format, addDays } from 'date-fns';
 import CesiumGlobe from './components/AsyncCesiumGlobe';
 import TimeSlider from './components/TimeSlider';
@@ -138,6 +141,33 @@ const VIEW_TABS: { id: ViewMode; label: string; icon: React.ReactNode }[] = [
   { id: 'collaborate', label: 'Collab', icon: <Radio size={14} /> },
 ];
 
+/**
+ * Header workspace nav (redesign phase 1) — groups the 11 existing
+ * VIEW_TABS into the 6 workspaces from the redesign brief. Nothing new is
+ * invented: Reports and AI Studio both currently point at the 'collaborate'
+ * tab (which houses ReportGenerator/Annotations and AIClimateBrief/
+ * NLQueryInterface together — see features/FeaturePanels.tsx); splitting
+ * that tab into two real destinations is a later phase, not this one.
+ */
+const WORKSPACE_NAV: {
+  id: 'forecast' | 'analysis' | 'layers' | 'scenarios' | 'reports' | 'ai-studio';
+  label: string;
+  icon: LucideIcon;
+  isActive: (viewMode: ViewMode) => boolean;
+}[] = [
+  { id: 'forecast', label: 'Forecast', icon: Cloud, isActive: (v) => v === 'prediction' },
+  { id: 'analysis', label: 'Analysis', icon: BarChart2, isActive: (v) =>
+      (['analysis', 'sectors', 'environment', 'agriculture', 'case-study'] as ViewMode[]).includes(v) },
+  // "Layers" isn't a ViewMode — Map Layers already renders inside the
+  // drawer regardless of active tab, so this just opens the drawer.
+  { id: 'layers', label: 'Layers', icon: Layers, isActive: () => false },
+  { id: 'scenarios', label: 'Scenarios', icon: Zap, isActive: (v) => v === 'scenario' },
+  { id: 'reports', label: 'Reports', icon: FileText, isActive: (v) => v === 'collaborate' },
+  // Shares 'collaborate' with Reports for now (see comment above) — only
+  // one of the pair shows as active so they don't both light up together.
+  { id: 'ai-studio', label: 'AI Studio', icon: Sparkles, isActive: () => false },
+];
+
 /** View modes rendered by features/FeaturePanels.tsx. */
 const FEATURE_CATEGORIES: ViewMode[] = ['analysis', 'sectors', 'model-lab', 'collaborate'];
 
@@ -145,6 +175,101 @@ const FEATURE_CATEGORIES: ViewMode[] = ['analysis', 'sectors', 'model-lab', 'col
 const PREDICTION_VIEW_MODES: ViewMode[] = [
   'prediction', 'historical', 'agriculture', 'environment', ...FEATURE_CATEGORIES,
 ];
+
+// ── Left sidebar (redesign phase 2) ─────────────────────────────────────────
+// Row-style buttons (icon left, label right, matching the reference) that
+// collapse to icon-only when the rail is collapsed — reused by every simple
+// toggle item in the sidebar so all ~11 buttons share one visual language.
+
+/** Custom hover tooltip for the collapsed (icon-only) rail. Native `title`
+ *  attributes have a long, inconsistent browser delay and don't match the
+ *  app's visual language — this shows immediately, styled like the rest of
+ *  the UI, so a collapsed icon (e.g. "2D Map") is actually identifiable
+ *  without expanding the sidebar. No-ops (renders nothing extra) when the
+ *  sidebar is expanded, since the label is already visible inline there. */
+function SidebarTooltipWrap({ collapsed, label, children }: { collapsed: boolean; label: string; children: ReactNode }) {
+  const [hovered, setHovered] = useState(false);
+  return (
+    <div
+      className="relative w-full"
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+    >
+      {children}
+      {collapsed && hovered && (
+        <div
+          className="absolute left-full top-1/2 -translate-y-1/2 ml-2 z-50 px-2.5 py-1.5 rounded-md text-[12px] font-medium whitespace-nowrap pointer-events-none"
+          style={{
+            background: 'rgba(var(--panel-bg-rgb),0.98)',
+            border: '1px solid rgba(var(--fg-rgb),var(--fg-a12))',
+            color: 'rgba(var(--fg-rgb),var(--fg-a75))',
+            boxShadow: '0 4px 16px rgba(0,0,0,0.35)',
+          }}
+        >
+          {label}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function SidebarButton({
+  icon: Icon,
+  label,
+  active,
+  disabled,
+  onClick,
+  accent = '#0ea5e9',
+  title,
+  collapsed,
+}: {
+  icon: LucideIcon;
+  label: string;
+  active?: boolean;
+  disabled?: boolean;
+  onClick?: () => void;
+  accent?: string;
+  title?: string;
+  collapsed: boolean;
+}) {
+  return (
+    <SidebarTooltipWrap collapsed={collapsed} label={title ?? label}>
+      <button
+        onClick={onClick}
+        disabled={disabled}
+        title={title ?? label}
+        className={`flex items-center rounded-lg transition-all ${collapsed ? 'justify-center px-2.5 py-2.5' : 'gap-3 px-3 py-2.5 w-full'}`}
+        style={{
+          background: 'rgba(var(--panel-bg-rgb),0.92)',
+          border: active ? `1px solid ${accent}` : '1px solid rgba(var(--fg-rgb),var(--fg-a08))',
+          // --fg-a5 doesn't exist in tokens.css (tiers jump a4 -> a6) — using
+          // it here silently produced an invalid `color` declaration, which
+          // is why inactive labels (e.g. "Forecast" once you'd navigated
+          // away from it) were unreadable specifically in light mode.
+          color: disabled ? 'rgba(var(--fg-rgb),var(--fg-a15))' : active ? accent : 'rgba(var(--fg-rgb),var(--fg-a4))',
+          boxShadow: active ? `0 0 8px ${accent}40` : 'none',
+          cursor: disabled ? 'not-allowed' : onClick ? 'pointer' : 'default',
+        }}
+      >
+        <Icon size={16} className="shrink-0" />
+        {!collapsed && <span className="text-[13px] font-medium truncate">{label}</span>}
+      </button>
+    </SidebarTooltipWrap>
+  );
+}
+
+/** Section heading — collapses to a thin divider so grouping is still
+ *  legible (not just a wall of icons) when the rail is collapsed. */
+function SidebarSectionLabel({ children, collapsed }: { children: ReactNode; collapsed: boolean }) {
+  if (collapsed) {
+    return <div className="h-px my-1.5 mx-1" style={{ background: 'rgba(var(--fg-rgb),var(--fg-a08))' }} />;
+  }
+  return (
+    <div className="text-[10px] font-semibold uppercase tracking-wider text-foreground/35 px-2.5 pt-3 pb-1 first:pt-1">
+      {children}
+    </div>
+  );
+}
 
 // ── App component ─────────────────────────────────────────────────────────────
 
@@ -161,6 +286,8 @@ export default function App() {
 
   // ── New feature state ─────────────────────────────────────────────────────
   const [terrainExaggeration, setTerrainExaggeration] = useState(1);
+  // Left sidebar collapse (redesign phase 2) — icon-only rail when true.
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [selectedCell, setSelectedCell] = useState<{ cell: GridCell; x: number; y: number } | null>(null);
   // Light/dark theme — persisted, defaults to 'dark' so existing users see no
   // visual change unless they explicitly opt into light mode. Only the
@@ -186,14 +313,18 @@ export default function App() {
   const [showWind, setShowWind] = useState(false);
   const [windStyle, setWindStyle] = useState<WindAnimationStyle>('normal');
   const [showTerminator, setShowTerminator] = useState(false);
+  // IoT sensor station pins — hidden by default, opt-in via the toolbar
+  // rather than shown automatically whenever the globe is in 3D mode.
+  const [showIoT, setShowIoT] = useState(false);
   const [mapMode, setMapMode] = useState<'3d' | '2d'>('3d');
-  // Wind and Inspect are disabled in 2D (see their button comments below) —
-  // force them off on switching to 2D so a state left on from 3D doesn't
-  // linger as a control that looks enabled but silently does nothing.
+  // Wind, Inspect, and IoT are disabled in 2D (see their button comments
+  // below) — force them off on switching to 2D so a state left on from 3D
+  // doesn't linger as a control that looks enabled but silently does nothing.
   useEffect(() => {
     if (mapMode === '2d') {
       setShowWind(false);
       setInspectMode(false);
+      setShowIoT(false);
     }
   }, [mapMode]);
   // One-time auto-rotate + auto-play-forecast hero moment, right after the
@@ -259,6 +390,20 @@ export default function App() {
   const handleLayerChange = useCallback((layer: EarthLayer) => {
     setActiveLayer((current) => current === layer ? 'satellite' : layer);
   }, []);
+
+  // ── Header workspace nav click (see WORKSPACE_NAV) ────────────────────────
+  const handleWorkspaceNavClick = useCallback((id: (typeof WORKSPACE_NAV)[number]['id']) => {
+    const viewModeFor: Partial<Record<typeof id, ViewMode>> = {
+      forecast: 'prediction',
+      analysis: 'analysis',
+      scenarios: 'scenario',
+      reports: 'collaborate',
+      'ai-studio': 'collaborate',
+    };
+    const nextViewMode = viewModeFor[id];
+    if (nextViewMode) update({ viewMode: nextViewMode });
+    setDrawerOpen(true);
+  }, [update]);
 
   // ── Scroll right panel to top on viewMode change ─────────────────────────────
   useEffect(() => {
@@ -432,6 +577,7 @@ export default function App() {
             showWind={showWind}
             windStyle={windStyle}
             showTerminator={showTerminator}
+            showIoT={showIoT}
             mapMode={mapMode}
             heroMode={heroPlaying}
             onHeroDayChange={(d) => update({ forecastDay: d })}
@@ -468,38 +614,80 @@ export default function App() {
       {/* ── Extreme event alerts (Feature 21) ── */}
       <ExtremeAlerts gridCells={gridCells} variable={state.selectedVariable} />
 
-      {/* ── Top header bar (z-[1000], floating overlay — Req 29.2) ── */}
+      {/* ── Top header bar — floating glass card (Ventusky/SpaceX-inspired
+          redesign, phase 1). Sits inside a transparent, padded <header> so
+          the ResizeObserver in the layout-measurement effect above still
+          captures the *total* reserved height (top margin + card), keeping
+          the globe/left-toolbar viewport math correct without touching
+          viewportSafeArea.ts. ── */}
       <header
         ref={headerRef}
-        className={`fixed top-0 left-0 right-0 z-[1000] flex items-center justify-between px-3 md:px-4 py-2 md:py-3 animate-fade-in transition-opacity duration-300 ${focusMode ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}
-        style={{ background: 'rgba(var(--panel-bg-rgb),0.92)', borderBottom: '1px solid rgba(var(--fg-rgb),var(--fg-a08))', transform: 'translateZ(0)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)' }}>
-        <div className="flex items-center gap-3">
-          <div className="w-7 h-7 rounded-full bg-gradient-to-br from-vayu-blue to-cyan-300 flex items-center justify-center text-xs font-bold text-foreground">☁</div>
-          <span className="text-foreground font-bold text-sm tracking-wide">MAUSAM</span>
-          <OfflineModeBadge />
-          <span className="text-foreground/40 text-xs hidden sm:block">Climate Digital Twin</span>
-          <span className="text-foreground/20 text-[10px] hidden md:block">ISRO BAH 2026</span>
-        </div>
+        className={`fixed top-0 left-0 right-0 z-[1000] px-3 md:px-4 pt-3 md:pt-4 pb-0 animate-fade-in transition-opacity duration-300 ${focusMode ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}
+        style={{ transform: 'translateZ(0)' }}
+      >
+        <div
+          className="flex items-center justify-between gap-3 px-4 md:px-5 py-2.5 md:py-3 rounded-[20px]"
+          style={{
+            background: 'rgba(var(--panel-bg-rgb),0.9)',
+            border: '1px solid rgba(var(--fg-rgb),var(--fg-a08))',
+            boxShadow: '0 8px 32px rgba(0,0,0,0.28)',
+            backdropFilter: 'blur(20px)',
+            WebkitBackdropFilter: 'blur(20px)',
+          }}
+        >
+          {/* Logo block */}
+          <div className="flex items-center gap-2.5 shrink-0">
+            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-vayu-blue to-cyan-300 flex items-center justify-center text-foreground shrink-0">
+              <Cloud size={18} strokeWidth={2.5} />
+            </div>
+            <div className="hidden sm:flex flex-col leading-tight">
+              <span className="text-foreground font-bold text-[17px] tracking-wide">MAUSAM</span>
+              <span className="text-foreground/45 text-[12px]">
+                Climate Digital Twin <span className="text-foreground/30">· ISRO BAH 2026</span>
+              </span>
+            </div>
+            <OfflineModeBadge />
+          </div>
 
-        <div className="hidden md:block">
-          <RegionSelector
-            selected={state.selectedRegion}
-            onChange={(r: RegionId) => { update({ selectedRegion: r }); setRegionFlyTrigger(n => n + 1); }}
-            realDataRegions={health?.real_data_regions}
-          />
-        </div>
+          {/* Workspace navigation — groups the app's existing view tabs into
+              the six workspaces from the redesign brief (see WORKSPACE_NAV). */}
+          <nav className="hidden lg:flex items-center gap-1">
+            {WORKSPACE_NAV.map(({ id, label, icon: Icon, isActive }) => {
+              const active = isActive(state.viewMode);
+              return (
+                <button
+                  key={id}
+                  onClick={() => handleWorkspaceNavClick(id)}
+                  className="relative flex items-center gap-1.5 px-3 py-2 text-[15px] font-medium whitespace-nowrap transition-colors"
+                  style={{ color: active ? '#0ea5e9' : 'rgba(var(--fg-rgb),var(--fg-a4))' }}
+                >
+                  <Icon size={16} />
+                  {label}
+                  {active && (
+                    <span
+                      className="absolute left-3 right-3 -bottom-[13px] h-[2px] rounded-full"
+                      style={{ background: '#0ea5e9' }}
+                    />
+                  )}
+                </button>
+              );
+            })}
+          </nav>
 
-        <div className="flex items-center gap-3">
-          <div className="hidden md:flex items-center gap-3 px-3 py-1.5 rounded-lg" style={{ background: 'rgba(var(--panel-bg-rgb),0.8)', border: '1px solid rgba(var(--fg-rgb),var(--fg-a08))' }}>
-            {health ? (
-              <>
-                <span className="text-xs text-green-400">● {health.device.toUpperCase()}</span>
-                <span className="text-xs text-foreground/30">v{health.model_version}</span>
-              </>
-            ) : (
-              <span className="text-xs text-red-400">● Offline</span>
-            )}
-            <div title={drawerOpen ? "Close menu to start tour" : "Start guided tour"}>
+          {/* Status + settings cluster */}
+          <div className="flex items-center gap-2 shrink-0">
+            <div className="hidden md:flex items-center gap-2.5 px-3 py-1.5 rounded-lg" style={{ background: 'rgba(var(--panel-bg-rgb),0.6)', border: '1px solid rgba(var(--fg-rgb),var(--fg-a08))' }}>
+              {health ? (
+                <>
+                  <span className="text-xs text-green-400">● {health.device.toUpperCase()}</span>
+                  <span className="text-xs text-foreground/30">v{health.model_version}</span>
+                </>
+              ) : (
+                <span className="text-xs text-red-400">● Offline</span>
+              )}
+            </div>
+
+            <div className="hidden md:block" title={drawerOpen ? "Close menu to start tour" : "Start guided tour"}>
               <GuidedTour
                 onTourStep={handleTourStep}
                 isActive={showTour && !drawerOpen}
@@ -509,161 +697,219 @@ export default function App() {
                 }}
               />
             </div>
+
+            {/* Settings — currently the closest real control we have is
+                language; repurposed rather than adding a dead button. */}
+            <div className="hidden md:block" title="Language & settings">
+              <LanguageToggle />
+            </div>
+
+            {/* Light/dark theme toggle */}
+            <button
+              onClick={() => setTheme((t) => (t === 'dark' ? 'light' : 'dark'))}
+              className="flex items-center justify-center w-9 h-9 rounded-lg transition-colors"
+              style={{
+                background: 'rgba(var(--fg-rgb),var(--fg-a05))',
+                border: '1px solid rgba(var(--fg-rgb),var(--fg-a1))',
+                color: 'rgba(var(--fg-rgb),var(--fg-a7))',
+              }}
+              title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+              aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+            >
+              {theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}
+            </button>
+
+            {/* User avatar — decorative for now; no auth system exists yet */}
+            <div
+              className="hidden md:flex items-center gap-1 pl-1 pr-1.5 py-1 rounded-full cursor-default"
+              style={{ background: 'rgba(var(--fg-rgb),var(--fg-a05))', border: '1px solid rgba(var(--fg-rgb),var(--fg-a1))' }}
+              title="Guest user"
+            >
+              <span
+                className="w-7 h-7 rounded-full flex items-center justify-center text-[11px] font-semibold text-foreground"
+                style={{ background: 'rgba(14,165,233,0.35)' }}
+              >
+                G
+              </span>
+              <ChevronDown size={13} className="text-foreground/40" />
+            </div>
+
+            {/* Hamburger button */}
+            <button
+              onClick={() => setDrawerOpen((d) => !d)}
+              className="flex items-center justify-center w-9 h-9 rounded-lg transition-colors"
+              style={{
+                background: drawerOpen ? 'rgba(14,165,233,0.2)' : 'rgba(var(--fg-rgb),var(--fg-a05))',
+                border: drawerOpen ? '1px solid rgba(14,165,233,0.5)' : '1px solid rgba(var(--fg-rgb),var(--fg-a1))',
+                color: drawerOpen ? '#0ea5e9' : 'rgba(var(--fg-rgb),var(--fg-a6))',
+              }}
+              title="Toggle panels"
+            >
+              {drawerOpen ? <X size={16} /> : <Menu size={16} />}
+            </button>
           </div>
+        </div>
 
-          {/* Language toggle */}
-          <div className="hidden md:block"><LanguageToggle /></div>
-
-          {/* Light/dark theme toggle */}
-          <button
-            onClick={() => setTheme((t) => (t === 'dark' ? 'light' : 'dark'))}
-            className="flex items-center justify-center w-9 h-9 rounded-lg transition-colors"
-            style={{
-              background: 'rgba(var(--fg-rgb),var(--fg-a05))',
-              border: '1px solid rgba(var(--fg-rgb),var(--fg-a1))',
-              color: 'rgba(var(--fg-rgb),var(--fg-a7))',
-            }}
-            title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
-            aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
-          >
-            {theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}
-          </button>
-
-          {/* Hamburger button */}
-          <button
-            onClick={() => setDrawerOpen((d) => !d)}
-            className="flex items-center justify-center w-9 h-9 rounded-lg transition-colors"
-            style={{
-              background: drawerOpen ? 'rgba(14,165,233,0.2)' : 'rgba(var(--fg-rgb),var(--fg-a05))',
-              border: drawerOpen ? '1px solid rgba(14,165,233,0.5)' : '1px solid rgba(var(--fg-rgb),var(--fg-a1))',
-              color: drawerOpen ? '#0ea5e9' : 'rgba(var(--fg-rgb),var(--fg-a6))',
-            }}
-            title="Toggle panels"
-          >
-            {drawerOpen ? <X size={16} /> : <Menu size={16} />}
-          </button>
+        {/* Region selector — floats just below the header card rather than
+            living inside it (matches the reference layout); still the same
+            RegionSelector component/functionality as before. */}
+        <div className="hidden md:inline-flex mt-2 px-3 py-2 rounded-2xl" style={{ background: 'rgba(var(--panel-bg-rgb),0.9)', border: '1px solid rgba(var(--fg-rgb),var(--fg-a08))', backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)' }}>
+          <RegionSelector
+            selected={state.selectedRegion}
+            onChange={(r: RegionId) => { update({ selectedRegion: r }); setRegionFlyTrigger(n => n + 1); }}
+            realDataRegions={health?.real_data_regions}
+          />
         </div>
       </header>
 
-      {/* ── Variable selector left toolbar (z-[1000], floating — Req 29.2) ── */}
-      <div className={`fixed left-3 z-[1000] hidden md:flex flex-col gap-1.5 animate-slide-in-left transition-opacity duration-300 ${focusMode ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}
-        style={{ top: 72, bottom: 64, justifyContent: 'flex-start', transform: 'translateZ(0)', overflowY: 'auto' }}>
+      {/* ── Left sidebar (redesign phase 2) — collapsible rail grouped into
+          FORECAST / VISUALIZATION / TOOLS per the reference mockups. Every
+          item below is a real, pre-existing feature (VARIABLE_TABS, Split
+          View, Terrain, map mode, Columns, Wind, Terminator, IoT, Inspect)
+          just regrouped and restyled to icon-left/label-right rows — nothing
+          removed. "Measure" isn't an implemented feature yet, so it's shown
+          disabled with an honest tooltip (same pattern as Wind/Inspect/IoT
+          in 2D mode) rather than either faking it or dropping it from the
+          reference layout. "Export" opens the drawer, where ExportTools
+          already lives. ── */}
+      <div
+        className={`fixed left-3 z-[1000] hidden md:flex flex-col gap-1 animate-slide-in-left transition-all duration-200 ${focusMode ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}
+        style={{
+          top: chromeHeights.header + 12,
+          bottom: chromeHeights.timeline + 12,
+          width: sidebarCollapsed ? 56 : 208,
+          justifyContent: 'flex-start',
+          transform: 'translateZ(0)',
+          overflowY: 'auto',
+          overflowX: 'hidden',
+        }}
+      >
+        {/* Collapse/expand toggle */}
+        <SidebarTooltipWrap collapsed={sidebarCollapsed} label={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}>
+          <button
+            onClick={() => setSidebarCollapsed((v) => !v)}
+            title={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+            className={`flex items-center rounded-lg mb-1 transition-all ${sidebarCollapsed ? 'justify-center px-2.5 py-2' : 'gap-2 px-3 py-2 w-full'}`}
+            style={{ background: 'rgba(var(--panel-bg-rgb),0.92)', border: '1px solid rgba(var(--fg-rgb),var(--fg-a08))', color: 'rgba(var(--fg-rgb),var(--fg-a4))' }}
+          >
+            {sidebarCollapsed ? <ChevronsRight size={16} /> : <ChevronsLeft size={16} />}
+            {!sidebarCollapsed && <span className="text-[11px] font-medium">Collapse</span>}
+          </button>
+        </SidebarTooltipWrap>
+
+        <SidebarSectionLabel collapsed={sidebarCollapsed}>Forecast</SidebarSectionLabel>
         {VARIABLE_TABS.map(({ id, label, icon, color }) => {
           const isActive = state.selectedVariable === id && showHeatmap;
           return (
-          <button
-            key={id}
-            onClick={() => {
-              if (state.selectedVariable === id) {
-                // Same variable: toggle heatmap visibility
-                setShowHeatmap(prev => !prev);
-              } else {
-                // Different variable: switch and ensure heatmap is visible
-                update({ selectedVariable: id });
-                setShowHeatmap(true);
-              }
-              // Clear scenario overlay when user explicitly picks a variable
-              if (state.activeScenario) {
-                update({ showSplitScreen: false });
-              }
-            }}
-            title={label}
-            className="flex flex-col items-center gap-1 px-3 py-2.5 rounded-lg text-xs transition-all active:scale-95"
-            style={{
-              background: 'rgba(var(--panel-bg-rgb),0.92)',
-              border: isActive ? `1px solid ${color}` : '1px solid rgba(var(--fg-rgb),var(--fg-a08))',
-              // Was hardcoded '#fff' — invisible for active-state text against
-              // a white panel in light mode. rgb(var(--fg-rgb)) is opaque
-              // theme foreground: white in dark mode (same as before), near-
-              // black in light mode.
-              color: isActive ? 'rgb(var(--fg-rgb))' : 'rgba(var(--fg-rgb),var(--fg-a4))',
-              boxShadow: isActive ? `0 0 12px ${color}40` : 'none',
-              transform: 'translateZ(0)',
-            }}
-          >
-            <span style={{ color: isActive ? color : undefined }}>{icon}</span>
-            <span className="font-medium">{label}</span>
-          </button>
+            <SidebarTooltipWrap key={id} collapsed={sidebarCollapsed} label={label}>
+              <button
+                onClick={() => {
+                  if (state.selectedVariable === id) {
+                    // Same variable: toggle heatmap visibility
+                    setShowHeatmap(prev => !prev);
+                  } else {
+                    // Different variable: switch and ensure heatmap is visible
+                    update({ selectedVariable: id });
+                    setShowHeatmap(true);
+                  }
+                  // Clear scenario overlay when user explicitly picks a variable
+                  if (state.activeScenario) {
+                    update({ showSplitScreen: false });
+                  }
+                }}
+                title={label}
+                className={`flex items-center rounded-lg text-xs transition-all active:scale-95 ${sidebarCollapsed ? 'justify-center px-2.5 py-2.5' : 'gap-3 px-3 py-2.5 w-full'}`}
+                style={{
+                  background: 'rgba(var(--panel-bg-rgb),0.92)',
+                  border: isActive ? `1px solid ${color}` : '1px solid rgba(var(--fg-rgb),var(--fg-a08))',
+                  color: isActive ? 'rgb(var(--fg-rgb))' : 'rgba(var(--fg-rgb),var(--fg-a4))',
+                  boxShadow: isActive ? `0 0 12px ${color}40` : 'none',
+                  transform: 'translateZ(0)',
+                }}
+              >
+                <span className="shrink-0" style={{ color: isActive ? color : undefined }}>{icon}</span>
+                {!sidebarCollapsed && <span className="font-medium text-[13px]">{label}</span>}
+              </button>
+            </SidebarTooltipWrap>
           );
         })}
-        {state.activeScenario && (
-          <button
-            onClick={() => update((s) => ({ showSplitScreen: !s.showSplitScreen }))}
-            className="flex flex-col items-center gap-1 px-3 py-2.5 rounded-lg text-xs mt-2 transition-all"
+
+        <SidebarSectionLabel collapsed={sidebarCollapsed}>Visualization</SidebarSectionLabel>
+
+        <SidebarButton
+          icon={Map}
+          label="2D Map"
+          active={mapMode === '2d'}
+          onClick={() => setMapMode('2d')}
+          accent="#22d3ee"
+          collapsed={sidebarCollapsed}
+        />
+        <SidebarButton
+          icon={Globe2}
+          label="3D Globe"
+          active={mapMode === '3d'}
+          onClick={() => setMapMode('3d')}
+          accent="#22d3ee"
+          collapsed={sidebarCollapsed}
+        />
+
+        {/* Terrain exaggeration — keeps its slider, restyled to the row layout */}
+        <SidebarTooltipWrap collapsed={sidebarCollapsed} label={`Terrain — ${terrainExaggeration}× exaggeration`}>
+          <div
+            className={`flex items-center rounded-lg select-none ${sidebarCollapsed ? 'justify-center px-2.5 py-2.5' : 'gap-2 px-3 py-2.5 w-full'}`}
             style={{
               background: 'rgba(var(--panel-bg-rgb),0.92)',
-              border: state.showSplitScreen ? '1px solid #22d3ee' : '1px solid rgba(var(--fg-rgb),var(--fg-a08))',
-              color: state.showSplitScreen ? '#22d3ee' : 'rgba(var(--fg-rgb),var(--fg-a4))',
+              border: terrainExaggeration > 1 ? '1px solid #f97316' : '1px solid rgba(var(--fg-rgb),var(--fg-a08))',
+              boxShadow: terrainExaggeration > 1 ? '0 0 10px rgba(249,115,22,0.25)' : 'none',
             }}
+            title="Orographic Enhancement View"
           >
-            <SplitSquareHorizontal size={14} /><span>Split</span>
-          </button>
+            <Mountain size={16} className="shrink-0" style={{ color: terrainExaggeration > 1 ? '#f97316' : 'rgba(var(--fg-rgb),var(--fg-a4))' }} />
+            {!sidebarCollapsed && (
+              <>
+                <span className="text-[13px] font-medium text-foreground/45 flex-1">Terrain</span>
+                <input
+                  type="range"
+                  min={1}
+                  max={5}
+                  step={0.5}
+                  value={terrainExaggeration}
+                  onChange={(e) => setTerrainExaggeration(parseFloat(e.target.value))}
+                  className="w-10 h-0.5 appearance-none cursor-pointer"
+                  style={{ accentColor: '#f97316' }}
+                />
+                <span className="text-[10px] font-mono w-7 text-right" style={{ color: terrainExaggeration > 1 ? '#f97316' : 'rgba(var(--fg-rgb),var(--fg-a3))' }}>
+                  {terrainExaggeration}×
+                </span>
+              </>
+            )}
+          </div>
+        </SidebarTooltipWrap>
+
+        {state.activeScenario && (
+          <SidebarButton
+            icon={SplitSquareHorizontal}
+            label="Split View"
+            active={state.showSplitScreen}
+            onClick={() => update((s) => ({ showSplitScreen: !s.showSplitScreen }))}
+            accent="#22d3ee"
+            collapsed={sidebarCollapsed}
+          />
         )}
 
-        {/* Terrain Exaggeration (Feature 5) */}
-        <div
-          className="flex flex-col items-center gap-1.5 px-3 py-2.5 rounded-lg mt-2 select-none"
-          style={{
-            background: 'rgba(var(--panel-bg-rgb),0.92)',
-            border: terrainExaggeration > 1 ? '1px solid #f97316' : '1px solid rgba(var(--fg-rgb),var(--fg-a08))',
-            boxShadow: terrainExaggeration > 1 ? '0 0 10px rgba(249,115,22,0.25)' : 'none',
-          }}
-          title="Orographic Enhancement View"
-        >
-          <Mountain size={14} style={{ color: terrainExaggeration > 1 ? '#f97316' : 'rgba(var(--fg-rgb),var(--fg-a4))' }} />
-          <span className="text-[9px] text-foreground/40">Terrain</span>
-          <input
-            type="range"
-            min={1}
-            max={5}
-            step={0.5}
-            value={terrainExaggeration}
-            onChange={(e) => setTerrainExaggeration(parseFloat(e.target.value))}
-            className="w-10 h-0.5 appearance-none cursor-pointer"
-            style={{ accentColor: '#f97316' }}
-          />
-          <span className="text-[9px] font-mono" style={{ color: terrainExaggeration > 1 ? '#f97316' : 'rgba(var(--fg-rgb),var(--fg-a3))' }}>
-            {terrainExaggeration}×
-          </span>
-        </div>
-
-        {/* Map projection toggle — Globe (3D perspective) vs Map (2D top-down).
-            Label shows the CURRENT mode (not the target you'd switch to,
-            unlike the old "2D"/"3D Globe" labels) so it can't be confused
-            with the separate 3D-columns toggle below. */}
-        <button
-          onClick={() => setMapMode((m) => (m === '3d' ? '2d' : '3d'))}
-          className="flex flex-col items-center gap-1 px-3 py-2.5 rounded-lg mt-1 transition-all"
-          style={{
-            background: 'rgba(var(--panel-bg-rgb),0.92)',
-            border: mapMode === '2d' ? '1px solid #22d3ee' : '1px solid rgba(var(--fg-rgb),var(--fg-a08))',
-            color: mapMode === '2d' ? '#22d3ee' : 'rgba(var(--fg-rgb),var(--fg-a4))',
-            boxShadow: mapMode === '2d' ? '0 0 10px rgba(34,211,238,0.3)' : 'none',
-          }}
-          title={mapMode === '3d' ? 'Switch to 2D Map view' : 'Switch to 3D Globe view'}
-        >
-          <Map size={14} />
-          <span className="text-[9px] font-medium">{mapMode === '3d' ? '3D Globe' : '2D Map'}</span>
-        </button>
-
-        {/* 3D data-column overlay toggle — extrudes the grid heights by value
+        {/* 3D data-column overlay — extrudes the grid heights by value
             (Rainfall, Tmax, or Tmin). Labeled "Columns" rather than "3D" so
-            it reads as a distinct feature from the map-projection toggle
+            it reads as distinct from the 2D Map/3D Globe projection toggle
             above, which also involves the word "3D". */}
-        <button
+        <SidebarButton
+          icon={Box}
+          label="Columns"
+          active={show3D}
           onClick={() => setShow3D((v) => !v)}
-          className="flex flex-col items-center gap-1 px-3 py-2.5 rounded-lg mt-1 transition-all"
-          style={{
-            background: 'rgba(var(--panel-bg-rgb),0.92)',
-            border: show3D ? '1px solid #f97316' : '1px solid rgba(var(--fg-rgb),var(--fg-a08))',
-            color: show3D ? '#f97316' : 'rgba(var(--fg-rgb),var(--fg-a4))',
-            boxShadow: show3D ? '0 0 10px rgba(249,115,22,0.3)' : 'none',
-          }}
+          accent="#f97316"
           title="Toggle 3D extruded data columns"
-        >
-          <Box size={14} />
-          <span className="text-[9px] font-medium">Columns</span>
-        </button>
+          collapsed={sidebarCollapsed}
+        />
 
         {/* Wind particle toggle — disabled in 2D. cesium-wind-layer's GPU
             particle system has multiple layered bugs in its 2D/Columbus View
@@ -678,30 +924,24 @@ export default function App() {
             barb/streamline WindLayer in features/globe/layers/WindLayer.ts,
             which isn't a GPU compute primitive and shouldn't hit this class
             of bug). */}
-        <button
-          onClick={() => mapMode === '3d' && setShowWind((v) => !v)}
+        <SidebarButton
+          icon={Wind}
+          label="Wind"
+          active={showWind && mapMode === '3d'}
           disabled={mapMode === '2d'}
-          className="flex flex-col items-center gap-1 px-3 py-2.5 rounded-lg mt-1 transition-all"
-          style={{
-            background: 'rgba(var(--panel-bg-rgb),0.92)',
-            border: showWind && mapMode === '3d' ? '1px solid #0ea5e9' : '1px solid rgba(var(--fg-rgb),var(--fg-a08))',
-            color: mapMode === '2d' ? 'rgba(var(--fg-rgb),var(--fg-a15))' : showWind ? '#0ea5e9' : 'rgba(var(--fg-rgb),var(--fg-a3))',
-            boxShadow: showWind && mapMode === '3d' ? '0 0 8px rgba(14,165,233,0.25)' : 'none',
-            cursor: mapMode === '2d' ? 'not-allowed' : 'pointer',
-          }}
+          onClick={() => setShowWind((v) => !v)}
+          accent="#0ea5e9"
           title={mapMode === '2d' ? 'Wind particles are only available in 3D mode' : 'Toggle wind particles'}
-        >
-          <Wind size={14} />
-          <span className="text-[9px] font-medium">Wind</span>
-        </button>
+          collapsed={sidebarCollapsed}
+        />
 
         {/* Wind animation style preset — only meaningful while wind is on and visible */}
-        {showWind && mapMode === '3d' && (
+        {showWind && mapMode === '3d' && !sidebarCollapsed && (
           <select
             value={windStyle}
             onChange={(e) => setWindStyle(e.target.value as WindAnimationStyle)}
             title="Wind animation style"
-            className="mt-1 text-[9px] font-medium rounded-md px-1.5 py-1 outline-none cursor-pointer"
+            className="text-[11px] font-medium rounded-md px-2 py-1.5 outline-none cursor-pointer ml-1"
             style={{
               background: 'rgba(var(--panel-bg-rgb),0.92)',
               border: '1px solid rgba(14,165,233,0.3)',
@@ -716,40 +956,64 @@ export default function App() {
         )}
 
         {/* Day/night terminator toggle */}
-        <button
+        <SidebarButton
+          icon={Moon}
+          label="Terminator"
+          active={showTerminator}
           onClick={() => setShowTerminator((v) => !v)}
-          className="flex flex-col items-center gap-1 px-3 py-2.5 rounded-lg mt-1 transition-all"
-          style={{
-            background: 'rgba(var(--panel-bg-rgb),0.92)',
-            border: showTerminator ? '1px solid #818cf8' : '1px solid rgba(var(--fg-rgb),var(--fg-a08))',
-            color: showTerminator ? '#818cf8' : 'rgba(var(--fg-rgb),var(--fg-a3))',
-            boxShadow: showTerminator ? '0 0 8px rgba(129,140,248,0.25)' : 'none',
-          }}
-          title="Toggle day/night terminator"
-        >
-          <Moon size={14} />
-          <span className="text-[9px] font-medium">Terminator</span>
-        </button>
+          accent="#818cf8"
+          collapsed={sidebarCollapsed}
+        />
+
+        {/* IoT sensor station pins — opt-in, hidden by default (see showIoT
+            state comment above); grouped with Wind/Inspect since it's also
+            3D-only. */}
+        <SidebarButton
+          icon={Radio}
+          label="IoT"
+          active={showIoT && mapMode === '3d'}
+          disabled={mapMode === '2d'}
+          onClick={() => setShowIoT((v) => !v)}
+          accent="#22c55e"
+          title={mapMode === '2d' ? 'IoT stations are only available in 3D mode' : 'Toggle IoT sensor station pins'}
+          collapsed={sidebarCollapsed}
+        />
+
+        <SidebarSectionLabel collapsed={sidebarCollapsed}>Tools</SidebarSectionLabel>
 
         {/* Inspect mode toggle — disabled in 2D alongside Wind (see comment
             above); grouping known-broken 2D features together rather than
             leaving them silently non-functional. */}
-        <button
-          onClick={() => mapMode === '3d' && setInspectMode((v) => !v)}
+        <SidebarButton
+          icon={Search}
+          label="Inspect"
+          active={inspectMode && mapMode === '3d'}
           disabled={mapMode === '2d'}
-          className="flex flex-col items-center gap-1 px-3 py-2.5 rounded-lg mt-1 transition-all"
-          style={{
-            background: 'rgba(var(--panel-bg-rgb),0.92)',
-            border: inspectMode && mapMode === '3d' ? '1px solid #a855f7' : '1px solid rgba(var(--fg-rgb),var(--fg-a08))',
-            color: mapMode === '2d' ? 'rgba(var(--fg-rgb),var(--fg-a15))' : inspectMode ? '#a855f7' : 'rgba(var(--fg-rgb),var(--fg-a3))',
-            boxShadow: inspectMode && mapMode === '3d' ? '0 0 8px rgba(168,85,247,0.25)' : 'none',
-            cursor: mapMode === '2d' ? 'not-allowed' : 'pointer',
-          }}
+          onClick={() => setInspectMode((v) => !v)}
+          accent="#a855f7"
           title={mapMode === '2d' ? 'Inspect is only available in 3D mode' : 'Inspect cell data (click globe)'}
-        >
-          <Search size={14} />
-          <span className="text-[9px] font-medium">Inspect</span>
-        </button>
+          collapsed={sidebarCollapsed}
+        />
+
+        {/* Not an implemented feature — shown per the reference layout but
+            disabled with an honest tooltip rather than faked or dropped. */}
+        <SidebarButton
+          icon={Ruler}
+          label="Measure"
+          disabled
+          title="Measure tool — coming soon"
+          collapsed={sidebarCollapsed}
+        />
+
+        {/* Export tools already exist inside the drawer (Predict tab) —
+            this just gets you there instead of duplicating them here. */}
+        <SidebarButton
+          icon={Upload}
+          label="Export"
+          onClick={() => { update({ viewMode: 'prediction' }); setDrawerOpen(true); }}
+          title="Open export tools"
+          collapsed={sidebarCollapsed}
+        />
       </div>
 
       {/* ── Mobile floating controls — intentionally limited to data, inspect, and menu ── */}
