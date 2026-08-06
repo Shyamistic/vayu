@@ -4,7 +4,7 @@
  * (via `rainfallToT`) so the legend can never drift from what's rendered on the globe.
  */
 import type { VariableId } from '../types';
-import { IMD_RAIN_STOPS, IMD_RAIN_THRESHOLDS_MM } from '../utils/colorScales';
+import { IMD_RAIN_STOPS, IMD_RAIN_THRESHOLDS_MM, TEMP_MAX_STOPS, TEMP_MIN_STOPS } from '../utils/colorScales';
 
 interface ColorLegendProps {
   variable: VariableId;
@@ -23,9 +23,15 @@ interface LegendConfig {
   ticks: Tick[];
 }
 
-const RAINFALL_GRADIENT = `linear-gradient(to right, ${IMD_RAIN_STOPS
-  .map(([t, [r, g, b]]) => `rgb(${r},${g},${b}) ${t * 100}%`)
-  .join(', ')})`;
+function gradientFromStops(stops: [number, [number, number, number]][]): string {
+  return `linear-gradient(to right, ${stops
+    .map(([t, [r, g, b]]) => `rgb(${r},${g},${b}) ${t * 100}%`)
+    .join(', ')})`;
+}
+
+const RAINFALL_GRADIENT = gradientFromStops(IMD_RAIN_STOPS);
+const TEMP_MAX_GRADIENT = gradientFromStops(TEMP_MAX_STOPS);
+const TEMP_MIN_GRADIENT = gradientFromStops(TEMP_MIN_STOPS);
 
 // Skip the "trace" (1mm) and top "exceptional" (250mm) helper stops — they're
 // interpolation aids, not IMD's own published category boundaries.
@@ -47,15 +53,17 @@ const CONFIG: Record<VariableId, LegendConfig> = {
   temp_max: {
     label: 'Max Temp',
     unit: '°C',
-    // yellow → orange → red
-    gradient: 'linear-gradient(to right, rgb(255,255,102), rgb(255,128,26), rgb(255,0,26))',
+    // yellow → orange → red — from TEMP_MAX_STOPS, same source the map's
+    // `sunset` colormap renders from, so the two can never drift apart.
+    gradient: TEMP_MAX_GRADIENT,
     ticks: evenTicks(20, 45, [20, 25, 30, 35, 40, 45]),
   },
   temp_min: {
     label: 'Min Temp',
     unit: '°C',
-    // blue → purple → red
-    gradient: 'linear-gradient(to right, rgb(26,26,255), rgb(128,26,204), rgb(204,26,26))',
+    // blue → purple → red — from TEMP_MIN_STOPS, same source the map's
+    // `ocean_violet` colormap renders from.
+    gradient: TEMP_MIN_GRADIENT,
     ticks: evenTicks(10, 35, [10, 15, 20, 25, 30, 35]),
   },
 };

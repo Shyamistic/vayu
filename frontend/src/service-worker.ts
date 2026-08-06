@@ -137,7 +137,7 @@ function runtimePlugins() {
 function isMockDataRequest(url: URL): boolean {
   return url.origin === worker.location.origin
     && (/^\/mock_scenarios\//.test(url.pathname)
-      || /\/(?:mock_[^/]+|wind_field|india_states)\.(?:json|geojson)$/.test(url.pathname));
+      || /\/(?:mock_[^/]+|wind_field|india_states|india_outline_simplified)\.(?:json|geojson)$/.test(url.pathname));
 }
 
 function isIndiaTerrainTile(url: URL): boolean {
