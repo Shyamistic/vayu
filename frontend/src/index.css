@@ -376,7 +376,8 @@ input:focus-visible {
 :root[data-theme='light'] .text-amber-300,
 :root[data-theme='light'] .text-amber-300\/80 { color: #b45309 !important; }
 :root[data-theme='light'] .text-red-300,
-:root[data-theme='light'] .text-red-300\/80 { color: #b91c1c !important; }
+:root[data-theme='light'] .text-red-300\/80,
+:root[data-theme='light'] .text-red-200 { color: #b91c1c !important; }
 
 /* Modal scrim — a dark dimming backdrop is correct behind either a dark or
    a white card (that's the universal modal pattern, keep it in both

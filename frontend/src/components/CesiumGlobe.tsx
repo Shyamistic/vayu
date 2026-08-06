@@ -1727,7 +1727,9 @@ function CesiumGlobeInner({
     const activeColormap: ColormapId = colormap ?? (
       variable === 'rainfall' ? 'imd_rain' : variable === 'temp_max' ? 'sunset' : 'ocean_violet'
     );
-    const outlineRings = indiaOutlineRef.current;
+    // indiaOutlineRef is a multi-polygon (polygons of rings); isInsideIndia
+    // just needs "inside any ring", so flatten away the per-polygon grouping.
+    const outlineRings = indiaOutlineRef.current?.flat() ?? null;
 
     gridCells.forEach((cell) => {
       const val = cell[variable] as number;
