@@ -19,6 +19,13 @@ import { REGIONS } from './RegionSelector';
 import { mapColor, COLOR_SCALES, rainfallToT } from '../utils/colorScales';
 import type { ColormapId } from '../utils/colorScales';
 import { TerminatorLayer } from '../features/globe/layers/TerminatorLayer';
+import {
+  clipCanvasToIndia,
+  parseIndiaOutline,
+  pointInIndia,
+  polygonBBox,
+  type Polygon as IndiaPolygon,
+} from '../features/globe/indiaClip';
 
 // ── Constants ──────────────────────────────────────────────────────────────────
 
@@ -282,6 +289,15 @@ interface CesiumGlobeProps {
   regionFlyTrigger?: number; // increment to force fly-to even same region
   /** Changes whenever persistent UI changes the usable globe viewport. */
   viewportKey?: string;
+  /**
+   * Show the IoT station pins. Off by default.
+   *
+   * There is exactly one physical station (Sivasagar), so a pin permanently
+   * planted on the globe reads as a sensor network rather than as one site. It
+   * is scoped to the Environment view, where the station panel that explains it
+   * is also on screen.
+   */
+  showStations?: boolean;
 }
 
 /** Imperative controls exposed to the parent via ref — e.g. toolbar zoom buttons. */
@@ -317,6 +333,7 @@ function CesiumGlobeInner({
   onHeroComplete,
   regionFlyTrigger,
   viewportKey,
+  showStations = false,
 }: CesiumGlobeProps, ref: Ref<CesiumGlobeHandle>) {
   const containerRef = useRef<HTMLDivElement>(null);
   const viewerRef    = useRef<Cesium.Viewer | null>(null);
@@ -344,7 +361,7 @@ function CesiumGlobeInner({
   // doesn't paint ocean/neighboring countries beyond the data bbox rectangle.
   // Each polygon retains *all* of its rings — exterior plus holes — because
   // lakes and enclaves must remain transparent in the canvas clip mask.
-  const indiaOutlineRef = useRef<[number, number][][][] | null>(null);
+  const indiaOutlineRef = useRef<IndiaPolygon[] | null>(null);
   const [outlineLoaded, setOutlineLoaded] = useState(false);
   // Programmatic flights suppress post-zoom normalization until completion.
   const isCameraAnimatingRef = useRef(false);
@@ -353,6 +370,10 @@ function CesiumGlobeInner({
   const hasFlownInitialRegionRef = useRef(false);
   const mapModeRef = useRef(mapMode);
   mapModeRef.current = mapMode;
+  // Read inside the data-source creation effect, which must not re-run (and
+  // rebuild every pin) just because the active view changed.
+  const showStationsRef = useRef(showStations);
+  showStationsRef.current = showStations;
 
   // ── Load the India outline used to clip the heatmap raster ─────────────────
   // Independent of viewer setup — a plain fetch, not a Cesium data source —
@@ -361,27 +382,11 @@ function CesiumGlobeInner({
     let cancelled = false;
     fetch('/india_outline_simplified.geojson')
       .then((res) => res.json())
-      .then((geojson: { features: { geometry: { type: string; coordinates: unknown } }[] }) => {
+      .then((geojson) => {
         if (cancelled) return;
-        const polygons: [number, number][][][] = [];
-        for (const feature of geojson.features) {
-          const { type, coordinates } = feature.geometry;
-          // Preserve exterior and interior rings as one polygon. The canvas uses
-          // the even-odd fill rule below, so lakes/enclaves cut transparent
-          // holes instead of being painted by the heatmap.
-          if (type === 'Polygon') {
-            const polygon = coordinates as [number, number][][];
-            const rings = polygon.filter((ring) => ring.length >= 3);
-            if (rings.length > 0) polygons.push(rings);
-          } else if (type === 'MultiPolygon') {
-            const multi = coordinates as [number, number][][][];
-            for (const polygon of multi) {
-              const rings = polygon.filter((ring) => ring.length >= 3);
-              if (rings.length > 0) polygons.push(rings);
-            }
-          }
-        }
-        indiaOutlineRef.current = polygons;
+        // Shared parser: every ring is retained, exterior and interior, so
+        // lakes and enclaves stay transparent under the even-odd fill.
+        indiaOutlineRef.current = parseIndiaOutline(geojson);
         setOutlineLoaded(true);
       })
       .catch(() => { /* clip is a visual nicety — heatmap still renders unclipped if this fails */ });
@@ -509,9 +514,12 @@ function CesiumGlobeInner({
       osmBuildingsRef.current.show = mapMode === '3d';
     }
 
-    // Station pins hidden in 2D — see the CustomDataSource comment above.
+    // Station pins hidden in 2D — see the CustomDataSource comment above — and
+    // scoped to the Environment view. Read from a ref, not the prop: adding
+    // `showStations` to this effect's dependencies would re-run the 2D/3D morph
+    // and its camera flight every time the active view changed.
     if (iotStationsSourceRef.current) {
-      iotStationsSourceRef.current.show = mapMode === '3d';
+      iotStationsSourceRef.current.show = mapMode === '3d' && showStationsRef.current;
     }
 
     if (mapMode === '2d') {
@@ -528,6 +536,15 @@ function CesiumGlobeInner({
       viewer.scene.morphTo3D(1.0);
     }
   }, [isReady, mapMode]);
+
+  // ── Station pin visibility ──────────────────────────────────────────────────
+  // Separate from the 2D/3D effect above on purpose: toggling pins must not
+  // move the camera. Only flips a boolean on an existing data source, so
+  // switching views never rebuilds the pins.
+  useEffect(() => {
+    if (!isReady || !iotStationsSourceRef.current) return;
+    iotStationsSourceRef.current.show = mapMode === '3d' && showStations;
+  }, [isReady, showStations, mapMode]);
 
   // ── Hero auto-rotate + auto-play forecast (indefinite, cancels on user input) ─
   // An ambient sequence — camera slowly spins over India while the forecast
@@ -615,7 +632,7 @@ function CesiumGlobeInner({
     // and Inspect, which are hidden for real technical reasons — see their
     // comments). Start hidden if already in 2D; the mapMode effect below
     // keeps it in sync on later mode switches.
-    source.show = mapModeRef.current === '3d';
+    source.show = mapModeRef.current === '3d' && showStationsRef.current;
     iotStationsSourceRef.current = source;
     viewer.dataSources.add(source);
     const hoverHandler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
@@ -1491,47 +1508,13 @@ function CesiumGlobeInner({
       // The raster above is always a plain lon/lat rectangle, so without this
       // it paints ocean and neighboring countries wherever the data bbox
       // overhangs the coastline (e.g. Western Ghats' bbox includes Arabian
-      // Sea west of the coast). Masks out anything outside the outline with
-      // a destination-in composite instead of reshaping the raster itself.
-      const outlinePolygons = indiaOutlineRef.current;
-      if (outlinePolygons && outlinePolygons.length > 0) {
-        const lonSpan = east - west;
-        const latSpan = north - south;
-        ctx.beginPath();
-        for (const polygon of outlinePolygons) {
-          // Cheap polygon bbox reject — most of the 144 polygons are irrelevant
-          // for a small regional tile. Its full ring set is retained after the
-          // reject so interior holes remain transparent under the even-odd fill.
-          let polygonMinLon = Infinity, polygonMaxLon = -Infinity;
-          let polygonMinLat = Infinity, polygonMaxLat = -Infinity;
-          for (const ring of polygon) {
-            for (const [lon, lat] of ring) {
-              if (lon < polygonMinLon) polygonMinLon = lon;
-              if (lon > polygonMaxLon) polygonMaxLon = lon;
-              if (lat < polygonMinLat) polygonMinLat = lat;
-              if (lat > polygonMaxLat) polygonMaxLat = lat;
-            }
-          }
-          if (
-            polygonMaxLon < west || polygonMinLon > east ||
-            polygonMaxLat < south || polygonMinLat > north
-          ) continue;
-
-          for (const ring of polygon) {
-            ring.forEach(([lon, lat], i) => {
-              const px = ((lon - west) / lonSpan) * canvas.width;
-              const py = ((north - lat) / latSpan) * canvas.height;
-              if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
-            });
-            ctx.closePath();
-          }
-        }
-        ctx.globalCompositeOperation = 'destination-in';
-        // Even-odd makes interior GeoJSON rings transparent instead of filling
-        // them with weather colour. It also supports disjoint island polygons.
-        ctx.fill('evenodd');
-        ctx.globalCompositeOperation = 'source-over';
-      }
+      // Sea west of the coast). Shared with the scenario overlay and the
+      // before/after comparison so all three agree on the coastline.
+      clipCanvasToIndia(
+        ctx, canvas.width, canvas.height,
+        { west, east, south, north },
+        indiaOutlineRef.current,
+      );
 
       // Create new layer FIRST, then remove old one only after new is ready
       const oldLayer = heatmapLayerRef.current;
@@ -1782,6 +1765,16 @@ function CesiumGlobeInner({
     // Clamp to actual delta length
     const maxIdx = Math.min(delta.length, nlat * nlon);
 
+    // Clip the delta overlay to India, same as the heatmap raster.
+    //
+    // These are Cesium entities rather than an image, so there is no canvas to
+    // mask — each cell centre is tested instead. Without this the scenario
+    // overlay painted the full model rectangle, which for the Western Ghats box
+    // put a third of the "rainfall change" over the Arabian Sea. The bboxes are
+    // precomputed once here because this loop runs over every grid cell.
+    const outline = indiaOutlineRef.current;
+    const outlineBoxes = outline?.map(polygonBBox);
+
     for (let idx = 0; idx < maxIdx; idx++) {
       const d = delta[idx];
       const lat_i = Math.floor(idx / nlon);
@@ -1793,6 +1786,10 @@ function CesiumGlobeInner({
       const absD = Math.abs(d);
       const norm = Math.min(absD / 3.0, 1.0);
       if (norm < 0.05) continue; // skip tiny deltas for performance
+      // Drop ocean and cross-border cells. When the outline has not loaded the
+      // overlay is left unclipped rather than blanked, so a fetch failure
+      // degrades to the previous behaviour instead of an empty map.
+      if (outline && !pointInIndia(lon, lat, outline, outlineBoxes)) continue;
       const color = d > 0
         ? new Cesium.Color(1.0, 0.3, 0.1, 0.7 * norm + 0.15)
         : new Cesium.Color(0.1, 0.4, 1.0, 0.7 * norm + 0.15);
@@ -1807,7 +1804,9 @@ function CesiumGlobeInner({
         },
       });
     }
-  }, [scenarioData, showSplitScreen, variable, isReady]);
+    // `outlineLoaded` is a dependency so the overlay re-renders (and gets
+    // clipped) if the outline arrives after the first scenario result.
+  }, [scenarioData, showSplitScreen, variable, isReady, outlineLoaded]);
 
   return (
     <div ref={containerRef} style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, width: '100%', height: '100%' }}>

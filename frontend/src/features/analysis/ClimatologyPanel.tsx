@@ -280,9 +280,9 @@ function ClimatologyBody({
       <YearBars perYear={perYear} mean={summary.mean} unit={unit} varLabel={varLabel} />
 
       {excluded.length > 0 && (
-        <div className="flex gap-2 p-2.5 bg-amber-500/[0.07] border border-amber-500/25 rounded-lg">
-          <Info size={13} className="text-amber-300/90 mt-0.5 shrink-0" />
-          <p className="text-xs text-amber-100/85 leading-relaxed">
+        <div className="flex gap-2 p-2.5 caveat-box">
+          <Info size={13} className="caveat-icon mt-0.5 shrink-0" />
+          <p className="text-xs caveat-text leading-relaxed">
             Excluded from every figure above:{' '}
             <span className="font-mono">{excluded.join(', ')}</span>. These years fell below the
             valid-day coverage floor for the calendar range, so averaging them would mix a partial
