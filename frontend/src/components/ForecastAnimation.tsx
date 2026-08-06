@@ -54,9 +54,9 @@ export default function ForecastAnimation({ currentDay, onDayChange }: ForecastA
 
   return (
     <div
-      className="px-2 py-1.5 flex flex-col gap-1.5 animate-slide-in-up rounded-xl"
+      className="px-3 py-2 flex flex-col gap-2 animate-slide-in-up rounded-xl"
       style={{
-        minWidth: 180,
+        minWidth: 320,
         background: 'rgba(var(--panel-bg-rgb),0.92)',
         border: '1px solid rgba(var(--fg-rgb),var(--fg-a08))',
         backdropFilter: 'blur(12px)',
@@ -64,12 +64,12 @@ export default function ForecastAnimation({ currentDay, onDayChange }: ForecastA
       }}
     >
       {/* Day timeline */}
-      <div className="flex gap-1">
+      <div className="flex gap-1.5">
         {Array.from({ length: 7 }, (_, i) => i + 1).map((day) => (
           <button
             key={day}
             onClick={() => { onDayChange(day); setIsPlaying(false); }}
-            className="flex-1 flex flex-col items-center py-1 rounded-md transition-all duration-200"
+            className="flex-1 flex flex-col items-center py-1.5 rounded-md transition-all duration-200"
             style={{
               background: currentDay === day
                 ? 'rgba(14,165,233,0.25)'

@@ -62,6 +62,13 @@ export interface FeaturePanelsProps {
   forecastDate: string;
   /** Active lead day (1-7). */
   forecastDay: number;
+  /** For category='collaborate' only — the header's "AI Studio" and "Reports"
+   *  buttons both land here (no distinct view modes exist for them yet), so
+   *  this narrows which of the 4 collaborate panels actually render:
+   *  'ai' → NLQueryInterface/AIClimateBrief, 'reports' → ReportGenerator/
+   *  Annotations. Omitted (e.g. reached via the drawer's own tab grid) shows
+   *  all four, the original behavior. */
+  collaborateFocus?: 'ai' | 'reports';
 }
 
 const STACK: React.CSSProperties = { display: 'flex', flexDirection: 'column', gap: 14 };
@@ -87,6 +94,7 @@ export const FeaturePanels: React.FC<FeaturePanelsProps> = ({
   variable,
   forecastDate,
   forecastDay,
+  collaborateFocus,
 }) => {
   const centroid = useCentroid(gridCells);
 
@@ -188,20 +196,31 @@ export const FeaturePanels: React.FC<FeaturePanelsProps> = ({
     );
   }
 
+  const showAI = collaborateFocus !== 'reports';
+  const showReports = collaborateFocus !== 'ai';
+
   return (
     <div style={STACK}>
-      <FeaturePanel panelId="NLQueryInterface">
-        <NLQueryInterface />
-      </FeaturePanel>
-      <FeaturePanel panelId="AIClimateBrief">
-        <AIClimateBrief cells={gridCells} region={region} forecastDate={forecastDate} />
-      </FeaturePanel>
-      <FeaturePanel panelId="ReportGenerator">
-        <ReportGenerator region={region} variable={variable} forecastDaysCells={daysCells} />
-      </FeaturePanel>
-      <FeaturePanel panelId="Annotations">
-        <Annotations />
-      </FeaturePanel>
+      {showAI && (
+        <>
+          <FeaturePanel panelId="NLQueryInterface">
+            <NLQueryInterface />
+          </FeaturePanel>
+          <FeaturePanel panelId="AIClimateBrief">
+            <AIClimateBrief cells={gridCells} region={region} forecastDate={forecastDate} />
+          </FeaturePanel>
+        </>
+      )}
+      {showReports && (
+        <>
+          <FeaturePanel panelId="ReportGenerator">
+            <ReportGenerator region={region} variable={variable} forecastDaysCells={daysCells} />
+          </FeaturePanel>
+          <FeaturePanel panelId="Annotations">
+            <Annotations />
+          </FeaturePanel>
+        </>
+      )}
     </div>
   );
 };

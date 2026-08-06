@@ -8,6 +8,10 @@ import { IMD_RAIN_STOPS, IMD_RAIN_THRESHOLDS_MM, TEMP_MAX_STOPS, TEMP_MIN_STOPS 
 
 interface ColorLegendProps {
   variable: VariableId;
+  /** Skip the outer panel box (background/border/blur) — for embedding
+   *  inside another panel (e.g. VariableDataPanel's LEGEND section) that
+   *  already provides its own container. */
+  bare?: boolean;
 }
 
 /** A tick label positioned at `pct`% along the gradient bar (not necessarily evenly spaced). */
@@ -68,18 +72,22 @@ const CONFIG: Record<VariableId, LegendConfig> = {
   },
 };
 
-export default function ColorLegend({ variable }: ColorLegendProps) {
+export default function ColorLegend({ variable, bare }: ColorLegendProps) {
   const cfg = CONFIG[variable];
 
   return (
     <div
-      className="px-2 py-1.5 flex flex-col gap-2.5 min-w-[180px] rounded-xl"
-      style={{
-        background: 'rgba(var(--panel-bg-rgb),0.92)',
-        border: '1px solid rgba(var(--fg-rgb),var(--fg-a08))',
-        backdropFilter: 'blur(12px)',
-        WebkitBackdropFilter: 'blur(12px)',
-      }}
+      className={bare ? 'flex flex-col gap-2.5 min-w-[180px]' : 'px-2 py-1.5 flex flex-col gap-2.5 min-w-[180px] rounded-xl'}
+      style={
+        bare
+          ? undefined
+          : {
+              background: 'rgba(var(--panel-bg-rgb),0.92)',
+              border: '1px solid rgba(var(--fg-rgb),var(--fg-a08))',
+              backdropFilter: 'blur(12px)',
+              WebkitBackdropFilter: 'blur(12px)',
+            }
+      }
     >
       {/* Title */}
       <div className="flex items-center justify-between">

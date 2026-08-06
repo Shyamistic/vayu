@@ -311,6 +311,12 @@ interface CesiumGlobeProps {
   regionFlyTrigger?: number; // increment to force fly-to even same region
   /** Changes whenever persistent UI changes the usable globe viewport. */
   viewportKey?: string;
+  /** Base alpha (0–1) for the heatmap imagery layer — the "Opacity" control
+   *  in VariableDataPanel. Defaults to the layer's original baseline. */
+  heatmapOpacity?: number;
+  /** Whether the heatmap's ambient "breathing" alpha pulse animates. Off
+   *  pins alpha to `heatmapOpacity` with no oscillation. Defaults on. */
+  heatmapAnimated?: boolean;
 }
 
 /** Imperative controls exposed to the parent via ref — e.g. toolbar zoom buttons. */
@@ -347,6 +353,8 @@ function CesiumGlobeInner({
   onHeroComplete,
   regionFlyTrigger,
   viewportKey,
+  heatmapOpacity = 0.78,
+  heatmapAnimated = true,
 }: CesiumGlobeProps, ref: Ref<CesiumGlobeHandle>) {
   const containerRef = useRef<HTMLDivElement>(null);
   const viewerRef    = useRef<Cesium.Viewer | null>(null);
@@ -1549,7 +1557,7 @@ function CesiumGlobeInner({
         if (!viewerRef.current || viewerRef.current.isDestroyed()) return;
         // Add new layer
         const newLayer = viewerRef.current.imageryLayers.addImageryProvider(provider);
-        newLayer.alpha = 0.78;
+        newLayer.alpha = heatmapOpacity;
         heatmapLayerRef.current = newLayer;
 
         // NOW remove old layer (new one is already rendering)
@@ -1562,7 +1570,7 @@ function CesiumGlobeInner({
     return () => {
       if (heatmapTimerRef.current) clearTimeout(heatmapTimerRef.current);
     };
-  }, [gridCells, variable, isReady, colormap, outlineLoaded]);
+  }, [gridCells, variable, isReady, colormap, outlineLoaded, heatmapOpacity]);
 
   // ── Ambient heatmap "breathing" animation ───────────────────────────────────
   // Purely cosmetic: gently oscillates the imagery layer's alpha so a static
@@ -1575,9 +1583,16 @@ function CesiumGlobeInner({
   useEffect(() => {
     if (!isReady) return;
 
+    // Not animated: pin alpha to the chosen opacity and skip the interval
+    // entirely — no oscillation to disable mid-tick.
+    if (!heatmapAnimated) {
+      const layer = heatmapLayerRef.current;
+      if (layer) layer.alpha = heatmapOpacity;
+      return;
+    }
+
     const PULSE_TICK_MS = 80;
     const PULSE_PERIOD_MS = 3200;
-    const BASE_ALPHA = 0.78;
     const PULSE_AMPLITUDE = 0.12;
 
     let elapsed = 0;
@@ -1586,11 +1601,11 @@ function CesiumGlobeInner({
       if (!layer || layer.show === false) return;
       elapsed += PULSE_TICK_MS;
       const phase = (elapsed % PULSE_PERIOD_MS) / PULSE_PERIOD_MS;
-      layer.alpha = BASE_ALPHA + PULSE_AMPLITUDE * Math.sin(phase * Math.PI * 2);
+      layer.alpha = heatmapOpacity + PULSE_AMPLITUDE * Math.sin(phase * Math.PI * 2);
     }, PULSE_TICK_MS);
 
     return () => window.clearInterval(pulseTimer);
-  }, [isReady]);
+  }, [isReady, heatmapOpacity, heatmapAnimated]);
 
   // Request a measured resize cycle after persistent UI changes the canvas
   // bounds. The controller performs a final resize after the 300ms shell
@@ -1860,26 +1875,9 @@ function CesiumGlobeInner({
 
       {/* ── Status badge REMOVED — reduces clutter ── */}
 
-      {/* ── Active layer indicator (bottom-right) ── */}
-      {isReady && activeLayer !== 'vayu' && (
-        <div className="absolute bottom-28 right-4 z-10 pointer-events-none animate-slide-in-up">
-          <div className="px-3 py-1.5 rounded-lg bg-blue-600/20 border border-blue-400/30 backdrop-blur-sm">
-            <span className="text-blue-300 text-xs font-medium">
-              {activeLayer === 'modis'         ? '🛰 MODIS Terra TrueColor' :
-               activeLayer === 'precipitation' ? '🌧 NASA IMERG Precipitation' :
-               activeLayer === 'cloud'         ? '☁ MODIS Cloud Fraction' :
-               activeLayer === 'nightlights'   ? '🌃 Earth at Night' :
-               activeLayer === 'satellite'     ? '🌍 Satellite Imagery' :
-               activeLayer === 'fires'         ? '🔥 MODIS Active Fires' :
-               activeLayer === 'sst'           ? '🌊 Sea Surface Temp' :
-               activeLayer === 'modis_lst'     ? '🌡 MODIS Land Surface Temp' :
-               activeLayer === 'owm_precip'    ? '🌧 OWM Live Precipitation' :
-               activeLayer === 'owm_temp'      ? '🌡 OWM Live Temperature' :
-               activeLayer === 'owm_wind'      ? '💨 OWM Live Wind' : activeLayer}
-            </span>
-          </div>
-        </div>
-      )}
+      {/* ── Active layer indicator — moved to App.tsx (top-left, next to the
+          Region selector) so it no longer competes with the zoom controls
+          and Satellite Imagery badge that used to both live bottom-right. ── */}
 
       {/* ── 3D mode badge ── */}
       {isReady && show3D && (
