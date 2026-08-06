@@ -25,7 +25,9 @@ export type ColormapId =
   | 'reds'
   | 'rdbu_r'
   | 'precip'
-  | 'cividis';
+  | 'cividis'
+  | 'sunset'
+  | 'ocean_violet';
 
 // ── Utility ──────────────────────────────────────────────────────────────────
 
@@ -284,6 +286,36 @@ export const cividis: ColorScale = segmented([
   [1.000, [253, 231,  37]],   // t=1.000  bright yellow
 ]);
 
+// ── Temperature legend-matched colormaps ─────────────────────────────────────
+//
+// `plasma`/`viridis` were the map's actual defaults for temp_max/temp_min
+// while `ColorLegend.tsx` independently hardcoded a yellow→orange→red /
+// blue→purple→red CSS gradient — the two were never the same colors, so the
+// on-globe heatmap (plasma's magenta-heavy mid-range) didn't match what the
+// legend bar showed. These stops are the legend's single source of truth
+// (mirrors the `IMD_RAIN_STOPS` pattern above for rainfall); `ColorLegend.tsx`
+// generates its gradient CSS from these same arrays so they can't drift apart.
+
+/** Max-temp legend stops: yellow (cool end) → orange → red (hot end). */
+export const TEMP_MAX_STOPS: [number, RGB][] = [
+  [0.00, [255, 255, 102]],
+  [0.50, [255, 128, 26]],
+  [1.00, [255, 0,   26]],
+];
+
+/** Min-temp legend stops: blue (cool end) → purple → red (warm end). */
+export const TEMP_MIN_STOPS: [number, RGB][] = [
+  [0.00, [26,  26,  255]],
+  [0.50, [128, 26,  204]],
+  [1.00, [204, 26,  26]],
+];
+
+/** Legend-matched max-temp colormap (yellow→orange→red). */
+export const sunset: ColorScale = segmented(TEMP_MAX_STOPS);
+
+/** Legend-matched min-temp colormap (blue→purple→red). */
+export const ocean_violet: ColorScale = segmented(TEMP_MIN_STOPS);
+
 // ── Registry ─────────────────────────────────────────────────────────────────
 
 export const COLOR_SCALES: Record<ColormapId, ColorScale> = {
@@ -300,9 +332,13 @@ export const COLOR_SCALES: Record<ColormapId, ColorScale> = {
   rdbu_r,
   precip,
   cividis,
+  sunset,
+  ocean_violet,
 };
 
 export const COLORMAP_META: { id: ColormapId; label: string; desc: string; forVariable: string[]; colorblindSafe?: boolean }[] = [
+  { id: 'sunset',      label: 'Sunset (default)', desc: 'Yellow→orange→red, matches legend', forVariable: ['temp_max'] },
+  { id: 'ocean_violet', label: 'Ocean Violet (default)', desc: 'Blue→purple→red, matches legend', forVariable: ['temp_min'] },
   { id: 'imd_rain',   label: 'IMD Rainfall',   desc: 'IMD operational scale',      forVariable: ['rainfall'] },
   { id: 'precip',     label: 'Precipitation',  desc: 'Green→blue→purple',          forVariable: ['rainfall'] },
   { id: 'blues',      label: 'Blues',          desc: 'Light→dark blue',            forVariable: ['rainfall'] },

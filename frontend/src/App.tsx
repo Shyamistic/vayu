@@ -873,7 +873,7 @@ export default function App() {
               <TrendSparklines gridCells={gridCells} variable={state.selectedVariable} dateLabel={format(state.timeState.selectedDate, 'dd MMM')} />
               <ColormapSelector
                 variable={state.selectedVariable}
-                selected={colormap ?? (state.selectedVariable === 'rainfall' ? 'imd_rain' : state.selectedVariable === 'temp_max' ? 'earth_temp' : 'blues')}
+                selected={colormap ?? (state.selectedVariable === 'rainfall' ? 'imd_rain' : state.selectedVariable === 'temp_max' ? 'sunset' : 'ocean_violet')}
                 onChange={setColormap}
               />
               <MonsoonTracker selectedDate={state.timeState.selectedDate} meanRainfall={meanRainfall} />
