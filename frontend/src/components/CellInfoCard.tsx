@@ -10,7 +10,16 @@ import type { GridCell, VariableId } from '../types';
 interface CellInfoCardProps {
   cell: GridCell;
   variable: VariableId;
-  forecastCells?: GridCell[]; // same lat/lon across multiple days for sparkline
+  /**
+   * This same grid node across consecutive forecast lead days, index 0 = T+1.
+   * Supplied by App.tsx from `useForecastSeries`. When absent or shorter than 2
+   * entries the trend is reported as unavailable — it is never synthesised.
+   */
+  forecastCells?: GridCell[];
+  /** True while the T+1..T+7 series is still in flight. */
+  forecastPending?: boolean;
+  /** True when the client served bundled demo data for any lead day. */
+  forecastIsMock?: boolean;
   onClose: () => void;
   style?: React.CSSProperties;
   /** Optional prediction run metadata — model version, freshness, cache status. */
@@ -89,19 +98,29 @@ export default function CellInfoCard({
   cell,
   variable,
   forecastCells,
+  forecastPending = false,
+  forecastIsMock = false,
   onClose,
   style,
   modelVersion,
   inputDataTimestamp,
   cached,
 }: CellInfoCardProps) {
-  // Build mock 7-day sparkline from forecast cells or generate plausible values
-  const sparkValues: number[] = forecastCells && forecastCells.length >= 2
-    ? forecastCells.map((c) => c[variable] as number)
-    : Array.from({ length: 7 }, (_, i) => {
-        const base = cell[variable] as number;
-        return Math.max(0, base + (Math.random() - 0.5) * base * 0.4 + i * 0.5);
-      });
+  // Trend values come ONLY from real per-lead predictions.
+  //
+  // This previously fell back to `base + (Math.random() - 0.5) * base * 0.4`
+  // whenever `forecastCells` was absent — which was always, because App.tsx
+  // never passed the prop. A smooth invented curve rendered directly above a
+  // "live" badge and a model version reads as a real forecast, so the fallback
+  // was actively misleading rather than merely decorative. There is deliberately
+  // no synthetic path now: if the series is missing, the card says so.
+  const sparkValues: number[] = (forecastCells ?? [])
+    .map((c) => c[variable] as number)
+    .filter((v) => Number.isFinite(v));
+  const hasTrend = sparkValues.length >= 2;
+  // Lead-day labels are derived from the data length, not hardcoded to 7, so a
+  // truncated series cannot mislabel T+3 as T+7.
+  const leadLabels = sparkValues.map((_, i) => `T+${i + 1}`);
 
   const uncertainty = cell[`${variable}_uncertainty` as keyof GridCell] as number ?? 0;
 
@@ -196,23 +215,47 @@ export default function CellInfoCard({
           ))}
         </div>
 
-        {/* 7-day sparkline */}
+        {/* Forecast trend — real per-lead model output only, never synthesised. */}
         <div>
           <div className="flex items-center gap-1 mb-1">
             <TrendingUp size={10} className="text-white/30" />
-            <span className="text-[9px] text-white/30 uppercase tracking-wider">7-day forecast trend</span>
+            <span className="text-[9px] text-white/30 uppercase tracking-wider">
+              {hasTrend ? `${sparkValues.length}-day forecast trend` : 'Forecast trend'}
+            </span>
+            {hasTrend && forecastIsMock && (
+              <span className="text-[8px] font-mono text-amber-300/70 uppercase tracking-wide">
+                demo data
+              </span>
+            )}
+            {hasTrend && !forecastIsMock && sparkValues.length < 7 && (
+              <span className="text-[8px] font-mono text-amber-300/60 uppercase tracking-wide">
+                partial
+              </span>
+            )}
           </div>
-          <MiniSparkline
-            values={sparkValues}
-            color={variable === 'rainfall' ? '#60a5fa' : variable === 'temp_max' ? '#f97316' : '#a78bfa'}
-            width={200}
-            height={36}
-          />
-          <div className="flex justify-between text-[9px] text-white/25 mt-0.5 font-mono">
-            {['T+1', 'T+2', 'T+3', 'T+4', 'T+5', 'T+6', 'T+7'].map((d) => (
-              <span key={d}>{d}</span>
-            ))}
-          </div>
+          {hasTrend ? (
+            <>
+              <MiniSparkline
+                values={sparkValues}
+                color={variable === 'rainfall' ? '#60a5fa' : variable === 'temp_max' ? '#f97316' : '#a78bfa'}
+                width={200}
+                height={36}
+              />
+              <div className="flex justify-between text-[9px] text-white/25 mt-0.5 font-mono">
+                {leadLabels.map((d) => (
+                  <span key={d}>{d}</span>
+                ))}
+              </div>
+            </>
+          ) : (
+            <div
+              role="status"
+              className="text-[9px] text-white/25 font-mono py-2 text-center rounded-md"
+              style={{ background: 'rgba(255,255,255,0.03)' }}
+            >
+              {forecastPending ? 'Loading T+1…T+7…' : 'Forecast trend unavailable'}
+            </div>
+          )}
         </div>
 
         {/* Node index */}
