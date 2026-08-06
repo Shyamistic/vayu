@@ -627,7 +627,10 @@ export default function App() {
           </span>
         </div>
 
-        {/* 2D / 3D map mode toggle */}
+        {/* Map projection toggle — Globe (3D perspective) vs Map (2D top-down).
+            Label shows the CURRENT mode (not the target you'd switch to,
+            unlike the old "2D"/"3D Globe" labels) so it can't be confused
+            with the separate 3D-columns toggle below. */}
         <button
           onClick={() => setMapMode((m) => (m === '3d' ? '2d' : '3d'))}
           className="flex flex-col items-center gap-1 px-3 py-2.5 rounded-lg mt-1 transition-all"
@@ -637,29 +640,30 @@ export default function App() {
             color: mapMode === '2d' ? '#22d3ee' : 'rgba(var(--fg-rgb),var(--fg-a4))',
             boxShadow: mapMode === '2d' ? '0 0 10px rgba(34,211,238,0.3)' : 'none',
           }}
-          title={mapMode === '3d' ? 'Switch to 2D map (India)' : 'Switch to 3D globe'}
+          title={mapMode === '3d' ? 'Switch to 2D Map view' : 'Switch to 3D Globe view'}
         >
           <Map size={14} />
-          <span className="text-[9px] font-medium">{mapMode === '3d' ? '2D' : '3D Globe'}</span>
+          <span className="text-[9px] font-medium">{mapMode === '3d' ? '3D Globe' : '2D Map'}</span>
         </button>
 
-        {/* 3D Rainfall Toggle (Feature 1) */}
-        {state.selectedVariable === 'rainfall' && (
-          <button
-            onClick={() => setShow3D((v) => !v)}
-            className="flex flex-col items-center gap-1 px-3 py-2.5 rounded-lg mt-1 transition-all"
-            style={{
-              background: 'rgba(var(--panel-bg-rgb),0.92)',
-              border: show3D ? '1px solid #f97316' : '1px solid rgba(var(--fg-rgb),var(--fg-a08))',
-              color: show3D ? '#f97316' : 'rgba(var(--fg-rgb),var(--fg-a4))',
-              boxShadow: show3D ? '0 0 10px rgba(249,115,22,0.3)' : 'none',
-            }}
-            title="3D Extruded Rainfall Columns"
-          >
-            <Box size={14} />
-            <span className="text-[9px] font-medium">3D</span>
-          </button>
-        )}
+        {/* 3D data-column overlay toggle — extrudes the grid heights by value
+            (Rainfall, Tmax, or Tmin). Labeled "Columns" rather than "3D" so
+            it reads as a distinct feature from the map-projection toggle
+            above, which also involves the word "3D". */}
+        <button
+          onClick={() => setShow3D((v) => !v)}
+          className="flex flex-col items-center gap-1 px-3 py-2.5 rounded-lg mt-1 transition-all"
+          style={{
+            background: 'rgba(var(--panel-bg-rgb),0.92)',
+            border: show3D ? '1px solid #f97316' : '1px solid rgba(var(--fg-rgb),var(--fg-a08))',
+            color: show3D ? '#f97316' : 'rgba(var(--fg-rgb),var(--fg-a4))',
+            boxShadow: show3D ? '0 0 10px rgba(249,115,22,0.3)' : 'none',
+          }}
+          title="Toggle 3D extruded data columns"
+        >
+          <Box size={14} />
+          <span className="text-[9px] font-medium">Columns</span>
+        </button>
 
         {/* Wind particle toggle — disabled in 2D. cesium-wind-layer's GPU
             particle system has multiple layered bugs in its 2D/Columbus View

@@ -171,12 +171,38 @@ const WIND_STYLE_PRESETS: Record<WindAnimationStyle, Pick<
   },
 };
 
-// Variable display configuration
+// Variable display configuration. extrudeScale is the 3D column's max height
+// (meters, at t=1) — same budget for all three so switching variables in 3D
+// mode doesn't also change the vertical scale being compared.
 const VARIABLE_CONFIG = {
-  rainfall: { label: 'Rainfall', unit: 'mm/day', min: 0,  max: 50, extrudeScale: 8000 },
-  temp_max: { label: 'Tmax',     unit: '°C',     min: 20, max: 45, extrudeScale: 0    },
-  temp_min: { label: 'Tmin',     unit: '°C',     min: 10, max: 35, extrudeScale: 0    },
+  rainfall: { label: 'Rainfall', unit: 'mm/day', min: 0,  max: 50, extrudeScale: 80_000 },
+  temp_max: { label: 'Tmax',     unit: '°C',     min: 20, max: 45, extrudeScale: 80_000 },
+  temp_min: { label: 'Tmin',     unit: '°C',     min: 10, max: 35, extrudeScale: 80_000 },
 };
+
+/** Ray-casting point-in-polygon test against a single [lon,lat][] ring. */
+function isPointInRing(lon: number, lat: number, ring: [number, number][]): boolean {
+  let inside = false;
+  for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+    const [xi, yi] = ring[i];
+    const [xj, yj] = ring[j];
+    const intersect = (yi > lat) !== (yj > lat)
+      && lon < ((xj - xi) * (lat - yi)) / (yj - yi) + xi;
+    if (intersect) inside = !inside;
+  }
+  return inside;
+}
+
+/** Is (lon,lat) inside any piece of the India outline (mainland + islands)?
+ *  `rings` null means "not loaded yet" — treated as "don't hide anything"
+ *  rather than clipping everything out before the outline fetch resolves. */
+function isInsideIndia(lon: number, lat: number, rings: [number, number][][] | null): boolean {
+  if (!rings) return true;
+  for (const ring of rings) {
+    if (isPointInRing(lon, lat, ring)) return true;
+  }
+  return false;
+}
 
 /**
  * Return CSS color string for heatmap canvas rendering — uses fluid-earth colormaps.
@@ -1623,20 +1649,38 @@ function CesiumGlobeInner({
     });
   }, [isReady, tourStep, flyCameraTo]);
 
-  // ── 3D Extruded Rainfall Columns (Feature 1) ───────────────────────────────
+  // ── 3D Extruded Grid — Rainfall, Tmax, Tmin ─────────────────────────────────
+  // Column height/color use the same t-normalization and default colormap as
+  // the 2D heatmap (rainfallToT for rainfall, linear min/max for temperature;
+  // imd_rain/sunset/ocean_violet defaults) so switching between 2D and 3D
+  // reads as the same data, not a different visualization.
   useEffect(() => {
     if (!isReady || !extrude3DRef.current) return;
     const source = extrude3DRef.current;
     source.entities.removeAll();
-    if (!show3D || variable !== 'rainfall' || gridCells.length === 0) return;
+    if (!show3D || gridCells.length === 0) return;
 
-    const activeColormap: ColormapId = colormap ?? 'imd_rain';
+    const cfg = VARIABLE_CONFIG[variable];
+    const activeColormap: ColormapId = colormap ?? (
+      variable === 'rainfall' ? 'imd_rain' : variable === 'temp_max' ? 'sunset' : 'ocean_violet'
+    );
+    const outlineRings = indiaOutlineRef.current;
 
     gridCells.forEach((cell) => {
-      const val = cell.rainfall;
-      if (val < 1) return; // skip dry cells
-      const t = rainfallToT(val);
-      const height = t * 80_000; // up to 80km extrusion
+      const val = cell[variable] as number;
+      if (!Number.isFinite(val)) return;
+      // Rainfall is heavily zero-skewed — skip dry cells so the grid isn't
+      // mostly near-invisible slivers. Temperature has no such "dry" concept;
+      // every cell gets a column.
+      if (variable === 'rainfall' && val < 1) return;
+      // Clip to India's landmass — otherwise columns stand in the ocean
+      // wherever the region's data bbox overhangs the coastline.
+      if (!isInsideIndia(cell.lon, cell.lat, outlineRings)) return;
+
+      const t = variable === 'rainfall'
+        ? rainfallToT(val)
+        : Math.max(0, Math.min(1, (val - cfg.min) / (cfg.max - cfg.min)));
+      const height = t * cfg.extrudeScale;
 
       const [r, g, b] = COLOR_SCALES[activeColormap](t);
       const color = new Cesium.Color(r / 255, g / 255, b / 255, 0.8);
@@ -1651,10 +1695,10 @@ function CesiumGlobeInner({
           extrudedHeight: height,
           outline: false,
         },
-        description: `${val.toFixed(1)} mm/day`,
+        description: `${val.toFixed(1)} ${cfg.unit}`,
       });
     });
-  }, [isReady, show3D, gridCells, variable, colormap]);
+  }, [isReady, show3D, gridCells, variable, colormap, outlineLoaded]);
 
   // ── Day / Night Terminator Line + Nightside Lighting (Feature 6) ───────────
   // Re-enabled after fixing why it was disabled: (1) this effect now
@@ -1834,7 +1878,7 @@ function CesiumGlobeInner({
       {isReady && show3D && (
         <div className="absolute top-20 left-[140px] z-10 pointer-events-none animate-slide-in-up">
           <div className="px-3 py-1.5 rounded-lg backdrop-blur-sm" style={{ background: 'rgba(249,115,22,0.2)', border: '1px solid rgba(249,115,22,0.4)' }}>
-            <span className="text-orange-300 text-xs font-medium">3D Rainfall Columns</span>
+            <span className="text-orange-300 text-xs font-medium">3D {VARIABLE_CONFIG[variable].label} Columns</span>
           </div>
         </div>
       )}
