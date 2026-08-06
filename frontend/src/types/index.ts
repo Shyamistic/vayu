@@ -207,6 +207,10 @@ export interface TimeState {
   granularity: 'daily' | 'monthly' | 'yearly';
   isPlaying: boolean;
   playbackSpeed: number; // 0.5x to 4x
+  /** When both set, playback/step/slider are bounded to [rangeStart, rangeEnd]
+   *  instead of the full 2010–2025 window. Null means "no range selected". */
+  rangeStart: Date | null;
+  rangeEnd: Date | null;
 }
 
 export interface AppState {

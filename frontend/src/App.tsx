@@ -98,6 +98,8 @@ const INITIAL_TIME_STATE: TimeState = {
   granularity: 'daily',
   isPlaying: false,
   playbackSpeed: 1,
+  rangeStart: null,
+  rangeEnd: null,
 };
 
 const INITIAL_STATE: AppState = {
