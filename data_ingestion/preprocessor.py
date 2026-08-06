@@ -871,10 +871,35 @@ class ClimatePreprocessor:
         """
         target_lats = np.arange(self.lat_min, self.lat_max + self.resolution / 2, self.resolution)
         target_lons = np.arange(self.lon_min, self.lon_max + self.resolution / 2, self.resolution)
-        clipped = ds.sel(
-            lat=slice(self.lat_min - margin, self.lat_max + margin),
-            lon=slice(self.lon_min - margin, self.lon_max + margin),
-        )
+
+        # Bilinear interpolation needs >=2 source points per axis. A fixed margin
+        # is too narrow when the source is coarser than the region is wide (e.g.
+        # NCEP's 2.5deg grid over a 3deg-tall region), and with fill_value=NaN that
+        # would silently produce an all-NaN -> all-zero dead channel rather than an
+        # error. Widen until the clip is usable, then give up and use the full grid.
+        clipped = ds
+        for attempt_margin in (margin, margin * 2, margin * 4, margin * 8):
+            candidate = ds.sel(
+                lat=slice(self.lat_min - attempt_margin, self.lat_max + attempt_margin),
+                lon=slice(self.lon_min - attempt_margin, self.lon_max + attempt_margin),
+            )
+            if candidate.sizes.get("lat", 0) >= 2 and candidate.sizes.get("lon", 0) >= 2:
+                clipped = candidate
+                if attempt_margin != margin:
+                    logger.warning(
+                        "Source grid is coarse relative to the region: widened clip "
+                        "margin %.1f -> %.1f deg to retain >=2 points per axis "
+                        "(kept %dx%d)",
+                        margin, attempt_margin,
+                        candidate.sizes["lat"], candidate.sizes["lon"],
+                    )
+                break
+        else:
+            logger.warning(
+                "Source grid too coarse to clip (%dx%d within +/-%.1f deg of region) "
+                "- interpolating from the full source grid",
+                ds.sizes.get("lat", 0), ds.sizes.get("lon", 0), margin * 8,
+            )
 
         src_lats = clipped.lat.values.astype(float)
         src_lons = clipped.lon.values.astype(float)
@@ -892,9 +917,17 @@ class ClimatePreprocessor:
                     from scipy.ndimage import distance_transform_edt
                     idx = distance_transform_edt(nan_mask, return_distances=False, return_indices=True)
                     slab = slab[tuple(idx)]
+                # fill_value=None would have SciPy linearly extrapolate points
+                # outside the source grid instead of masking them. That is silent
+                # and unbounded: at full-India's 0.5° extent, ERA5-Land LST (source
+                # coverage caps at 35.5N) extrapolated to insat_lst=-4252 at 38.125N
+                # margin degrees beyond the source bounds — a 2-3 cell strip, not
+                # the whole record, so it was easy to miss without a range check.
+                # NaN is correct here: `_available` flag channels already exist
+                # for exactly this "source has no coverage" case.
                 interp = RegularGridInterpolator(
                     (src_lats, src_lons), slab,
-                    method="linear", bounds_error=False, fill_value=None,
+                    method="linear", bounds_error=False, fill_value=np.nan,
                 )
                 tlon, tlat = np.meshgrid(target_lons, target_lats)
                 out[t] = interp(np.stack([tlat.ravel(), tlon.ravel()], axis=1)).reshape(

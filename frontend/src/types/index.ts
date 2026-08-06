@@ -169,6 +169,18 @@ export interface HealthResponse {
   last_prediction_timestamp: string | null;
   uptime_seconds: number;
   device: string;
+  /**
+   * Degradation reporting. Optional because older backend deployments do not
+   * send these fields; treat `undefined` as "unknown", never as "fine".
+   *
+   * - `cache_backend`: 'redis' | 'in-process' | 'none'
+   * - `persistence_connected`: false on the lean profile, which runs no PostgreSQL
+   * - `real_data_regions`: regions with a normalized_*.nc present. A region absent
+   *   here is served from synthetic grids and must not be presented as a forecast.
+   */
+  cache_backend?: string;
+  persistence_connected?: boolean;
+  real_data_regions?: string[];
 }
 
 // ── UI state types ─────────────────────────────────────────────────────────────
@@ -182,7 +194,12 @@ export type RegionId =
   | 'central_india'
   | 'pilot';
 
-export type ViewMode = 'prediction' | 'historical' | 'scenario' | 'metrics' | 'agriculture' | 'environment' | 'case-study';
+export type ViewMode =
+  | 'prediction' | 'historical' | 'scenario' | 'metrics'
+  | 'agriculture' | 'environment' | 'case-study'
+  // Categories added when the previously unmounted `features/` panels were wired
+  // in. See features/FeaturePanels.tsx.
+  | 'analysis' | 'sectors' | 'model-lab' | 'collaborate';
 
 export interface TimeState {
   selectedDate: Date;

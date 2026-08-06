@@ -32,12 +32,20 @@ ALTER TABLE prediction_archive
     ADD COLUMN IF NOT EXISTS forecast_issue_time TIMESTAMPTZ,
     ADD COLUMN IF NOT EXISTS forecast_target_time TIMESTAMPTZ,
     ADD COLUMN IF NOT EXISTS run_version TEXT,
-    ALTER COLUMN model_version TYPE TEXT;
     ADD COLUMN IF NOT EXISTS manifest_version TEXT,
     ADD COLUMN IF NOT EXISTS calibration_version TEXT,
     ADD COLUMN IF NOT EXISTS quality_flags JSONB NOT NULL DEFAULT '[]'::jsonb,
     ADD COLUMN IF NOT EXISTS payload_checksum CHAR(64),
     ADD COLUMN IF NOT EXISTS evidence_complete BOOLEAN NOT NULL DEFAULT FALSE;
+
+-- Widened separately: a semicolon after ALTER COLUMN previously terminated the
+-- statement above mid-list, which turned the five ADD COLUMNs that followed it
+-- into a syntax error. Postgres runs docker-entrypoint-initdb.d with
+-- ON_ERROR_STOP=1, so database initialisation aborted here and the evidence
+-- columns were never created. ALTER COLUMN ... TYPE takes no IF NOT EXISTS but
+-- is safe to re-run: widening TEXT to TEXT is a no-op.
+ALTER TABLE prediction_archive
+    ALTER COLUMN model_version TYPE TEXT;
 
 DROP INDEX IF EXISTS idx_pred_archive_key;
 CREATE UNIQUE INDEX IF NOT EXISTS idx_prediction_archive_evidence_identity

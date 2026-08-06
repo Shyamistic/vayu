@@ -44,6 +44,8 @@ import { CinematicIntro } from './design-system/CinematicIntro';
 import { TabPanelModal } from './design-system/TabPanelModal';
 import OfflineModeBadge from './features/platform/OfflineModeBadge';
 import HistoricalFloodValidation from './features/model/HistoricalFloodValidation';
+import FeaturePanels from './features/FeaturePanels';
+import type { FeatureCategory } from './features/FeaturePanels';
 import type { ColormapId } from './utils/colorScales';
 import { fetchPrediction, fetchHealth } from './api/client';
 import { getTimelineSwipeDirection } from './features/platform/mobileGestures';
@@ -127,6 +129,18 @@ const VIEW_TABS: { id: ViewMode; label: string; icon: React.ReactNode }[] = [
   { id: 'case-study', label: 'Cases', icon: <BookOpen size={14} /> },
   { id: 'agriculture', label: 'Crops', icon: <Leaf size={14} /> },
   { id: 'environment', label: 'Env',   icon: <Wind size={14} /> },
+  { id: 'analysis',    label: 'Analysis', icon: <Mountain size={14} /> },
+  { id: 'sectors',     label: 'Sectors', icon: <Waves size={14} /> },
+  { id: 'model-lab',   label: 'Model', icon: <BarChart size={14} /> },
+  { id: 'collaborate', label: 'Collab', icon: <Radio size={14} /> },
+];
+
+/** View modes rendered by features/FeaturePanels.tsx. */
+const FEATURE_CATEGORIES: ViewMode[] = ['analysis', 'sectors', 'model-lab', 'collaborate'];
+
+/** View modes that need `activePrediction` loaded. */
+const PREDICTION_VIEW_MODES: ViewMode[] = [
+  'prediction', 'historical', 'agriculture', 'environment', ...FEATURE_CATEGORIES,
 ];
 
 // ── App component ─────────────────────────────────────────────────────────────
@@ -239,7 +253,10 @@ export default function App() {
 
   // ── Load prediction when date/variable changes ──────────────────────────────
   useEffect(() => {
-    if (state.viewMode !== 'prediction' && state.viewMode !== 'historical' && state.viewMode !== 'agriculture' && state.viewMode !== 'environment') return;
+    // The feature categories are all driven by grid_cells, so they must trigger the
+    // same load. Omitting them renders every panel with an empty cell array, which
+    // silently falls through to their internal mock constants.
+    if (!PREDICTION_VIEW_MODES.includes(state.viewMode)) return;
 
     const dateStr = format(state.timeState.selectedDate, 'yyyy-MM-dd');
     update({ isLoading: true, error: null });
@@ -773,6 +790,16 @@ export default function App() {
               <AgriculturePanel gridCells={gridCells} />
               <CyclonePanel />
             </div>
+          )}
+          {FEATURE_CATEGORIES.includes(state.viewMode) && (
+            <FeaturePanels
+              category={state.viewMode as FeatureCategory}
+              gridCells={gridCells}
+              region={state.selectedRegion}
+              variable={state.selectedVariable}
+              forecastDate={format(state.timeState.selectedDate, 'yyyy-MM-dd')}
+              forecastDay={state.forecastDay}
+            />
           )}
           {state.viewMode === 'environment' && (
             <div className="flex flex-col gap-3">

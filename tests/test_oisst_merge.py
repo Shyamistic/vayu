@@ -19,14 +19,24 @@ from data_ingestion.preprocessor import ClimatePreprocessor
 REGION = {"lat_min": 7.5, "lat_max": 21.5, "lon_min": 72.0, "lon_max": 77.5}
 
 
-def _write_oisst_day(dir_path, date: str, sst_value: float = 27.0) -> None:
+def _write_oisst_day(
+    dir_path,
+    date: str,
+    sst_value: float = 27.0,
+    lat: np.ndarray | None = None,
+    lon: np.ndarray | None = None,
+) -> None:
     """Write a minimal global OISST-shaped file for one day.
 
     Longitude uses OISST's native 0..360 convention (not -180..180), matching
     real files, so the loader's conversion is exercised.
+
+    The grid is 1deg rather than a token handful of points: real OISST v2.1 is
+    0.25deg, and a grid coarser than the region is wide leaves <2 source points
+    inside the clip window, which cannot be bilinearly interpolated at all.
     """
-    lat = np.linspace(-89.875, 89.875, 20)
-    lon = np.linspace(0.125, 359.875, 40)
+    lat = np.arange(-89.5, 90.0, 1.0) if lat is None else lat
+    lon = np.arange(0.5, 360.0, 1.0) if lon is None else lon
     sst = np.full((1, 1, len(lat), len(lon)), sst_value, dtype=np.float32)
     ds = xr.Dataset(
         {"sst": (("time", "zlev", "lat", "lon"), sst)},
@@ -56,6 +66,37 @@ def test_load_oisst_sst_regrids_onto_target_region(tmp_path):
     # Constant input -> constant (interpolated) output, no NaN introduced.
     assert not bool(result.sst.isnull().any())
     assert float(result.sst.isel(time=0).mean()) == pytest.approx(27.5, abs=0.05)
+
+
+def test_regrid_masks_points_outside_source_coverage(tmp_path):
+    """Regression: cells beyond the source grid's extent must be NaN, not
+    extrapolated.
+
+    ``RegularGridInterpolator(fill_value=None)`` linearly extrapolates outside the
+    source bounds. That produced insat_lst = -4252 C in the full-India 0.5deg
+    bundle, because ERA5-Land LST coverage stops at 35.5N while the region reaches
+    38.125N. The failure is a thin edge strip, so it survives a mean/std check and
+    only shows up in a range check.
+    """
+    # Source covers only the southern half of the region's latitude span.
+    _write_oisst_day(
+        tmp_path, "2010-01-01", sst_value=27.0,
+        lat=np.arange(-89.5, 15.0, 1.0), lon=np.arange(0.5, 360.0, 1.0),
+    )
+
+    p = ClimatePreprocessor(region=REGION, resolution=0.25)
+    result = p._load_oisst_sst(str(tmp_path), 2010, 2010)
+
+    assert result is not None
+    sst = result.sst.isel(time=0)
+    covered = sst.sel(lat=slice(None, 14.0))
+    uncovered = sst.sel(lat=slice(15.0, None))
+
+    assert not bool(covered.isnull().any()), "in-coverage cells must be filled"
+    assert float(covered.mean()) == pytest.approx(27.0, abs=0.05)
+    assert bool(uncovered.isnull().all()), (
+        "cells beyond the source grid must be NaN, not extrapolated"
+    )
 
 
 def test_load_oisst_sst_returns_none_when_missing(tmp_path):

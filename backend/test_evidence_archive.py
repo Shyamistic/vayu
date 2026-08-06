@@ -1,6 +1,7 @@
 """Tests for Task 30.1 provenance-preserving evidence persistence."""
 from __future__ import annotations
 
+import re
 from datetime import UTC, date, datetime
 from pathlib import Path
 
@@ -119,16 +120,168 @@ async def test_observation_archive_computes_and_persists_immutable_payload_check
     assert connection.calls[0][1][-1] == canonical_payload_checksum(payload)
 
 
-def test_migration_enforces_append_only_complete_evidence() -> None:
-    migration = Path(__file__).with_name("migrations").joinpath(
-        "004_provenance_evidence_archive.sql"
-    ).read_text(encoding="utf-8")
+MIGRATIONS_DIR = Path(__file__).with_name("migrations")
 
+#: Keywords a top-level statement in these migrations may begin with. A fragment
+#: starting with anything else (notably ``ADD COLUMN``) means a statement was
+#: terminated early and the remainder is orphaned.
+_SQL_STATEMENT_STARTS = (
+    "CREATE", "ALTER", "DROP", "INSERT", "UPDATE", "DELETE", "COMMENT",
+    "GRANT", "REVOKE", "SELECT", "WITH", "DO", "SET", "TRUNCATE",
+)
+
+
+#: A dollar-quote opener is ``$$`` or ``$tag$`` where tag is an identifier. Without
+#: this, the ``$`` inside a regex literal such as '^[0-9a-f]{64}$' is mistaken for
+#: the start of a dollar-quoted block and swallows the rest of the file.
+_DOLLAR_TAG = re.compile(r"\$(?:[A-Za-z_][A-Za-z0-9_]*)?\$")
+
+
+def split_sql_statements(sql: str) -> list[str]:
+    """Split on top-level semicolons.
+
+    Skips line comments, single-quoted string literals (with '' escapes) and
+    dollar-quoted PL/pgSQL bodies, any of which can legally contain a semicolon.
+    """
+    statements: list[str] = []
+    current: list[str] = []
+    i = 0
+    n = len(sql)
+    while i < n:
+        if sql.startswith("--", i):
+            end = sql.find("\n", i)
+            i = n if end == -1 else end + 1
+            current.append(" ")
+            continue
+        if sql[i] == "'":
+            j = i + 1
+            while j < n:
+                if sql[j] == "'":
+                    if j + 1 < n and sql[j + 1] == "'":
+                        j += 2
+                        continue
+                    break
+                j += 1
+            current.append(sql[i:j + 1])
+            i = j + 1
+            continue
+        match = _DOLLAR_TAG.match(sql, i)
+        if match:
+            tag = match.group(0)
+            close = sql.find(tag, match.end())
+            end = n if close == -1 else close + len(tag)
+            current.append(sql[i:end])
+            i = end
+            continue
+        if sql[i] == ";":
+            statements.append("".join(current).strip())
+            current = []
+            i += 1
+            continue
+        current.append(sql[i])
+        i += 1
+    if "".join(current).strip():
+        statements.append("".join(current).strip())
+    return [s for s in statements if s]
+
+
+@pytest.mark.parametrize(
+    "migration_name",
+    sorted(p.name for p in MIGRATIONS_DIR.glob("*.sql")),
+)
+def test_migration_statements_are_not_truncated(migration_name: str) -> None:
+    """Every top-level statement must begin with a DDL/DML keyword.
+
+    Regression guard: ``004`` previously read
+
+        ALTER TABLE prediction_archive
+            ADD COLUMN IF NOT EXISTS run_version TEXT,
+            ALTER COLUMN model_version TYPE TEXT;
+            ADD COLUMN IF NOT EXISTS manifest_version TEXT,
+            ...
+
+    The semicolon ended the ALTER TABLE mid-list, so the five ADD COLUMNs after it
+    became a standalone ``ADD COLUMN ...`` fragment — invalid SQL that aborted
+    database initialisation under ON_ERROR_STOP=1. The previous version of this
+    test only asserted that the column NAMES appeared somewhere in the file, so it
+    passed on the broken migration. Checking statement starts catches the whole
+    class of early-termination mistakes without needing a live server.
+    """
+    sql = (MIGRATIONS_DIR / migration_name).read_text(encoding="utf-8")
+    for statement in split_sql_statements(sql):
+        first_word = statement.split(None, 1)[0].upper()
+        assert first_word in _SQL_STATEMENT_STARTS, (
+            f"{migration_name}: statement starts with {first_word!r}, which is not a "
+            f"valid statement keyword — a previous statement was likely terminated "
+            f"early, orphaning this fragment:\n{statement[:200]}"
+        )
+
+
+def test_statement_splitter_detects_the_historical_004_defect() -> None:
+    """The guard above must actually fail on the shape of SQL that shipped broken.
+
+    Without this, `test_migration_statements_are_not_truncated` could pass simply
+    because the splitter never produces the offending fragment.
+    """
+    broken = """
+    ALTER TABLE prediction_archive
+        ADD COLUMN IF NOT EXISTS run_version TEXT,
+        ALTER COLUMN model_version TYPE TEXT;
+        ADD COLUMN IF NOT EXISTS manifest_version TEXT,
+        ADD COLUMN IF NOT EXISTS evidence_complete BOOLEAN NOT NULL DEFAULT FALSE;
+    """
+    starts = [s.split(None, 1)[0].upper() for s in split_sql_statements(broken)]
+    assert "ADD" in starts, "splitter failed to surface the orphaned ADD COLUMN"
+    assert any(w not in _SQL_STATEMENT_STARTS for w in starts)
+
+    fixed = """
+    ALTER TABLE prediction_archive
+        ADD COLUMN IF NOT EXISTS run_version TEXT,
+        ADD COLUMN IF NOT EXISTS manifest_version TEXT;
+    ALTER TABLE prediction_archive
+        ALTER COLUMN model_version TYPE TEXT;
+    """
+    fixed_starts = [s.split(None, 1)[0].upper() for s in split_sql_statements(fixed)]
+    assert all(w in _SQL_STATEMENT_STARTS for w in fixed_starts)
+
+
+def test_statement_splitter_ignores_semicolons_in_quotes_and_bodies() -> None:
+    """Semicolons inside literals and PL/pgSQL bodies must not split statements."""
+    sql = """
+    CREATE TABLE t (c TEXT CHECK (c ~ '^[0-9a-f]{64}$' AND c <> 'a;b'));
+    CREATE FUNCTION f() RETURNS TRIGGER LANGUAGE plpgsql AS $$
+    BEGIN
+        RAISE EXCEPTION 'no; really';
+        RETURN NEW;
+    END;
+    $$;
+    """
+    statements = split_sql_statements(sql)
+    assert len(statements) == 2, [s[:60] for s in statements]
+    assert all(
+        s.split(None, 1)[0].upper() in _SQL_STATEMENT_STARTS for s in statements
+    )
+
+
+def test_migration_enforces_append_only_complete_evidence() -> None:
+    migration = (MIGRATIONS_DIR / "004_provenance_evidence_archive.sql").read_text(
+        encoding="utf-8"
+    )
+
+    # Assert the evidence columns are added by a statement that survives parsing,
+    # not merely that the identifiers appear somewhere in the text.
+    add_column_statements = [
+        s for s in split_sql_statements(migration)
+        if s.upper().startswith("ALTER TABLE") and "ADD COLUMN" in s.upper()
+    ]
+    added = " ".join(add_column_statements)
     for field in (
         "source_identifier", "retrieved_at", "freshness_at", "forecast_issue_time",
-        "forecast_target_time", "run_version", "manifest_version", "calibration_version", "quality_flags",
-        "payload_checksum", "evidence_complete",
+        "forecast_target_time", "run_version", "manifest_version",
+        "calibration_version", "quality_flags", "payload_checksum",
+        "evidence_complete",
     ):
-        assert field in migration
+        assert field in added, f"{field} is not added by a parseable ALTER TABLE"
+
     assert "completed prediction evidence is append-only" in migration
     assert "observation evidence is append-only" in migration

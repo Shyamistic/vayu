@@ -68,6 +68,58 @@ _scenario_base_graph: GraphData | None = None
 _twin_engine: TwinEngine | None = None
 _iot_task: asyncio.Task | None = None  # background IoT DB-writer task
 
+#: Loaded per-region checkpoints, keyed by region id. Populated lazily so a
+#: region nobody has requested yet never pays the torch.load() cost.
+_region_models: dict[str, VayuClimateModel] = {}
+
+#: Region id -> checkpoint directory, checked before falling back to the single
+#: global MODEL_PATH checkpoint. Every region here was trained separately (see
+#: notebooks/vayu_kaggle_training_*.ipynb); loading the Western Ghats weights for
+#: a Central India request would silently mislabel one region's forecast as
+#: another's, so this must be explicit rather than a shared default.
+_REGION_CHECKPOINT_DIRS: dict[str, str] = {
+    "western_ghats": "checkpoints/regions/western_ghats/vayu_best.pt",
+    "pilot": "checkpoints/regions/western_ghats/vayu_best.pt",
+    "north_east_india": "checkpoints/regions/north_east_india/vayu_best.pt",
+    "indo_gangetic_plain": "checkpoints/regions/indo_gangetic_plain/vayu_best.pt",
+    "central_india": "checkpoints/regions/central_india/vayu_best.pt",
+}
+
+
+def _get_region_model(region: str) -> VayuClimateModel | None:
+    """Return the checkpoint trained for `region`, loading it on first use.
+
+    Falls back to the global `_model` (MODEL_PATH / vayu_best.pt) when no
+    region-specific checkpoint exists on disk — this keeps full_india and any
+    future region working the same way it did before per-region loading existed,
+    rather than returning None and dropping to mock data.
+    """
+    checkpoint_path = _REGION_CHECKPOINT_DIRS.get(region)
+    if not checkpoint_path:
+        return _model
+
+    if region in _region_models:
+        return _region_models[region]
+
+    if not Path(checkpoint_path).exists():
+        logger.info(
+            "No region-specific checkpoint for '%s' at %s — using global model",
+            region, checkpoint_path,
+        )
+        return _model
+
+    try:
+        device = "cuda" if torch.cuda.is_available() else "cpu"
+        model = VayuClimateModel.load(checkpoint_path, device=device)
+        model.eval()
+        _region_models[region] = model
+        logger.info("Loaded region checkpoint '%s' from %s", region, checkpoint_path)
+        return model
+    except Exception as exc:
+        logger.warning("Failed to load region checkpoint '%s' (%s): %s — using global model",
+                       region, checkpoint_path, exc)
+        return _model
+
 
 def _get_model() -> VayuClimateModel:
     if _model is None:
@@ -331,6 +383,15 @@ class HealthResponse(BaseModel):
     last_prediction_timestamp: str | None
     uptime_seconds: float
     device: str
+    # ── Degradation reporting ─────────────────────────────────────────────────
+    # The lean deployment profile runs with no PostgreSQL and no ElastiCache, and
+    # may start before the dataset sync finishes. Without these fields /health
+    # answers "healthy" identically whether the API is serving real inference or
+    # synthetic grids from an in-process cache, which is exactly the claim this
+    # project must not make implicitly.
+    cache_backend: str = "unknown"
+    persistence_connected: bool = False
+    real_data_regions: list[str] = []
 
 
 class TwinStateResponse(BaseModel):
@@ -751,6 +812,114 @@ def _mock_grid_cells(n_cells: int = 50, seed_date: date | None = None) -> list[G
 _dataset_cache: dict[str, "xr.Dataset"] = {}
 _graph_builder_cache: dict[str, "ClimateGraphBuilder"] = {}
 
+#: Root holding one `processed_<region>/` directory per region. Overridable so a
+#: container can mount or download the bundles anywhere.
+CLIMATE_DATA_ROOT = Path(os.getenv("CLIMATE_DATA_ROOT", "./data"))
+
+#: Region id → subdirectory under CLIMATE_DATA_ROOT. "pilot" is an alias kept for
+#: older frontend builds that predate explicit region selection.
+_REGION_DATA_DIRS: dict[str, str] = {
+    "western_ghats": "processed_western_ghats",
+    "pilot": "processed_western_ghats",
+    "north_east_india": "processed_north_east_india",
+    "indo_gangetic_plain": "processed_indo_gangetic_plain",
+    "central_india": "processed_central_india",
+    "full_india": "processed_full_india_05",
+}
+
+#: Accepted request values that point at another region's directory. Excluded
+#: from /health so the same bundle is not reported twice under two names.
+_REGION_ALIASES = frozenset({"pilot"})
+
+_resolved_dataset_paths: dict[str, str | None] = {}
+_norm_params_cache: dict[str, dict[str, np.ndarray] | None] = {}
+
+
+def _resolve_norm_params(region: str) -> dict[str, np.ndarray] | None:
+    """Return per-cell {rainfall,temp_max,temp_min}_{mean,std} for `region`, or None.
+
+    Each region's norm_params_*.nc holds a per-grid-cell climatology (e.g.
+    Western Ghats rainfall_mean ranges 0.4-11.9 mm/day cell to cell, NE India
+    and IGP have their own distinct ranges). `_get_real_predictions` previously
+    denormalized every region with one flat Western Ghats-derived scalar
+    (rain_mean=8, tmax_mean=32), which reported plausible-looking but wrong
+    physical values for every other region. Flattened with .reshape(-1) here to
+    match ClimateGraphBuilder's row-major node ordering (lat_i * nlon + lon_j).
+    """
+    import xarray as xr
+
+    if region in _norm_params_cache:
+        return _norm_params_cache[region]
+
+    ds_path = _resolve_dataset_path(region)
+    result: dict[str, np.ndarray] | None = None
+    if ds_path:
+        # norm_params_<years>.nc sits next to normalized_<years>.nc under the
+        # same region directory, sharing the year-range suffix.
+        norm_path = Path(str(ds_path).replace("normalized_", "norm_params_"))
+        if norm_path.exists():
+            try:
+                with xr.open_dataset(norm_path) as norm_ds:
+                    result = {
+                        "rainfall_mean": norm_ds["rainfall_mean"].values.astype(np.float64).reshape(-1),
+                        "rainfall_std": norm_ds["rainfall_std"].values.astype(np.float64).reshape(-1),
+                        "tmax_mean": norm_ds["tmax_mean"].values.astype(np.float64).reshape(-1),
+                        "tmax_std": norm_ds["tmax_std"].values.astype(np.float64).reshape(-1),
+                        "tmin_mean": norm_ds["tmin_mean"].values.astype(np.float64).reshape(-1),
+                        "tmin_std": norm_ds["tmin_std"].values.astype(np.float64).reshape(-1),
+                    }
+            except Exception as exc:
+                logger.warning("Failed to load norm_params for '%s' from %s: %s", region, norm_path, exc)
+        else:
+            logger.warning(
+                "Region '%s': no norm_params file at %s — denormalization will use "
+                "Western Ghats-derived fallback constants, which are wrong for any "
+                "other region's climatology", region, norm_path,
+            )
+    _norm_params_cache[region] = result
+    return result
+
+
+def _resolve_dataset_path(region: str) -> str | None:
+    """Return the newest `normalized_*.nc` available for `region`, or None.
+
+    Filenames encode their year span (``normalized_1981-2025.nc``,
+    ``normalized_2010-2025.nc``), so the path is discovered rather than
+    hardcoded — otherwise a freshly built bundle is silently ignored and the API
+    falls back to synthetic output while appearing healthy. Resolution is cached
+    per region, including negative results.
+
+    The directory itself is also globbed (``processed_<region>*``), not just the
+    filename: the 1981-2025 rebuild lives in ``processed_<region>_1981`` while
+    this map's canonical value is ``processed_<region>`` (the older 2010-2025
+    layout). Hardcoding the exact directory name meant every region resolved to
+    None against the current bundles despite normalized_*.nc existing on disk.
+    """
+    if region in _resolved_dataset_paths:
+        return _resolved_dataset_paths[region]
+
+    subdir = _REGION_DATA_DIRS.get(region)
+    resolved: str | None = None
+    if subdir:
+        candidate_dirs = sorted(CLIMATE_DATA_ROOT.glob(f"{subdir}*"))
+        if CLIMATE_DATA_ROOT / subdir not in candidate_dirs and (CLIMATE_DATA_ROOT / subdir).is_dir():
+            candidate_dirs.append(CLIMATE_DATA_ROOT / subdir)
+        candidates = [
+            f for d in candidate_dirs if d.is_dir() for f in d.glob("normalized_*.nc")
+        ]
+        if candidates:
+            # Longest record wins (bigger file ~= more years); ties broken by
+            # path so the choice is stable across restarts.
+            resolved = str(max(candidates, key=lambda p: (p.stat().st_size, str(p))))
+            logger.info("Region '%s' → dataset %s", region, resolved)
+        else:
+            logger.warning(
+                "Region '%s': no normalized_*.nc under %s* — predictions for this "
+                "region will not use real data", region, CLIMATE_DATA_ROOT / subdir,
+            )
+    _resolved_dataset_paths[region] = resolved
+    return resolved
+
 
 def _get_real_predictions(target_date: date, region: str, lead_day: int) -> list[GridCell] | None:
     """Run real model inference on normalized NetCDF data.
@@ -760,16 +929,12 @@ def _get_real_predictions(target_date: date, region: str, lead_day: int) -> list
     import xarray as xr
     from datetime import timedelta
 
-    if _model is None:
+    model = _get_region_model(region)
+    if model is None:
         return None
 
-    # Find the dataset for the requested region
-    dataset_paths = {
-        "western_ghats": "./data/processed_western_ghats/normalized_2010-2025.nc",
-        "pilot": "./data/processed_western_ghats/normalized_2010-2025.nc",
-    }
-    ds_path = dataset_paths.get(region)
-    if not ds_path or not Path(ds_path).exists():
+    ds_path = _resolve_dataset_path(region)
+    if not ds_path:
         return None
 
     # Load/cache dataset
@@ -805,7 +970,7 @@ def _get_real_predictions(target_date: date, region: str, lead_day: int) -> list
         end_idx = int(time_diffs.argmin())
 
         # Need 30 days of input
-        input_window = _model.config.input_window if hasattr(_model, 'config') else 30
+        input_window = model.config.input_window if hasattr(model, 'config') else 30
         start_idx = end_idx - input_window + 1
         if start_idx < 0:
             start_idx = 0
@@ -821,16 +986,16 @@ def _get_real_predictions(target_date: date, region: str, lead_day: int) -> list
         # The v1 model (vayu_best (3).pt) expects 11 features.
         # The graph builder now produces 17 features.
         # Slice to first 11 features for v1 compatibility.
-        n_model_features = _model.config.gnn_in_features if hasattr(_model, 'config') else 11
+        n_model_features = model.config.gnn_in_features if hasattr(model, 'config') else 11
         if seq_graph.x.shape[2] > n_model_features:
             seq_graph.x = seq_graph.x[:, :, :n_model_features]
 
         # Run inference
         with torch.no_grad():
-            _model.eval()
-            device = next(_model.parameters()).device
+            model.eval()
+            device = next(model.parameters()).device
             seq_graph = seq_graph.to(device)
-            predictions = _model(seq_graph)
+            predictions = model(seq_graph)
 
         # predictions: dict with 'rainfall', 'temp_max', 'temp_min' each [num_nodes, 7]
         # Select the requested lead_day (1-indexed)
@@ -840,23 +1005,36 @@ def _get_real_predictions(target_date: date, region: str, lead_day: int) -> list
         tmax_pred = predictions["temp_max"][:, day_idx].cpu().numpy()
         tmin_pred = predictions["temp_min"][:, day_idx].cpu().numpy()
 
-        # Denormalize: the data is z-score normalized.
-        # Approximate denormalization using known IMD climatological stats:
-        # rainfall: mean ~8 mm/day, std ~15 mm/day (Western Ghats monsoon)
-        # tmax: mean ~32°C, std ~5°C
-        # tmin: mean ~23°C, std ~4°C
-        rain_mean, rain_std = 8.0, 15.0
-        tmax_mean, tmax_std = 32.0, 5.0
-        tmin_mean, tmin_std = 23.0, 4.0
+        # Denormalize: the data is z-score normalized per grid cell. Prefer the
+        # real per-cell climatology saved alongside this region's dataset —
+        # rainfall_mean alone ranges 0.4-11.9 mm/day across Western Ghats cells,
+        # and every other region has its own distinct range (NE India's monsoon
+        # is wetter, IGP summers run hotter). Flat scalar fallback is a rough,
+        # visibly-wrong approximation and only fires when norm_params is absent.
+        norm_params = _resolve_norm_params(region)
+        if norm_params is not None and norm_params["rainfall_mean"].shape[0] == rain_pred.shape[0]:
+            rain_mean_c, rain_std_c = norm_params["rainfall_mean"], norm_params["rainfall_std"]
+            tmax_mean_c, tmax_std_c = norm_params["tmax_mean"], norm_params["tmax_std"]
+            tmin_mean_c, tmin_std_c = norm_params["tmin_mean"], norm_params["tmin_std"]
+        else:
+            # Western Ghats-derived scalars used only when per-cell stats are
+            # unavailable for this region (e.g. no norm_params file shipped).
+            rain_mean_c = np.full_like(rain_pred, 8.0, dtype=np.float64)
+            rain_std_c = np.full_like(rain_pred, 15.0, dtype=np.float64)
+            tmax_mean_c = np.full_like(tmax_pred, 32.0, dtype=np.float64)
+            tmax_std_c = np.full_like(tmax_pred, 5.0, dtype=np.float64)
+            tmin_mean_c = np.full_like(tmin_pred, 23.0, dtype=np.float64)
+            tmin_std_c = np.full_like(tmin_pred, 4.0, dtype=np.float64)
 
-        rain_phys = np.maximum(0, rain_pred * rain_std + rain_mean)
-        tmax_phys = tmax_pred * tmax_std + tmax_mean
-        tmin_phys = tmin_pred * tmin_std + tmin_mean
+        rain_phys = np.maximum(0, rain_pred * rain_std_c + rain_mean_c)
+        tmax_phys = tmax_pred * tmax_std_c + tmax_mean_c
+        tmin_phys = tmin_pred * tmin_std_c + tmin_mean_c
 
-        # Replace NaN/inf with climatological means
-        rain_phys = np.where(np.isfinite(rain_phys), rain_phys, rain_mean)
-        tmax_phys = np.where(np.isfinite(tmax_phys), tmax_phys, tmax_mean)
-        tmin_phys = np.where(np.isfinite(tmin_phys), tmin_phys, tmin_mean)
+        # Replace NaN/inf with this cell's climatological mean (falls back to the
+        # regional mean if the per-cell mean is itself non-finite, e.g. ocean).
+        rain_phys = np.where(np.isfinite(rain_phys), rain_phys, np.nan_to_num(rain_mean_c, nan=8.0))
+        tmax_phys = np.where(np.isfinite(tmax_phys), tmax_phys, np.nan_to_num(tmax_mean_c, nan=32.0))
+        tmin_phys = np.where(np.isfinite(tmin_phys), tmin_phys, np.nan_to_num(tmin_mean_c, nan=23.0))
 
         # Clamp to physical bounds
         rain_phys = np.clip(rain_phys, 0, 500)
@@ -1235,12 +1413,23 @@ async def get_historical(
     import xarray as xr
     import pandas as pd
 
-    ds_path = "./data/processed_western_ghats/normalized_2010-2025.nc"
-    if not Path(ds_path).exists():
-        ds_path = "./data/processed/normalized_2010-2025.nc"
+    # Prefer the full-India bundle when present since the requested bounding box
+    # is arbitrary; fall back to the Western Ghats pilot, then any built region.
+    ds_path = next(
+        (
+            p for p in (
+                _resolve_dataset_path("full_india"),
+                _resolve_dataset_path("western_ghats"),
+                _resolve_dataset_path("central_india"),
+                _resolve_dataset_path("indo_gangetic_plain"),
+                _resolve_dataset_path("north_east_india"),
+            ) if p
+        ),
+        "",
+    )
 
     records = []
-    if Path(ds_path).exists():
+    if ds_path and Path(ds_path).exists():
         try:
             if ds_path not in _dataset_cache:
                 _dataset_cache[ds_path] = xr.open_dataset(ds_path)
@@ -1545,14 +1734,25 @@ async def get_climate_tile(
 
 @app.get("/health", response_model=HealthResponse, tags=["System"])
 async def health_check():
-    """System health endpoint."""
+    """System health endpoint.
+
+    `status` stays "healthy" whenever the process can serve requests, since the
+    ALB target group keys off it and a lean deployment intentionally runs without
+    PostgreSQL or Redis. The degradation fields carry the detail.
+    """
     return HealthResponse(
         status="healthy",
-        model_loaded=_model is not None,
+        model_loaded=_model_checkpoint_loaded,
         model_version=os.getenv("MODEL_VERSION", "1.0.0"),
         last_prediction_timestamp=_last_prediction_ts,
         uptime_seconds=round(time.time() - _start_time, 1),
         device="cuda" if torch.cuda.is_available() else "cpu",
+        cache_backend=_cache.backend if _cache else "none",
+        persistence_connected=bool(_db and _db.connected),
+        real_data_regions=sorted(
+            region for region in _REGION_DATA_DIRS
+            if region not in _REGION_ALIASES and _resolve_dataset_path(region)
+        ),
     )
 
 
