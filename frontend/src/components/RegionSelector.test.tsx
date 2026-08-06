@@ -3,41 +3,47 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import RegionSelector, { REGIONS } from './RegionSelector';
 
 describe('RegionSelector', () => {
-  it('renders all 5 regions as enabled buttons', () => {
+  it('renders closed by default, showing only the trigger with the selected label', () => {
     const onChange = vi.fn();
     render(<RegionSelector selected="full_india" onChange={onChange} />);
 
-    const buttons = screen.getAllByRole('button');
-    expect(buttons).toHaveLength(5);
-
-    // All buttons should be clickable (no disabled/cursor-not-allowed)
-    buttons.forEach((btn) => {
-      expect(btn).not.toHaveAttribute('disabled');
-      expect(btn.className).not.toContain('cursor-not-allowed');
-      expect(btn.className).not.toContain('opacity-50');
-    });
+    expect(screen.getAllByRole('button')).toHaveLength(1);
+    expect(screen.getByRole('button')).toHaveTextContent('All India');
   });
 
-  it('fires onChange for every region (none are disabled)', () => {
+  it('opens the dropdown on trigger click and lists all 5 regions', () => {
     const onChange = vi.fn();
     render(<RegionSelector selected="full_india" onChange={onChange} />);
 
+    fireEvent.click(screen.getByRole('button'));
+
+    // 1 trigger + 5 options
     const buttons = screen.getAllByRole('button');
-    buttons.forEach((btn, idx) => {
-      fireEvent.click(btn);
-      expect(onChange).toHaveBeenCalledWith(REGIONS[idx].id);
+    expect(buttons).toHaveLength(6);
+    REGIONS.forEach((r) => {
+      expect(screen.getByTitle(r.label)).toBeInTheDocument();
     });
-    expect(onChange).toHaveBeenCalledTimes(5);
   });
 
-  it('highlights the selected region with active styling', () => {
+  it('fires onChange and closes the dropdown when an option is picked', () => {
+    const onChange = vi.fn();
+    render(<RegionSelector selected="full_india" onChange={onChange} />);
+
+    fireEvent.click(screen.getByRole('button')); // open
+    fireEvent.click(screen.getByText('Central India'));
+
+    expect(onChange).toHaveBeenCalledWith('central_india');
+    // Dropdown closed again — back to just the trigger
+    expect(screen.getAllByRole('button')).toHaveLength(1);
+  });
+
+  it('highlights the selected region in the open list', () => {
     const onChange = vi.fn();
     render(<RegionSelector selected="western_ghats" onChange={onChange} />);
 
-    const buttons = screen.getAllByRole('button');
-    const westernGhatsBtn = buttons[0];
-    expect(westernGhatsBtn.className).toContain('bg-blue-500/20');
-    expect(westernGhatsBtn.className).toContain('border-blue-400/60');
+    fireEvent.click(screen.getByRole('button'));
+    const westernGhatsOption = screen.getByTitle('Western Ghats');
+    expect(westernGhatsOption.className).toContain('bg-blue-500/20');
   });
 
   it('each region has center coordinates and altitude defined', () => {
@@ -66,6 +72,7 @@ describe('live-data indicator', () => {
   it('shows no indicator when realDataRegions is omitted', () => {
     const onChange = vi.fn();
     render(<RegionSelector selected="full_india" onChange={onChange} />);
+    fireEvent.click(screen.getByRole('button'));
     expect(document.querySelector('.animate-pulse')).toBeNull();
   });
 
@@ -78,6 +85,7 @@ describe('live-data indicator', () => {
         realDataRegions={['western_ghats', 'central_india']}
       />,
     );
+    fireEvent.click(screen.getByRole('button'));
 
     const westernGhatsBtn = screen.getByTitle('Western Ghats — live model data');
     const centralIndiaBtn = screen.getByTitle('Central India — live model data');

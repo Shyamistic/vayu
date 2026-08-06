@@ -25,7 +25,7 @@ interface LayerOption {
   group?: string;
 }
 
-const LAYER_OPTIONS: LayerOption[] = [
+export const LAYER_OPTIONS: LayerOption[] = [
   // ── Base / Satellite ───────────────────────────────────────────────────────
   {
     id: 'satellite',

@@ -84,7 +84,7 @@ export default function IndiaClimateStats({ gridCells, selectedDate }: IndiaClim
     <div className="panel p-4 space-y-3">
       <div className="flex items-center gap-2 mb-1">
         <div className="w-1.5 h-1.5 rounded-full bg-[#22d3ee] animate-pulse" />
-        <h3 className="text-xs font-semibold uppercase tracking-wider text-white/70">
+        <h3 className="text-xs font-semibold uppercase tracking-wider text-foreground/70">
           India Climate Summary
         </h3>
       </div>
@@ -94,11 +94,11 @@ export default function IndiaClimateStats({ gridCells, selectedDate }: IndiaClim
         <div className="flex items-start gap-2">
           <CloudRain size={14} className="text-[#0ea5e9] mt-0.5 shrink-0" />
           <div>
-            <p className="text-[10px] text-white/50 uppercase tracking-wide">Monsoon Rainfall</p>
+            <p className="text-[10px] text-foreground/50 uppercase tracking-wide">Monsoon Rainfall</p>
             <p className="text-sm font-bold font-mono" style={{ color: deficitColor }}>
               {stats.rainfallDeficit >= 0 ? '+' : ''}{stats.rainfallDeficit.toFixed(1)}%
             </p>
-            <p className="text-[9px] text-white/40">{deficitLabel} vs IMD LPA</p>
+            <p className="text-[9px] text-foreground/40">{deficitLabel} vs IMD LPA</p>
           </div>
         </div>
 
@@ -106,11 +106,11 @@ export default function IndiaClimateStats({ gridCells, selectedDate }: IndiaClim
         <div className="flex items-start gap-2">
           <Thermometer size={14} className="text-orange-400 mt-0.5 shrink-0" />
           <div>
-            <p className="text-[10px] text-white/50 uppercase tracking-wide">Temp Anomaly</p>
+            <p className="text-[10px] text-foreground/50 uppercase tracking-wide">Temp Anomaly</p>
             <p className="text-sm font-bold font-mono" style={{ color: stats.tempAnomaly > 1 ? '#fb923c' : '#22d3ee' }}>
               {stats.tempAnomaly >= 0 ? '+' : ''}{stats.tempAnomaly.toFixed(2)}°C
             </p>
-            <p className="text-[9px] text-white/40">vs 30.5°C climatology</p>
+            <p className="text-[9px] text-foreground/40">vs 30.5°C climatology</p>
           </div>
         </div>
 
@@ -118,11 +118,11 @@ export default function IndiaClimateStats({ gridCells, selectedDate }: IndiaClim
         <div className="flex items-start gap-2">
           <AlertTriangle size={14} className="text-amber-400 mt-0.5 shrink-0" />
           <div>
-            <p className="text-[10px] text-white/50 uppercase tracking-wide">Severe Alerts</p>
-            <p className="text-sm font-bold font-mono text-amber-300">
+            <p className="text-[10px] text-foreground/50 uppercase tracking-wide">Severe Alerts</p>
+            <p className="text-sm font-bold font-mono text-amber-500">
               {stats.alertCount}
             </p>
-            <p className="text-[9px] text-white/40">cells exceeding thresholds</p>
+            <p className="text-[9px] text-foreground/40">cells exceeding thresholds</p>
           </div>
         </div>
 
@@ -130,17 +130,17 @@ export default function IndiaClimateStats({ gridCells, selectedDate }: IndiaClim
         <div className="flex items-start gap-2">
           <MapPin size={14} className="text-emerald-400 mt-0.5 shrink-0" />
           <div>
-            <p className="text-[10px] text-white/50 uppercase tracking-wide">Monsoon Coverage</p>
-            <p className="text-sm font-bold font-mono text-emerald-300">
+            <p className="text-[10px] text-foreground/50 uppercase tracking-wide">Monsoon Coverage</p>
+            <p className="text-sm font-bold font-mono text-emerald-500">
               {stats.monsoonCoverage.toFixed(0)}%
             </p>
-            <p className="text-[9px] text-white/40">based on IMD onset normals</p>
+            <p className="text-[9px] text-foreground/40">based on IMD onset normals</p>
           </div>
         </div>
       </div>
 
       {/* Mini progress bar for monsoon coverage */}
-      <div className="h-1 bg-white/5 rounded-full overflow-hidden">
+      <div className="h-1 bg-foreground/5 rounded-full overflow-hidden">
         <div
           className="h-full rounded-full transition-all duration-700"
           style={{
