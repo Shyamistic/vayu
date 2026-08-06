@@ -107,7 +107,7 @@ function trendIcon(values: number[]) {
   const older = values.slice(-10, -4).reduce((a, b) => a + b, 0) / 6;
   if (recent > older * 1.08) return <TrendingUp size={11} className="text-red-400" />;
   if (recent < older * 0.92) return <TrendingDown size={11} className="text-blue-400" />;
-  return <Minus size={11} className="text-white/40" />;
+  return <Minus size={11} className="text-foreground/40" />;
 }
 
 export default function TrendSparklines({ gridCells, variable, dateLabel }: TrendSparklinesProps) {
@@ -132,8 +132,8 @@ export default function TrendSparklines({ gridCells, variable, dateLabel }: Tren
   return (
     <div className="panel-tight p-3 flex flex-col gap-2.5">
       <div className="flex items-center justify-between">
-        <span className="text-[10px] text-white/40 uppercase tracking-wider">30-day Trend</span>
-        <span className="text-[10px] text-white/25 font-mono">{dateLabel}</span>
+        <span className="text-[10px] text-foreground/40 uppercase tracking-wider">30-day Trend</span>
+        <span className="text-[10px] text-foreground/25 font-mono">{dateLabel}</span>
       </div>
 
       {/* Primary sparkline */}
@@ -141,16 +141,16 @@ export default function TrendSparklines({ gridCells, variable, dateLabel }: Tren
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-1">
             {trendIcon(activeHistory)}
-            <span className="text-xs text-white/60">
+            <span className="text-xs text-foreground/60">
               {variable === 'rainfall' ? 'Rainfall' : variable === 'temp_max' ? 'Max Temp' : 'Min Temp'}
             </span>
           </div>
           <span className="text-sm font-bold font-mono tabular-nums" style={{ color: activeColor }}>
-            {mean.toFixed(1)} <span className="text-xs font-normal text-white/30">{unit}</span>
+            {mean.toFixed(1)} <span className="text-xs font-normal text-foreground/30">{unit}</span>
           </span>
         </div>
         <Sparkline values={activeHistory} color={activeColor} />
-        <div className="flex justify-between text-[9px] text-white/25 font-mono">
+        <div className="flex justify-between text-[9px] text-foreground/25 font-mono">
           <span>-30d</span>
           <span>-15d</span>
           <span>Today</span>
@@ -158,21 +158,21 @@ export default function TrendSparklines({ gridCells, variable, dateLabel }: Tren
       </div>
 
       {/* Secondary micro-sparklines */}
-      <div className="grid grid-cols-2 gap-2 pt-1 border-t" style={{ borderColor: 'rgba(255,255,255,0.06)' }}>
+      <div className="grid grid-cols-2 gap-2 pt-1 border-t" style={{ borderColor: 'rgba(var(--fg-rgb),var(--fg-a05))' }}>
         {variable !== 'rainfall' && (
           <div>
-            <span className="text-[9px] text-white/30 block mb-0.5">Rain</span>
+            <span className="text-[9px] text-foreground/30 block mb-0.5">Rain</span>
             <Sparkline values={rainHistory} color="#60a5fa" width={96} height={24} />
           </div>
         )}
         {variable === 'rainfall' && (
           <div>
-            <span className="text-[9px] text-white/30 block mb-0.5">Tmax</span>
+            <span className="text-[9px] text-foreground/30 block mb-0.5">Tmax</span>
             <Sparkline values={tempHistory} color="#f97316" width={96} height={24} />
           </div>
         )}
         <div>
-          <span className="text-[9px] text-white/30 block mb-0.5">Tmin</span>
+          <span className="text-[9px] text-foreground/30 block mb-0.5">Tmin</span>
           <Sparkline
             values={syntheticHistory(
               gridCells.map((c) => c.temp_min).reduce((a, b) => a + b, 0) / gridCells.length,

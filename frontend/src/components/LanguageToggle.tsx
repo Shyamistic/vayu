@@ -28,11 +28,11 @@ export default function LanguageToggle() {
   return (
     <button
       onClick={toggleLanguage}
-      className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs transition-all hover:bg-white/10 active:scale-95"
+      className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs transition-all hover:bg-foreground/10 active:scale-95"
       style={{
-        background: 'rgba(255,255,255,0.05)',
-        border: '1px solid rgba(255,255,255,0.12)',
-        color: 'rgba(255,255,255,0.7)',
+        background: 'rgba(var(--fg-rgb),var(--fg-a05))',
+        border: '1px solid rgba(var(--fg-rgb),var(--fg-a12))',
+        color: 'rgba(var(--fg-rgb),var(--fg-a7))',
       }}
       title={currentLang === 'en' ? 'हिन्दी में बदलें' : 'Switch to English'}
       aria-label={currentLang === 'en' ? 'Switch language to Hindi' : 'Switch language to English'}
@@ -40,7 +40,7 @@ export default function LanguageToggle() {
       <span className="text-[11px] font-medium">
         {currentLang === 'en' ? 'अ' : 'A'}
       </span>
-      <span className="text-[10px] text-white/50">
+      <span className="text-[10px] text-foreground/50">
         {currentLang === 'en' ? 'हिन्दी' : 'EN'}
       </span>
     </button>

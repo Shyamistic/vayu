@@ -698,7 +698,7 @@ export const ReportGenerator: React.FC<ReportGeneratorProps> = ({
           <h3 style={{
             fontSize: 'var(--font-heading-sm, 18px)',
             fontWeight: 'var(--font-weight-semibold, 600)',
-            color: 'rgba(255,255,255,0.95)',
+            color: 'rgba(var(--fg-rgb),var(--fg-a75))',
             margin: 0,
           }}>
             Climate Bulletin Generator
@@ -710,7 +710,7 @@ export const ReportGenerator: React.FC<ReportGeneratorProps> = ({
           <legend style={{
             fontSize: 'var(--font-small, 12px)',
             fontWeight: 'var(--font-weight-semibold, 600)',
-            color: 'rgba(255,255,255,0.6)',
+            color: 'rgba(var(--fg-rgb),var(--fg-a6))',
             textTransform: 'uppercase',
             letterSpacing: '0.07em',
             marginBottom: '8px',
@@ -727,8 +727,8 @@ export const ReportGenerator: React.FC<ReportGeneratorProps> = ({
                   gap: '10px',
                   background: selectedTemplate === tmpl
                     ? 'rgba(59, 130, 246, 0.12)'
-                    : 'rgba(255,255,255,0.03)',
-                  border: `1px solid ${selectedTemplate === tmpl ? '#3b82f6' : 'rgba(255,255,255,0.07)'}`,
+                    : 'rgba(var(--fg-rgb),var(--fg-a05))',
+                  border: `1px solid ${selectedTemplate === tmpl ? '#3b82f6' : 'rgba(var(--fg-rgb),var(--fg-a08))'}`,
                   borderRadius: 'var(--radius-sm, 6px)',
                   padding: '8px 12px',
                   cursor: 'pointer',
@@ -748,13 +748,13 @@ export const ReportGenerator: React.FC<ReportGeneratorProps> = ({
                   <div style={{
                     fontSize: 'var(--font-body, 14px)',
                     fontWeight: 'var(--font-weight-medium, 500)',
-                    color: 'rgba(255,255,255,0.9)',
+                    color: 'rgba(var(--fg-rgb),var(--fg-a75))',
                   }}>
                     {TEMPLATE_LABELS[tmpl]}
                   </div>
                   <div style={{
                     fontSize: 'var(--font-small, 12px)',
-                    color: 'rgba(255,255,255,0.5)',
+                    color: 'rgba(var(--fg-rgb),var(--fg-a4))',
                     marginTop: '2px',
                   }}>
                     {TEMPLATE_DESCRIPTIONS[tmpl]}
@@ -767,8 +767,8 @@ export const ReportGenerator: React.FC<ReportGeneratorProps> = ({
 
         {/* ── Preview Summary ── */}
         <div style={{
-          background: 'rgba(255,255,255,0.04)',
-          border: '1px solid rgba(255,255,255,0.08)',
+          background: 'rgba(var(--fg-rgb),var(--fg-a05))',
+          border: '1px solid rgba(var(--fg-rgb),var(--fg-a08))',
           borderRadius: 'var(--radius-sm, 6px)',
           padding: '12px',
           marginBottom: '14px',
@@ -776,7 +776,7 @@ export const ReportGenerator: React.FC<ReportGeneratorProps> = ({
           <div style={{
             fontSize: 'var(--font-small, 12px)',
             fontWeight: 'var(--font-weight-semibold, 600)',
-            color: 'rgba(255,255,255,0.55)',
+            color: 'rgba(var(--fg-rgb),var(--fg-a6))',
             textTransform: 'uppercase',
             letterSpacing: '0.07em',
             marginBottom: '8px',
@@ -866,14 +866,14 @@ export const ReportGenerator: React.FC<ReportGeneratorProps> = ({
         <div style={{ marginTop: '14px' }}>
           <div style={{
             fontSize: 'var(--font-small, 12px)',
-            color: 'rgba(255,255,255,0.4)',
+            color: 'rgba(var(--fg-rgb),var(--fg-a4))',
             marginBottom: '4px',
           }}>
             Report includes:
           </div>
           <ul style={{
             fontSize: 'var(--font-small, 12px)',
-            color: 'rgba(255,255,255,0.5)',
+            color: 'rgba(var(--fg-rgb),var(--fg-a4))',
             paddingLeft: '16px',
             display: 'flex',
             flexDirection: 'column',
@@ -912,7 +912,7 @@ const PreviewStat: React.FC<PreviewStatProps> = ({ label, value, valueColor }) =
   <div>
     <div style={{
       fontSize: '10px',
-      color: 'rgba(255,255,255,0.4)',
+      color: 'rgba(var(--fg-rgb),var(--fg-a4))',
       textTransform: 'uppercase',
       letterSpacing: '0.07em',
       fontWeight: 600,
@@ -922,7 +922,7 @@ const PreviewStat: React.FC<PreviewStatProps> = ({ label, value, valueColor }) =
     <div style={{
       fontSize: 'var(--font-body, 14px)',
       fontWeight: 'var(--font-weight-medium, 500)',
-      color: valueColor ?? 'rgba(255,255,255,0.85)',
+      color: valueColor ?? 'rgba(var(--fg-rgb),var(--fg-a75))',
     }}>
       {value}
     </div>

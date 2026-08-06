@@ -65,13 +65,18 @@ export default function ColorLegend({ variable }: ColorLegendProps) {
 
   return (
     <div
-      className="px-1 py-1 flex flex-col gap-2.5 min-w-[180px]"
-      style={{ textShadow: '0 1px 3px rgba(0,0,0,0.9), 0 0 6px rgba(0,0,0,0.6)' }}
+      className="px-2 py-1.5 flex flex-col gap-2.5 min-w-[180px] rounded-xl"
+      style={{
+        background: 'rgba(var(--panel-bg-rgb),0.92)',
+        border: '1px solid rgba(var(--fg-rgb),var(--fg-a08))',
+        backdropFilter: 'blur(12px)',
+        WebkitBackdropFilter: 'blur(12px)',
+      }}
     >
       {/* Title */}
       <div className="flex items-center justify-between">
-        <span className="text-xs text-white/80 font-medium">{cfg.label}</span>
-        <span className="text-xs text-white/60">{cfg.unit}</span>
+        <span className="text-xs text-foreground/80 font-medium">{cfg.label}</span>
+        <span className="text-xs text-foreground/60">{cfg.unit}</span>
       </div>
 
       {/* Gradient bar */}
@@ -86,7 +91,7 @@ export default function ColorLegend({ variable }: ColorLegendProps) {
         {cfg.ticks.map((tick) => (
           <span
             key={tick.label}
-            className={`absolute top-0 text-[10px] text-white/60 font-mono ${
+            className={`absolute top-0 text-[10px] text-foreground/60 font-mono ${
               tick.pct <= 0 ? '' : tick.pct >= 100 ? '-translate-x-full' : '-translate-x-1/2'
             }`}
             style={{ left: `${tick.pct}%` }}

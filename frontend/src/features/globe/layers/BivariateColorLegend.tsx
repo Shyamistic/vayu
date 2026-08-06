@@ -101,7 +101,7 @@ export const BivariateColorLegend: React.FC<BivariateColorLegendProps> = ({
         gap: 4,
         fontSize: 10,
         fontFamily: 'Inter, sans-serif',
-        color: 'rgba(255,255,255,0.8)',
+        color: 'rgba(var(--fg-rgb),var(--fg-a75))',
       }}
       aria-label={`Bivariate colour legend: X axis ${labelX.label}, Y axis ${labelY.label}`}
       role="img"
@@ -114,7 +114,7 @@ export const BivariateColorLegend: React.FC<BivariateColorLegendProps> = ({
             writingMode: 'vertical-rl',
             transform: 'rotate(180deg)',
             fontSize: 9,
-            color: 'rgba(255,255,255,0.6)',
+            color: 'rgba(var(--fg-rgb),var(--fg-a6))',
             whiteSpace: 'nowrap',
           }}
           aria-hidden="true"
@@ -130,7 +130,7 @@ export const BivariateColorLegend: React.FC<BivariateColorLegendProps> = ({
             gridTemplateRows: `repeat(${n}, ${swatchSize}px)`,
             width: containerSize,
             height: containerSize,
-            border: '1px solid rgba(255,255,255,0.15)',
+            border: '1px solid rgba(var(--fg-rgb),var(--fg-a15))',
             borderRadius: 4,
             overflow: 'hidden',
           }}
@@ -158,7 +158,7 @@ export const BivariateColorLegend: React.FC<BivariateColorLegendProps> = ({
         style={{
           paddingLeft: 14,
           fontSize: 9,
-          color: 'rgba(255,255,255,0.6)',
+          color: 'rgba(var(--fg-rgb),var(--fg-a6))',
           whiteSpace: 'nowrap',
         }}
         aria-hidden="true"
@@ -171,7 +171,7 @@ export const BivariateColorLegend: React.FC<BivariateColorLegendProps> = ({
         style={{
           paddingLeft: 14,
           fontSize: 9,
-          color: 'rgba(255,255,255,0.45)',
+          color: 'rgba(var(--fg-rgb),var(--fg-a4))',
           lineHeight: 1.3,
         }}
         aria-hidden="true"

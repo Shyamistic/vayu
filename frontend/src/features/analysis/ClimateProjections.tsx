@@ -460,7 +460,7 @@ const ChoroplethGrid: React.FC<ChoroplethProps> = ({ scores, onSelect, selectedD
 );
 
 const ColorScaleLegend: React.FC = () => (
-  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px', fontSize: '11px', color: 'rgba(255,255,255,0.6)' }}>
+  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px', fontSize: '11px', color: 'rgba(var(--fg-rgb),var(--fg-a6))' }}>
     <span>Low</span>
     <div aria-hidden="true" style={{ flex: 1, height: '10px', borderRadius: '5px', background: 'linear-gradient(to right, #22c55e, #84cc16, #eab308, #f97316, #ef4444, #991b1b)' }} />
     <span>Extreme</span>
@@ -469,11 +469,11 @@ const ColorScaleLegend: React.FC = () => (
 
 const HazardBar: React.FC<{ label: string; value: number; color: string }> = ({ label, value, color }) => (
   <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '3px' }}>
-    <span style={{ width: '54px', fontSize: '11px', color: 'rgba(255,255,255,0.55)', flexShrink: 0 }}>{label}</span>
-    <div style={{ flex: 1, height: '6px', background: 'rgba(255,255,255,0.08)', borderRadius: '3px', overflow: 'hidden' }}>
+    <span style={{ width: '54px', fontSize: '11px', color: 'rgba(var(--fg-rgb),var(--fg-a6))', flexShrink: 0 }}>{label}</span>
+    <div style={{ flex: 1, height: '6px', background: 'rgba(var(--fg-rgb),var(--fg-a08))', borderRadius: '3px', overflow: 'hidden' }}>
       <div style={{ width: `${value}%`, height: '100%', background: color, borderRadius: '3px', transition: 'width 400ms ease' }} />
     </div>
-    <span style={{ width: '28px', textAlign: 'right', fontSize: '11px', color: 'rgba(255,255,255,0.7)', flexShrink: 0 }}>{value}</span>
+    <span style={{ width: '28px', textAlign: 'right', fontSize: '11px', color: 'rgba(var(--fg-rgb),var(--fg-a7))', flexShrink: 0 }}>{value}</span>
   </div>
 );
 
@@ -482,7 +482,7 @@ const SortableHeader: React.FC<{ col: SortColumn; label: string; current: SortCo
     scope="col"
     onClick={() => onSort(col)}
     aria-sort={current === col ? (direction === 'desc' ? 'descending' : 'ascending') : 'none'}
-    style={{ padding: '6px 8px', textAlign: col === 'overall' ? 'left' : 'center', fontSize: '11px', fontWeight: 600, color: current === col ? 'rgba(255,255,255,0.95)' : 'rgba(255,255,255,0.5)', cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap', borderBottom: '1px solid rgba(255,255,255,0.1)' }}
+    style={{ padding: '6px 8px', textAlign: col === 'overall' ? 'left' : 'center', fontSize: '11px', fontWeight: 600, color: current === col ? 'rgba(var(--fg-rgb),var(--fg-a75))' : 'rgba(var(--fg-rgb),var(--fg-a4))', cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap', borderBottom: '1px solid rgba(var(--fg-rgb),var(--fg-a1))' }}
   >
     {label}{current === col && <span aria-hidden="true" style={{ marginLeft: '4px' }}>{direction === 'desc' ? '▼' : '▲'}</span>}
   </th>
@@ -502,7 +502,7 @@ const RankedTable: React.FC<RankedTableProps> = ({ scores, selectedDistrict, onS
     <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
       <thead style={{ position: 'sticky', top: 0, background: 'rgba(10,12,20,0.95)', zIndex: 1 }}>
         <tr>
-          <th scope="col" style={{ padding: '6px 8px', textAlign: 'center', width: '32px', fontSize: '11px', color: 'rgba(255,255,255,0.4)', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>#</th>
+          <th scope="col" style={{ padding: '6px 8px', textAlign: 'center', width: '32px', fontSize: '11px', color: 'rgba(var(--fg-rgb),var(--fg-a4))', borderBottom: '1px solid rgba(var(--fg-rgb),var(--fg-a1))' }}>#</th>
           <SortableHeader col="overall"  label="District" current={sortColumn} direction={sortDirection} onSort={onSort} />
           <SortableHeader col="overall"  label="Score"    current={sortColumn} direction={sortDirection} onSort={onSort} />
           <SortableHeader col="flood"    label="Flood"    current={sortColumn} direction={sortDirection} onSort={onSort} />
@@ -521,16 +521,16 @@ const RankedTable: React.FC<RankedTableProps> = ({ scores, selectedDistrict, onS
               key={`${s.state}-${s.district}`}
               onClick={() => onSelect(s)}
               aria-selected={isSelected}
-              style={{ cursor: 'pointer', background: isSelected ? 'rgba(255,255,255,0.08)' : idx % 2 === 0 ? 'rgba(255,255,255,0.02)' : 'transparent', borderLeft: isSelected ? `3px solid ${rowColor}` : '3px solid transparent', transition: 'background 150ms ease' }}
-              onMouseEnter={(e) => ((e.currentTarget as HTMLTableRowElement).style.background = 'rgba(255,255,255,0.06)')}
-              onMouseLeave={(e) => ((e.currentTarget as HTMLTableRowElement).style.background = isSelected ? 'rgba(255,255,255,0.08)' : idx % 2 === 0 ? 'rgba(255,255,255,0.02)' : 'transparent')}
+              style={{ cursor: 'pointer', background: isSelected ? 'rgba(var(--fg-rgb),var(--fg-a08))' : idx % 2 === 0 ? 'rgba(var(--fg-rgb),var(--fg-a05))' : 'transparent', borderLeft: isSelected ? `3px solid ${rowColor}` : '3px solid transparent', transition: 'background 150ms ease' }}
+              onMouseEnter={(e) => ((e.currentTarget as HTMLTableRowElement).style.background = 'rgba(var(--fg-rgb),var(--fg-a05))')}
+              onMouseLeave={(e) => ((e.currentTarget as HTMLTableRowElement).style.background = isSelected ? 'rgba(var(--fg-rgb),var(--fg-a08))' : idx % 2 === 0 ? 'rgba(var(--fg-rgb),var(--fg-a05))' : 'transparent')}
             >
-              <td style={{ padding: '5px 8px', textAlign: 'center', color: 'rgba(255,255,255,0.35)' }}>{idx + 1}</td>
+              <td style={{ padding: '5px 8px', textAlign: 'center', color: 'rgba(var(--fg-rgb),var(--fg-a3))' }}>{idx + 1}</td>
               <td style={{ padding: '5px 8px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
                   {isWarning && <span aria-label="High risk warning" style={{ animation: 'warning-blink 1.5s ease-in-out infinite', fontSize: '12px' }}>⚠️</span>}
-                  <span style={{ color: 'rgba(255,255,255,0.9)', fontWeight: 500 }}>{s.district}</span>
-                  <span style={{ color: 'rgba(255,255,255,0.35)', fontSize: '10px' }}>{s.state}</span>
+                  <span style={{ color: 'rgba(var(--fg-rgb),var(--fg-a75))', fontWeight: 500 }}>{s.district}</span>
+                  <span style={{ color: 'rgba(var(--fg-rgb),var(--fg-a3))', fontSize: '10px' }}>{s.state}</span>
                 </div>
               </td>
               <td style={{ padding: '5px 8px', textAlign: 'center' }}>
@@ -556,10 +556,10 @@ const DistrictDetailCard: React.FC<{ score: ClimateRiskScore }> = ({ score }) =>
     <div style={{ background: `${color}12`, border: `1px solid ${color}50`, borderRadius: '8px', padding: '12px', marginTop: '12px', animation: warning ? 'risk-card-pulse 2s ease-in-out infinite' : 'none' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
         <div>
-          <span style={{ fontSize: '16px', fontWeight: 700, color: 'rgba(255,255,255,0.95)' }}>{warning && <span aria-label="High risk warning">⚠️ </span>}{score.district}</span>
-          <span style={{ marginLeft: '8px', fontSize: '12px', color: 'rgba(255,255,255,0.45)' }}>{score.state}</span>
+          <span style={{ fontSize: '16px', fontWeight: 700, color: 'rgba(var(--fg-rgb),var(--fg-a75))' }}>{warning && <span aria-label="High risk warning">⚠️ </span>}{score.district}</span>
+          <span style={{ marginLeft: '8px', fontSize: '12px', color: 'rgba(var(--fg-rgb),var(--fg-a4))' }}>{score.state}</span>
         </div>
-        <span style={{ fontSize: '22px', fontWeight: 700, color }}>{score.overall.toFixed(1)}<span style={{ fontSize: '12px', marginLeft: '4px', color: 'rgba(255,255,255,0.4)' }}>/ 100</span></span>
+        <span style={{ fontSize: '22px', fontWeight: 700, color }}>{score.overall.toFixed(1)}<span style={{ fontSize: '12px', marginLeft: '4px', color: 'rgba(var(--fg-rgb),var(--fg-a4))' }}>/ 100</span></span>
       </div>
       <div style={{ fontSize: '12px', color, fontWeight: 600, marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{riskCategory(score.overall)} Risk</div>
       <HazardBar label="Flood"   value={score.components.flood}    color={HAZARD_COLORS.flood} />
@@ -587,9 +587,9 @@ const IndexBadge: React.FC<IndexBadgeProps> = ({ label, acronym, value, phase, u
   return (
     <div title={description} aria-label={`${label}: ${value.toFixed(2)} ${unit}, phase ${phase}`}
       style={{ flex: 1, minWidth: '90px', background: `${color}18`, border: `1px solid ${color}60`, borderRadius: '8px', padding: '8px 10px', textAlign: 'center' }}>
-      <div style={{ fontSize: '10px', fontWeight: 700, color: 'rgba(255,255,255,0.5)', letterSpacing: '0.08em', marginBottom: '2px' }}>{acronym}</div>
+      <div style={{ fontSize: '10px', fontWeight: 700, color: 'rgba(var(--fg-rgb),var(--fg-a4))', letterSpacing: '0.08em', marginBottom: '2px' }}>{acronym}</div>
       <div style={{ fontSize: '20px', fontWeight: 800, color, lineHeight: 1 }}>
-        {value >= 0 ? '+' : ''}{value.toFixed(2)}<span style={{ fontSize: '10px', marginLeft: '2px', color: 'rgba(255,255,255,0.4)' }}>{unit}</span>
+        {value >= 0 ? '+' : ''}{value.toFixed(2)}<span style={{ fontSize: '10px', marginLeft: '2px', color: 'rgba(var(--fg-rgb),var(--fg-a4))' }}>{unit}</span>
       </div>
       <div style={{ fontSize: '11px', color, fontWeight: 600, marginTop: '3px' }}>{arrow} {phase}</div>
     </div>
@@ -607,17 +607,17 @@ const SSTAnomalyMap: React.FC<SSTMapProps> = ({ cells, basin, title }) => {
   const cellMap = new Map(filtered.map((c) => [`${c.lat}_${c.lon}`, c]));
   return (
     <div style={{ marginBottom: '10px' }}>
-      <div style={{ fontSize: '10px', color: 'rgba(255,255,255,0.45)', marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{title}</div>
+      <div style={{ fontSize: '10px', color: 'rgba(var(--fg-rgb),var(--fg-a4))', marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{title}</div>
       <div role="img" aria-label={`${title} SST anomaly map`} style={{ display: 'grid', gridTemplateColumns: `repeat(${lons.length}, 1fr)`, gap: '1px', borderRadius: '4px', overflow: 'hidden' }}>
         {lats.map((lat) => lons.map((lon) => {
           const cell = cellMap.get(`${lat}_${lon}`);
-          return <div key={`${lat}_${lon}`} title={cell ? `${lat}°, ${lon}°: ${cell.anomaly >= 0 ? '+' : ''}${cell.anomaly.toFixed(1)}°C` : ''} style={{ height: '7px', background: cell ? sstAnomalyToColor(cell.anomaly) : 'rgba(255,255,255,0.04)' }} />;
+          return <div key={`${lat}_${lon}`} title={cell ? `${lat}°, ${lon}°: ${cell.anomaly >= 0 ? '+' : ''}${cell.anomaly.toFixed(1)}°C` : ''} style={{ height: '7px', background: cell ? sstAnomalyToColor(cell.anomaly) : 'rgba(var(--fg-rgb),var(--fg-a05))' }} />;
         }))}
       </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '3px' }}>
-        <span style={{ fontSize: '9px', color: 'rgba(255,255,255,0.35)' }}>−3°C</span>
+        <span style={{ fontSize: '9px', color: 'rgba(var(--fg-rgb),var(--fg-a3))' }}>−3°C</span>
         <div style={{ flex: 1, height: '5px', borderRadius: '3px', background: 'linear-gradient(to right, rgb(20,80,200), #fff, rgb(255,50,0))' }} />
-        <span style={{ fontSize: '9px', color: 'rgba(255,255,255,0.35)' }}>+3°C</span>
+        <span style={{ fontSize: '9px', color: 'rgba(var(--fg-rgb),var(--fg-a3))' }}>+3°C</span>
       </div>
     </div>
   );
@@ -632,17 +632,17 @@ const IndiaCorrelationMap: React.FC<IndiaCorrelationMapProps> = ({ cells, driver
   const cellMap = new Map(cells.map((c) => [`${c.lat}_${c.lon}`, c]));
   return (
     <div style={{ marginBottom: '10px' }}>
-      <div style={{ fontSize: '10px', color: 'rgba(255,255,255,0.45)', marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '0.06em' }}>India Rainfall Correlation — {driver}</div>
+      <div style={{ fontSize: '10px', color: 'rgba(var(--fg-rgb),var(--fg-a4))', marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '0.06em' }}>India Rainfall Correlation — {driver}</div>
       <div role="img" aria-label={`India grid cells correlation with ${driver}`} style={{ display: 'grid', gridTemplateColumns: `repeat(${lons.length}, 1fr)`, gap: '2px', borderRadius: '4px', overflow: 'hidden' }}>
         {lats.map((lat) => lons.map((lon) => {
           const cell = cellMap.get(`${lat}_${lon}`);
-          return <div key={`${lat}_${lon}`} title={cell ? `${lat}°N, ${lon}°E: r=${cell.correlation >= 0 ? '+' : ''}${cell.correlation.toFixed(2)}` : ''} style={{ height: '10px', background: cell ? correlationToColor(cell.correlation) : 'rgba(255,255,255,0.04)', borderRadius: '1px' }} />;
+          return <div key={`${lat}_${lon}`} title={cell ? `${lat}°N, ${lon}°E: r=${cell.correlation >= 0 ? '+' : ''}${cell.correlation.toFixed(2)}` : ''} style={{ height: '10px', background: cell ? correlationToColor(cell.correlation) : 'rgba(var(--fg-rgb),var(--fg-a05))', borderRadius: '1px' }} />;
         }))}
       </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '3px' }}>
-        <span style={{ fontSize: '9px', color: 'rgba(255,255,255,0.35)' }}>−1 (suppressed)</span>
+        <span style={{ fontSize: '9px', color: 'rgba(var(--fg-rgb),var(--fg-a3))' }}>−1 (suppressed)</span>
         <div style={{ flex: 1, height: '5px', borderRadius: '3px', background: 'linear-gradient(to right, rgb(50,80,255), #fff, rgb(255,50,50))' }} />
-        <span style={{ fontSize: '9px', color: 'rgba(255,255,255,0.35)' }}>+1 (enhanced)</span>
+        <span style={{ fontSize: '9px', color: 'rgba(var(--fg-rgb),var(--fg-a3))' }}>+1 (enhanced)</span>
       </div>
     </div>
   );
@@ -669,17 +669,17 @@ const HistoricalCorrelationChart: React.FC<HistoricalChartProps> = ({ events, dr
 
   return (
     <div>
-      <div style={{ fontSize: '10px', color: 'rgba(255,255,255,0.45)', marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+      <div style={{ fontSize: '10px', color: 'rgba(var(--fg-rgb),var(--fg-a4))', marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
         Historical {driver} Impact on Indian Monsoon (ISMR % LPA)
       </div>
       <div style={{ overflowX: 'auto' }}>
         <svg width={totalWidth} height={chartH} role="img" aria-label={`Historical ${driver} events and India monsoon rainfall`} style={{ display: 'block' }}>
-          <line x1={padLeft} y1={yToSvg(LPA)} x2={totalWidth - 4} y2={yToSvg(LPA)} stroke="rgba(255,255,255,0.3)" strokeWidth="1" strokeDasharray="4 3" />
-          <text x={padLeft - 4} y={yToSvg(LPA) + 4} textAnchor="end" fontSize="8" fill="rgba(255,255,255,0.4)">LPA</text>
+          <line x1={padLeft} y1={yToSvg(LPA)} x2={totalWidth - 4} y2={yToSvg(LPA)} stroke="rgba(var(--fg-rgb),var(--fg-a3))" strokeWidth="1" strokeDasharray="4 3" />
+          <text x={padLeft - 4} y={yToSvg(LPA) + 4} textAnchor="end" fontSize="8" fill="rgba(var(--fg-rgb),var(--fg-a4))">LPA</text>
           {[75, 90, 100, 110, 125].map((val) => {
             const y = yToSvg(val);
             if (y < 4 || y > chartH - padBottom) return null;
-            return <g key={val}><line x1={padLeft} y1={y} x2={totalWidth - 4} y2={y} stroke="rgba(255,255,255,0.06)" strokeWidth="1" /><text x={padLeft - 4} y={y + 4} textAnchor="end" fontSize="8" fill="rgba(255,255,255,0.3)">{val}</text></g>;
+            return <g key={val}><line x1={padLeft} y1={y} x2={totalWidth - 4} y2={y} stroke="rgba(var(--fg-rgb),var(--fg-a05))" strokeWidth="1" /><text x={padLeft - 4} y={y + 4} textAnchor="end" fontSize="8" fill="rgba(var(--fg-rgb),var(--fg-a3))">{val}</text></g>;
           })}
           {sorted.map((ev, i) => {
             const x = padLeft + i * (barW + 3) + 2;
@@ -693,15 +693,15 @@ const HistoricalCorrelationChart: React.FC<HistoricalChartProps> = ({ events, dr
                 <rect x={x} y={barY} width={barW} height={Math.max(2, barH)} fill={barColor} rx="2" opacity={0.85}>
                   <title>{ev.year}: {ev.phase}, ISMR={ev.ismrPctLPA}% LPA, Peak={ev.peakIndex >= 0 ? '+' : ''}{ev.peakIndex.toFixed(1)}</title>
                 </rect>
-                <text x={x + barW / 2} y={chartH - padBottom + 13} textAnchor="middle" fontSize="8" fill="rgba(255,255,255,0.4)">{ev.year}</text>
+                <text x={x + barW / 2} y={chartH - padBottom + 13} textAnchor="middle" fontSize="8" fill="rgba(var(--fg-rgb),var(--fg-a4))">{ev.year}</text>
               </g>
             );
           })}
-          <line x1={padLeft} y1={8} x2={padLeft} y2={chartH - padBottom} stroke="rgba(255,255,255,0.15)" strokeWidth="1" />
-          <line x1={padLeft} y1={chartH - padBottom} x2={totalWidth - 4} y2={chartH - padBottom} stroke="rgba(255,255,255,0.15)" strokeWidth="1" />
+          <line x1={padLeft} y1={8} x2={padLeft} y2={chartH - padBottom} stroke="rgba(var(--fg-rgb),var(--fg-a15))" strokeWidth="1" />
+          <line x1={padLeft} y1={chartH - padBottom} x2={totalWidth - 4} y2={chartH - padBottom} stroke="rgba(var(--fg-rgb),var(--fg-a15))" strokeWidth="1" />
         </svg>
       </div>
-      <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', fontSize: '9px', color: 'rgba(255,255,255,0.4)', marginTop: '4px' }}>
+      <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', fontSize: '9px', color: 'rgba(var(--fg-rgb),var(--fg-a4))', marginTop: '4px' }}>
         <span style={{ display: 'flex', alignItems: 'center', gap: '3px' }}><span style={{ width: '8px', height: '8px', background: '#f87171', borderRadius: '2px', display: 'inline-block' }} /> Drought (&lt;90% LPA)</span>
         <span style={{ display: 'flex', alignItems: 'center', gap: '3px' }}><span style={{ width: '8px', height: '8px', background: '#60a5fa', borderRadius: '2px', display: 'inline-block' }} /> Excess (&gt;110% LPA)</span>
         <span style={{ display: 'flex', alignItems: 'center', gap: '3px' }}><span style={{ width: '8px', height: '8px', background: '#94a3b8', borderRadius: '2px', display: 'inline-block' }} /> Normal</span>
@@ -718,10 +718,10 @@ const MJOWheel: React.FC<{ phase: MJOPhase; amplitude: number }> = ({ phase, amp
   const phaseColors: Record<MJOPhase, string> = { 1: '#94a3b8', 2: '#60a5fa', 3: '#34d399', 4: '#a78bfa', 5: '#f59e0b', 6: '#f97316', 7: '#ef4444', 8: '#fb923c' };
   return (
     <div style={{ textAlign: 'center' }}>
-      <div style={{ fontSize: '10px', color: 'rgba(255,255,255,0.45)', marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '0.06em' }}>MJO Wheel — RMM Amplitude: {amplitude.toFixed(1)}</div>
+      <div style={{ fontSize: '10px', color: 'rgba(var(--fg-rgb),var(--fg-a4))', marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '0.06em' }}>MJO Wheel — RMM Amplitude: {amplitude.toFixed(1)}</div>
       <svg width={size} height={size} role="img" aria-label={`MJO phase wheel, current phase ${phase}, amplitude ${amplitude.toFixed(1)}`}>
-        <circle cx={cx} cy={cy} r={R} fill="rgba(255,255,255,0.03)" stroke="rgba(255,255,255,0.08)" strokeWidth="1" />
-        <circle cx={cx} cy={cy} r={R * 0.65} fill="none" stroke="rgba(255,255,255,0.12)" strokeWidth="1" strokeDasharray="3 3" />
+        <circle cx={cx} cy={cy} r={R} fill="rgba(var(--fg-rgb),var(--fg-a05))" stroke="rgba(var(--fg-rgb),var(--fg-a08))" strokeWidth="1" />
+        <circle cx={cx} cy={cy} r={R * 0.65} fill="none" stroke="rgba(var(--fg-rgb),var(--fg-a12))" strokeWidth="1" strokeDasharray="3 3" />
         {([1,2,3,4,5,6,7,8] as MJOPhase[]).map((p) => {
           const startAngle = ((p - 1) * 45 - 90) * (Math.PI / 180);
           const endAngle   = (p * 45 - 90) * (Math.PI / 180);
@@ -733,8 +733,8 @@ const MJOWheel: React.FC<{ phase: MJOPhase; amplitude: number }> = ({ phase, amp
           const tx = cx + (R + 10) * Math.cos(midAngle); const ty = cy + (R + 10) * Math.sin(midAngle);
           return (
             <g key={p}>
-              <path d={`M${cx},${cy} L${x1},${y1} A${R},${R} 0 0,1 ${x2},${y2} Z`} fill={isActive_p ? `${color}55` : `${color}12`} stroke={isActive_p ? color : 'rgba(255,255,255,0.08)'} strokeWidth={isActive_p ? 1.5 : 0.5} />
-              <text x={tx} y={ty} textAnchor="middle" dominantBaseline="middle" fontSize="7" fontWeight={isActive_p ? '700' : '400'} fill={isActive_p ? color : 'rgba(255,255,255,0.3)'}>{phaseLabels[p]}</text>
+              <path d={`M${cx},${cy} L${x1},${y1} A${R},${R} 0 0,1 ${x2},${y2} Z`} fill={isActive_p ? `${color}55` : `${color}12`} stroke={isActive_p ? color : 'rgba(var(--fg-rgb),var(--fg-a08))'} strokeWidth={isActive_p ? 1.5 : 0.5} />
+              <text x={tx} y={ty} textAnchor="middle" dominantBaseline="middle" fontSize="7" fontWeight={isActive_p ? '700' : '400'} fill={isActive_p ? color : 'rgba(var(--fg-rgb),var(--fg-a3))'}>{phaseLabels[p]}</text>
             </g>
           );
         })}
@@ -743,7 +743,7 @@ const MJOWheel: React.FC<{ phase: MJOPhase; amplitude: number }> = ({ phase, amp
           const len = Math.min(R - 4, amplitude * (R * 0.65) * 0.6);
           return <line x1={cx} y1={cy} x2={cx + len * Math.cos(angle)} y2={cy + len * Math.sin(angle)} stroke={phaseColors[phase]} strokeWidth="2" strokeLinecap="round" />;
         })()}
-        <text x={cx} y={cy} textAnchor="middle" dominantBaseline="middle" fontSize="9" fill="rgba(255,255,255,0.4)" fontWeight="600">{isActive ? `P${phase}` : 'Weak'}</text>
+        <text x={cx} y={cy} textAnchor="middle" dominantBaseline="middle" fontSize="9" fill="rgba(var(--fg-rgb),var(--fg-a4))" fontWeight="600">{isActive ? `P${phase}` : 'Weak'}</text>
       </svg>
     </div>
   );
@@ -808,9 +808,9 @@ export const TeleconnectionPanel: React.FC<TeleconnectionPanelProps> = ({
     <div className="teleconnection-panel" data-testid="teleconnection-panel" role="region" aria-label="Climate Teleconnection Visualization">
       <GlassPanel padding="md">
         {/* Header */}
-        <h3 style={{ fontSize: '16px', fontWeight: 700, color: 'rgba(255,255,255,0.95)', margin: '0 0 12px 0', display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <h3 style={{ fontSize: '16px', fontWeight: 700, color: 'rgba(var(--fg-rgb),var(--fg-a75))', margin: '0 0 12px 0', display: 'flex', alignItems: 'center', gap: '8px' }}>
           🌊 Climate Teleconnections
-          <span style={{ marginLeft: 'auto', fontSize: '10px', fontWeight: 400, color: 'rgba(255,255,255,0.35)' }}>ENSO · IOD · MJO</span>
+          <span style={{ marginLeft: 'auto', fontSize: '10px', fontWeight: 400, color: 'rgba(var(--fg-rgb),var(--fg-a3))' }}>ENSO · IOD · MJO</span>
         </h3>
 
         {/* Index Badges — Req 35.1 */}
@@ -829,7 +829,7 @@ export const TeleconnectionPanel: React.FC<TeleconnectionPanelProps> = ({
         <div role="tablist" aria-label="Select teleconnection driver" style={{ display: 'flex', gap: '4px', marginBottom: '12px' }}>
           {(['ENSO', 'IOD', 'MJO'] as TeleconnectionDriver[]).map((d) => (
             <button key={d} role="tab" aria-selected={selectedDriver === d} onClick={() => handleDriverSelect(d)}
-              style={{ flex: 1, padding: '5px 0', background: selectedDriver === d ? 'rgba(255,255,255,0.12)' : 'rgba(255,255,255,0.03)', border: selectedDriver === d ? '1px solid rgba(255,255,255,0.35)' : '1px solid rgba(255,255,255,0.08)', borderRadius: '6px', color: selectedDriver === d ? 'rgba(255,255,255,0.95)' : 'rgba(255,255,255,0.45)', fontSize: '12px', fontWeight: selectedDriver === d ? 700 : 400, cursor: 'pointer', transition: 'all 180ms ease' }}>
+              style={{ flex: 1, padding: '5px 0', background: selectedDriver === d ? 'rgba(var(--fg-rgb),var(--fg-a12))' : 'rgba(var(--fg-rgb),var(--fg-a05))', border: selectedDriver === d ? '1px solid rgba(var(--fg-rgb),var(--fg-a3))' : '1px solid rgba(var(--fg-rgb),var(--fg-a08))', borderRadius: '6px', color: selectedDriver === d ? 'rgba(var(--fg-rgb),var(--fg-a75))' : 'rgba(var(--fg-rgb),var(--fg-a4))', fontSize: '12px', fontWeight: selectedDriver === d ? 700 : 400, cursor: 'pointer', transition: 'all 180ms ease' }}>
               {d}
             </button>
           ))}
@@ -849,12 +849,12 @@ export const TeleconnectionPanel: React.FC<TeleconnectionPanelProps> = ({
 
         {/* Historical Chart — Req 35.4 */}
         {historicalEvents.length > 0 && (
-          <div style={{ borderTop: '1px solid rgba(255,255,255,0.07)', paddingTop: '10px', marginTop: '6px' }}>
+          <div style={{ borderTop: '1px solid rgba(var(--fg-rgb),var(--fg-a08))', paddingTop: '10px', marginTop: '6px' }}>
             <HistoricalCorrelationChart events={historicalEvents} driver={selectedDriver} />
           </div>
         )}
         {selectedDriver === 'MJO' && (
-          <div style={{ fontSize: '10px', color: 'rgba(255,255,255,0.3)', textAlign: 'center', marginTop: '6px' }}>
+          <div style={{ fontSize: '10px', color: 'rgba(var(--fg-rgb),var(--fg-a3))', textAlign: 'center', marginTop: '6px' }}>
             MJO operates on 30–90 day timescales — historical per-event analysis not shown.
           </div>
         )}
@@ -926,7 +926,7 @@ export const ClimateProjections: React.FC<ClimateProjectionsProps> = ({
           { id: 'teleconnection' as ClimateProjectionsMode, label: '🌊 Teleconnections', desc: 'ENSO, IOD, MJO analysis' },
         ]).map(({ id, label, desc }) => (
           <button key={id} role="tab" aria-selected={mode === id} aria-label={desc} onClick={() => setMode(id)}
-            style={{ flex: 1, padding: '6px 0', background: mode === id ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.03)', border: mode === id ? '1px solid rgba(255,255,255,0.3)' : '1px solid rgba(255,255,255,0.08)', borderRadius: '6px', color: mode === id ? 'rgba(255,255,255,0.95)' : 'rgba(255,255,255,0.45)', fontSize: '12px', fontWeight: mode === id ? 700 : 400, cursor: 'pointer', transition: 'all 200ms cubic-bezier(0.4,0,0.2,1)' }}>
+            style={{ flex: 1, padding: '6px 0', background: mode === id ? 'rgba(var(--fg-rgb),var(--fg-a1))' : 'rgba(var(--fg-rgb),var(--fg-a05))', border: mode === id ? '1px solid rgba(var(--fg-rgb),var(--fg-a3))' : '1px solid rgba(var(--fg-rgb),var(--fg-a08))', borderRadius: '6px', color: mode === id ? 'rgba(var(--fg-rgb),var(--fg-a75))' : 'rgba(var(--fg-rgb),var(--fg-a4))', fontSize: '12px', fontWeight: mode === id ? 700 : 400, cursor: 'pointer', transition: 'all 200ms cubic-bezier(0.4,0,0.2,1)' }}>
             {label}
           </button>
         ))}
@@ -946,14 +946,14 @@ export const ClimateProjections: React.FC<ClimateProjectionsProps> = ({
             <span style={{ fontSize: '15px', fontWeight: 600, color: '#fca5a5' }}>
               {highRiskCount} district{highRiskCount > 1 ? 's' : ''} at Extreme Risk (score &gt; 75)
             </span>
-            <span style={{ marginLeft: 'auto', fontSize: '11px', color: 'rgba(255,255,255,0.4)' }}>Flagged on globe ⚠</span>
+            <span style={{ marginLeft: 'auto', fontSize: '11px', color: 'rgba(var(--fg-rgb),var(--fg-a4))' }}>Flagged on globe ⚠</span>
           </div>
         )}
 
         <GlassPanel padding="md" className="climate-risk-panel">
-          <h3 style={{ fontSize: '18px', fontWeight: 600, color: 'rgba(255,255,255,0.95)', margin: '0 0 12px 0', display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <h3 style={{ fontSize: '18px', fontWeight: 600, color: 'rgba(var(--fg-rgb),var(--fg-a75))', margin: '0 0 12px 0', display: 'flex', alignItems: 'center', gap: '8px' }}>
             🌡️ Climate Risk Score Dashboard
-            <span style={{ marginLeft: 'auto', fontSize: '12px', fontWeight: 400, color: 'rgba(255,255,255,0.4)' }}>{rawScores.length} districts</span>
+            <span style={{ marginLeft: 'auto', fontSize: '12px', fontWeight: 400, color: 'rgba(var(--fg-rgb),var(--fg-a4))' }}>{rawScores.length} districts</span>
           </h3>
 
           <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '12px' }}>

@@ -18,7 +18,7 @@ export default function ForecastDaySelector({
 }: ForecastDaySelectorProps) {
   return (
     <div className={`panel-tight px-1 py-1 flex items-center gap-0.5 ${className}`}>
-      <span className="text-[10px] text-white/40 px-1.5 whitespace-nowrap">
+      <span className="text-[10px] text-foreground/40 px-1.5 whitespace-nowrap">
         Forecast day
       </span>
       {DAYS.map((d) => (
@@ -27,8 +27,8 @@ export default function ForecastDaySelector({
           onClick={() => onChange(d)}
           className={`w-7 h-7 rounded-md text-xs font-mono transition-colors ${
             selected === d
-              ? 'bg-vayu-blue text-white font-bold'
-              : 'text-white/50 hover:bg-white/10 hover:text-white/80'
+              ? 'bg-vayu-blue text-foreground font-bold'
+              : 'text-foreground/50 hover:bg-foreground/10 hover:text-foreground/80'
           }`}
           title={`T+${d} day forecast`}
         >

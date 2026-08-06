@@ -82,7 +82,7 @@ export default function MonsoonTracker({ selectedDate, meanRainfall }: MonsoonTr
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-1.5">
           <CloudRain size={13} className="text-blue-400" />
-          <span className="text-xs font-semibold text-white/80">Monsoon Tracker</span>
+          <span className="text-xs font-semibold text-foreground/80">Monsoon Tracker</span>
         </div>
         <div
           className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-mono"
@@ -98,11 +98,11 @@ export default function MonsoonTracker({ selectedDate, meanRainfall }: MonsoonTr
 
       {/* Advance progress bar */}
       <div className="flex flex-col gap-1">
-        <div className="flex justify-between text-[9px] text-white/30 font-mono">
+        <div className="flex justify-between text-[9px] text-foreground/30 font-mono">
           <span>Kerala</span>
           <span>Punjab</span>
         </div>
-        <div className="relative h-3 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.06)' }}>
+        <div className="relative h-3 rounded-full overflow-hidden" style={{ background: 'rgba(var(--fg-rgb),var(--fg-a05))' }}>
           <div
             className="absolute inset-y-0 left-0 rounded-full transition-all duration-700"
             style={{
@@ -117,13 +117,13 @@ export default function MonsoonTracker({ selectedDate, meanRainfall }: MonsoonTr
               className="absolute top-0 bottom-0 w-2 rounded-full"
               style={{
                 left: `calc(${progressPct}% - 4px)`,
-                background: 'rgba(255,255,255,0.8)',
+                background: 'rgba(var(--fg-rgb),var(--fg-a75))',
                 boxShadow: '0 0 6px #fff',
               }}
             />
           )}
         </div>
-        <div className="flex justify-between text-[8px] text-white/20 font-mono">
+        <div className="flex justify-between text-[8px] text-foreground/20 font-mono">
           <span>Jun 1</span>
           <span>Jun 15</span>
           <span>Jul 1</span>
@@ -137,10 +137,10 @@ export default function MonsoonTracker({ selectedDate, meanRainfall }: MonsoonTr
         <div className="flex items-center gap-1.5">
           <ArrowUp size={11} className="text-blue-400" />
           <div>
-            <div className="text-[10px] text-white/60 font-medium">
+            <div className="text-[10px] text-foreground/60 font-medium">
               {ONSET_STAGES[activeStage]?.region ?? 'Southern India'}
             </div>
-            <div className="text-[9px] text-white/30">
+            <div className="text-[9px] text-foreground/30">
               Normal: {ONSET_STAGES[activeStage]?.normalDate ?? 'June 1'}
             </div>
           </div>
@@ -148,7 +148,7 @@ export default function MonsoonTracker({ selectedDate, meanRainfall }: MonsoonTr
         <div className="text-right">
           <div className="text-xs font-bold font-mono text-blue-300">
             {meanRainfall.toFixed(1)}
-            <span className="text-[9px] text-white/30 font-normal ml-0.5">mm/d</span>
+            <span className="text-[9px] text-foreground/30 font-normal ml-0.5">mm/d</span>
           </div>
           <div
             className="text-[9px] font-mono"
@@ -167,14 +167,14 @@ export default function MonsoonTracker({ selectedDate, meanRainfall }: MonsoonTr
             <div key={i} className="flex items-center gap-2">
               <div
                 className="w-1.5 h-1.5 rounded-full shrink-0"
-                style={{ background: reached ? '#3b82f6' : 'rgba(255,255,255,0.12)' }}
+                style={{ background: reached ? '#3b82f6' : 'rgba(var(--fg-rgb),var(--fg-a12))' }}
               />
-              <div className="flex-1 text-[9px]" style={{ color: reached ? 'rgba(255,255,255,0.5)' : 'rgba(255,255,255,0.2)' }}>
+              <div className="flex-1 text-[9px]" style={{ color: reached ? 'rgba(var(--fg-rgb),var(--fg-a4))' : 'rgba(var(--fg-rgb),var(--fg-a2))' }}>
                 {stage.region}
               </div>
               <div
                 className="flex items-center gap-0.5 text-[9px] font-mono"
-                style={{ color: reached ? 'rgba(255,255,255,0.35)' : 'rgba(255,255,255,0.15)' }}
+                style={{ color: reached ? 'rgba(var(--fg-rgb),var(--fg-a3))' : 'rgba(var(--fg-rgb),var(--fg-a15))' }}
               >
                 <Calendar size={8} />
                 {stage.normalDate}

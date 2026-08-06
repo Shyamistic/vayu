@@ -417,8 +417,8 @@ const ParsedResultCard: React.FC<{
 }> = ({ result, onApply }) => (
   <div
     style={{
-      background: 'rgba(255,255,255,0.04)',
-      border: '1px solid rgba(255,255,255,0.10)',
+      background: 'rgba(var(--fg-rgb),var(--fg-a05))',
+      border: '1px solid rgba(var(--fg-rgb),var(--fg-a1))',
       borderRadius: '8px',
       padding: '10px 12px',
       display: 'flex',
@@ -428,7 +428,7 @@ const ParsedResultCard: React.FC<{
   >
     <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
       <IntentBadge intent={result.intent} />
-      <span style={{ fontSize: '13px', color: 'rgba(255,255,255,0.85)', flex: 1 }}>
+      <span style={{ fontSize: '13px', color: 'rgba(var(--fg-rgb),var(--fg-a75))', flex: 1 }}>
         {result.description}
       </span>
     </div>
@@ -495,7 +495,7 @@ const Chip: React.FC<{ label: string; value: string; color: string }> = ({
       padding: '1px 6px',
     }}
   >
-    <span style={{ color: 'rgba(255,255,255,0.35)', marginRight: '3px' }}>{label}:</span>
+    <span style={{ color: 'rgba(var(--fg-rgb),var(--fg-a3))', marginRight: '3px' }}>{label}:</span>
     {value}
   </span>
 );
@@ -509,7 +509,7 @@ const SuggestionsPanel: React.FC<{
     <p
       style={{
         fontSize: '11px',
-        color: 'rgba(255,255,255,0.4)',
+        color: 'rgba(var(--fg-rgb),var(--fg-a4))',
         margin: '0 0 6px 0',
         fontWeight: 500,
       }}
@@ -524,10 +524,10 @@ const SuggestionsPanel: React.FC<{
           aria-label={`Use suggestion: ${s.text}`}
           title={s.description}
           style={{
-            background: 'rgba(255,255,255,0.03)',
-            border: '1px solid rgba(255,255,255,0.08)',
+            background: 'rgba(var(--fg-rgb),var(--fg-a05))',
+            border: '1px solid rgba(var(--fg-rgb),var(--fg-a08))',
             borderRadius: '6px',
-            color: 'rgba(255,255,255,0.65)',
+            color: 'rgba(var(--fg-rgb),var(--fg-a7))',
             cursor: 'pointer',
             fontSize: '12px',
             padding: '6px 10px',
@@ -536,15 +536,15 @@ const SuggestionsPanel: React.FC<{
           }}
           onMouseEnter={(e) => {
             (e.currentTarget as HTMLButtonElement).style.background =
-              'rgba(255,255,255,0.07)';
+              'rgba(var(--fg-rgb),var(--fg-a08))';
             (e.currentTarget as HTMLButtonElement).style.color =
-              'rgba(255,255,255,0.9)';
+              'rgba(var(--fg-rgb),var(--fg-a75))';
           }}
           onMouseLeave={(e) => {
             (e.currentTarget as HTMLButtonElement).style.background =
-              'rgba(255,255,255,0.03)';
+              'rgba(var(--fg-rgb),var(--fg-a05))';
             (e.currentTarget as HTMLButtonElement).style.color =
-              'rgba(255,255,255,0.65)';
+              'rgba(var(--fg-rgb),var(--fg-a7))';
           }}
         >
           <span style={{ marginRight: '6px', opacity: 0.45 }}>↗</span>
@@ -679,7 +679,7 @@ export const NLQueryInterface: React.FC<NLQueryInterfaceProps> = ({
               flex: 1,
               fontSize: 'var(--font-heading-sm, 15px)',
               fontWeight: 600,
-              color: 'rgba(255,255,255,0.9)',
+              color: 'rgba(var(--fg-rgb),var(--fg-a75))',
               margin: 0,
             }}
           >
@@ -692,7 +692,7 @@ export const NLQueryInterface: React.FC<NLQueryInterfaceProps> = ({
             style={{
               background: 'none',
               border: 'none',
-              color: 'rgba(255,255,255,0.4)',
+              color: 'rgba(var(--fg-rgb),var(--fg-a4))',
               cursor: 'pointer',
               fontSize: '12px',
               padding: '2px 6px',
@@ -700,11 +700,11 @@ export const NLQueryInterface: React.FC<NLQueryInterfaceProps> = ({
             }}
             onMouseEnter={(e) =>
               ((e.currentTarget as HTMLButtonElement).style.color =
-                'rgba(255,255,255,0.8)')
+                'rgba(var(--fg-rgb),var(--fg-a75))')
             }
             onMouseLeave={(e) =>
               ((e.currentTarget as HTMLButtonElement).style.color =
-                'rgba(255,255,255,0.4)')
+                'rgba(var(--fg-rgb),var(--fg-a4))')
             }
           >
             {isExpanded ? '▲' : '▼'}
@@ -737,10 +737,10 @@ export const NLQueryInterface: React.FC<NLQueryInterfaceProps> = ({
               onKeyDown={handleKeyDown}
               style={{
                 flex: 1,
-                background: 'rgba(255,255,255,0.06)',
-                border: `1px solid ${showParseFailure ? 'rgba(239,68,68,0.5)' : 'rgba(255,255,255,0.14)'}`,
+                background: 'rgba(var(--fg-rgb),var(--fg-a05))',
+                border: `1px solid ${showParseFailure ? 'rgba(239,68,68,0.5)' : 'rgba(var(--fg-rgb),var(--fg-a15))'}`,
                 borderRadius: '8px',
-                color: 'rgba(255,255,255,0.9)',
+                color: 'rgba(var(--fg-rgb),var(--fg-a75))',
                 fontSize: '13px',
                 outline: 'none',
                 padding: '8px 12px',
@@ -754,7 +754,7 @@ export const NLQueryInterface: React.FC<NLQueryInterfaceProps> = ({
                 ((e.currentTarget as HTMLInputElement).style.borderColor =
                   showParseFailure
                     ? 'rgba(239,68,68,0.5)'
-                    : 'rgba(255,255,255,0.14)')
+                    : 'rgba(var(--fg-rgb),var(--fg-a15))')
               }
             />
             {query && (
@@ -762,10 +762,10 @@ export const NLQueryInterface: React.FC<NLQueryInterfaceProps> = ({
                 aria-label="Clear query"
                 onClick={handleClear}
                 style={{
-                  background: 'rgba(255,255,255,0.08)',
-                  border: '1px solid rgba(255,255,255,0.12)',
+                  background: 'rgba(var(--fg-rgb),var(--fg-a08))',
+                  border: '1px solid rgba(var(--fg-rgb),var(--fg-a12))',
                   borderRadius: '6px',
-                  color: 'rgba(255,255,255,0.5)',
+                  color: 'rgba(var(--fg-rgb),var(--fg-a4))',
                   cursor: 'pointer',
                   fontSize: '12px',
                   padding: '0 10px',
@@ -839,7 +839,7 @@ export const NLQueryInterface: React.FC<NLQueryInterfaceProps> = ({
             <p
               style={{
                 fontSize: '11px',
-                color: 'rgba(255,255,255,0.28)',
+                color: 'rgba(var(--fg-rgb),var(--fg-a3))',
                 margin: '6px 0 0 0',
               }}
             >
@@ -852,7 +852,7 @@ export const NLQueryInterface: React.FC<NLQueryInterfaceProps> = ({
       {/* Animations */}
       <style>{`
         .nl-query-interface input::placeholder {
-          color: rgba(255, 255, 255, 0.3);
+          color: rgba(var(--fg-rgb),var(--fg-a3));
         }
       `}</style>
     </div>

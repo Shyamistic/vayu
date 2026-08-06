@@ -127,21 +127,21 @@ function RainfallOverlay() {
     <section aria-labelledby="rainfall-overlay-heading" className="rounded-lg border border-sky-400/20 bg-sky-400/5 p-3">
       <div className="mb-2 flex items-start justify-between gap-2">
         <div>
-          <h3 id="rainfall-overlay-heading" className="text-xs font-semibold text-white/90">Observed rainfall vs VAYU prediction</h3>
-          <p className="text-[10px] text-white/45">Daily rainfall (mm) — shared time axis, Sivasagar flood sequence</p>
+          <h3 id="rainfall-overlay-heading" className="text-xs font-semibold text-foreground/90">Observed rainfall vs VAYU prediction</h3>
+          <p className="text-[10px] text-foreground/45">Daily rainfall (mm) — shared time axis, Sivasagar flood sequence</p>
         </div>
         <span className="shrink-0 text-[10px] text-sky-200">7-day antecedent → peak</span>
       </div>
       <svg data-testid="rainfall-comparison" viewBox="0 0 105 72" role="img" aria-label="Rainfall overlay showing actual observations and VAYU predictions" className="h-28 w-full overflow-visible">
-        {[20, 40, 60].map((value) => <line key={value} x1="5" x2="100" y1={58 - value / maximum * 46} y2={58 - value / maximum * 46} stroke="rgba(255,255,255,0.12)" strokeWidth="0.5" />)}
+        {[20, 40, 60].map((value) => <line key={value} x1="5" x2="100" y1={58 - value / maximum * 46} y2={58 - value / maximum * 46} stroke="rgba(var(--fg-rgb),var(--fg-a12))" strokeWidth="0.5" />)}
         <polyline points={points('actual')} fill="none" stroke="#38bdf8" strokeWidth="2" />
         <polyline points={points('predicted')} fill="none" stroke="#c084fc" strokeWidth="2" strokeDasharray="3 2" />
-        {SIVASAGAR_RAINFALL.map((point, index) => <text key={point.label} x={8 + index * 15} y="68" textAnchor="middle" fill="rgba(255,255,255,0.48)" fontSize="5">{point.label}</text>)}
+        {SIVASAGAR_RAINFALL.map((point, index) => <text key={point.label} x={8 + index * 15} y="68" textAnchor="middle" fill="rgba(var(--fg-rgb),var(--fg-a4))" fontSize="5">{point.label}</text>)}
       </svg>
       <div className="flex gap-3 text-[10px]">
         <span className="text-sky-300">● Actual IMD observations</span>
         <span className="text-purple-300">┄ VAYU prediction</span>
-        <span className="ml-auto text-white/55">Peak: 168 actual / 154 predicted</span>
+        <span className="ml-auto text-foreground/55">Peak: 168 actual / 154 predicted</span>
       </div>
     </section>
   );
@@ -174,15 +174,15 @@ function LiveWaterLevel() {
   return (
     <section aria-labelledby="water-level-heading" className="rounded-lg border border-cyan-400/20 bg-cyan-400/5 p-3">
       <div className="flex items-center justify-between gap-2">
-        <div className="flex items-center gap-2"><Radio size={14} className="text-cyan-300" /><h3 id="water-level-heading" className="text-xs font-semibold text-white/90">Live ESP32 water-level correlation</h3></div>
+        <div className="flex items-center gap-2"><Radio size={14} className="text-cyan-300" /><h3 id="water-level-heading" className="text-xs font-semibold text-foreground/90">Live ESP32 water-level correlation</h3></div>
         <span className="rounded border border-cyan-300/30 bg-cyan-300/10 px-1.5 py-0.5 text-[9px] text-cyan-100">60s refresh</span>
       </div>
-      {loadState === 'loading' && <p className="mt-2 text-[11px] text-white/45">Checking deployed Sivasagar station…</p>}
+      {loadState === 'loading' && <p className="mt-2 text-[11px] text-foreground/45">Checking deployed Sivasagar station…</p>}
       {loadState === 'unavailable' && <p role="status" className="mt-2 text-[11px] text-slate-300">No deployed Sivasagar water-level reading is currently available. VAYU river-response forecast remains visible.</p>}
       {loadState === 'ready' && station && (
         <div className="mt-2 grid grid-cols-2 gap-2">
-          <div><div className="text-[10px] text-white/45">{station.name} · {station.status}</div><div className="text-xl font-bold tabular-nums" style={{ color }}>{level?.toFixed(1) ?? '—'} <span className="text-xs font-medium">cm live</span></div></div>
-          <div className="border-l border-white/10 pl-2"><div className="text-[10px] text-white/45">VAYU-correlated peak</div><div className="text-xl font-bold text-purple-200 tabular-nums">{SIVASAGAR_SCENARIO.predictedPeakWaterLevelCm} <span className="text-xs font-medium">cm</span></div><div className="text-[9px] text-white/40">Station signal validates rising river response</div></div>
+          <div><div className="text-[10px] text-foreground/45">{station.name} · {station.status}</div><div className="text-xl font-bold tabular-nums" style={{ color }}>{level?.toFixed(1) ?? '—'} <span className="text-xs font-medium">cm live</span></div></div>
+          <div className="border-l border-foreground/10 pl-2"><div className="text-[10px] text-foreground/45">VAYU-correlated peak</div><div className="text-xl font-bold text-purple-200 tabular-nums">{SIVASAGAR_SCENARIO.predictedPeakWaterLevelCm} <span className="text-xs font-medium">cm</span></div><div className="text-[9px] text-foreground/40">Station signal validates rising river response</div></div>
         </div>
       )}
     </section>
@@ -196,28 +196,28 @@ export function SivasagarFloodCaseStudy() {
   return (
     <section data-testid="sivasagar-case-study" role="region" aria-labelledby="case-studies-heading" className="panel p-4 flex flex-col gap-3">
       <div className="flex items-start justify-between gap-3">
-        <div><div className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-sky-300"><ShieldAlert size={12} /> Case Studies</div><h2 id="case-studies-heading" className="mt-1 text-sm font-semibold text-white">{SIVASAGAR_SCENARIO.name}</h2><p className="text-[11px] text-white/45">{SIVASAGAR_SCENARIO.location} · pre-loaded operational replay</p></div>
+        <div><div className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-sky-300"><ShieldAlert size={12} /> Case Studies</div><h2 id="case-studies-heading" className="mt-1 text-sm font-semibold text-foreground">{SIVASAGAR_SCENARIO.name}</h2><p className="text-[11px] text-foreground/45">{SIVASAGAR_SCENARIO.location} · pre-loaded operational replay</p></div>
         <span className="rounded border border-red-400/30 bg-red-400/10 px-2 py-1 text-[10px] font-semibold text-red-200">EXTREME FLOOD</span>
       </div>
 
       <div className="grid grid-cols-2 gap-2 text-[10px]">
-        <div className="rounded bg-white/[0.035] p-2"><span className="text-white/40">Antecedent rainfall</span><strong className="mt-0.5 block text-sky-200">{SIVASAGAR_SCENARIO.antecedentRainfallMm} mm / 7 days</strong></div>
-        <div className="rounded bg-white/[0.035] p-2"><span className="text-white/40">Peak event</span><strong className="mt-0.5 block text-sky-200">{SIVASAGAR_SCENARIO.peakRainfallMm} mm / day</strong></div>
-        <div className="rounded bg-white/[0.035] p-2"><span className="text-white/40">Flood extent</span><strong className="mt-0.5 block text-sky-200">{SIVASAGAR_SCENARIO.floodExtentKm2} km² · {SIVASAGAR_SCENARIO.affectedVillages} villages</strong></div>
-        <div className="rounded bg-white/[0.035] p-2"><span className="text-white/40">Aftermath</span><strong className="mt-0.5 block text-white/75">Assessment & recovery</strong></div>
+        <div className="rounded bg-white/[0.035] p-2"><span className="text-foreground/40">Antecedent rainfall</span><strong className="mt-0.5 block text-sky-200">{SIVASAGAR_SCENARIO.antecedentRainfallMm} mm / 7 days</strong></div>
+        <div className="rounded bg-white/[0.035] p-2"><span className="text-foreground/40">Peak event</span><strong className="mt-0.5 block text-sky-200">{SIVASAGAR_SCENARIO.peakRainfallMm} mm / day</strong></div>
+        <div className="rounded bg-white/[0.035] p-2"><span className="text-foreground/40">Flood extent</span><strong className="mt-0.5 block text-sky-200">{SIVASAGAR_SCENARIO.floodExtentKm2} km² · {SIVASAGAR_SCENARIO.affectedVillages} villages</strong></div>
+        <div className="rounded bg-white/[0.035] p-2"><span className="text-foreground/40">Aftermath</span><strong className="mt-0.5 block text-foreground/75">Assessment & recovery</strong></div>
       </div>
 
       <RainfallOverlay />
 
-      <section aria-labelledby="early-warning-heading"><h3 id="early-warning-heading" className="mb-2 text-xs font-semibold text-white/90">Early-warning timeline</h3><div className="grid grid-cols-4 gap-1">
-        {SIVASAGAR_TIMELINE.map((step) => <button key={step.id} onClick={() => setActiveStep(step.id)} aria-pressed={activeStep === step.id} className="rounded p-1.5 text-left transition-colors" style={{ background: activeStep === step.id ? 'rgba(56,189,248,0.16)' : 'rgba(255,255,255,0.035)', border: activeStep === step.id ? '1px solid rgba(56,189,248,0.6)' : '1px solid rgba(255,255,255,0.08)' }}><span className="block text-[10px] font-semibold text-sky-200">{step.label}</span><span className="mt-0.5 block text-[9px] leading-tight text-white/50">{step.title}</span></button>)}
-      </div><div className="mt-2 rounded border border-sky-400/20 bg-sky-400/[0.06] p-2"><div className="text-[11px] font-semibold text-sky-100">{selectedStep.title}</div><p className="mt-0.5 text-[10px] leading-relaxed text-white/60">{selectedStep.detail}</p><p className="mt-1 text-[10px] text-emerald-200">System action: {selectedStep.action}</p></div></section>
+      <section aria-labelledby="early-warning-heading"><h3 id="early-warning-heading" className="mb-2 text-xs font-semibold text-foreground/90">Early-warning timeline</h3><div className="grid grid-cols-4 gap-1">
+        {SIVASAGAR_TIMELINE.map((step) => <button key={step.id} onClick={() => setActiveStep(step.id)} aria-pressed={activeStep === step.id} className="rounded p-1.5 text-left transition-colors" style={{ background: activeStep === step.id ? 'rgba(56,189,248,0.16)' : 'rgba(var(--fg-rgb),var(--fg-a05))', border: activeStep === step.id ? '1px solid rgba(56,189,248,0.6)' : '1px solid rgba(var(--fg-rgb),var(--fg-a08))' }}><span className="block text-[10px] font-semibold text-sky-200">{step.label}</span><span className="mt-0.5 block text-[9px] leading-tight text-foreground/50">{step.title}</span></button>)}
+      </div><div className="mt-2 rounded border border-sky-400/20 bg-sky-400/[0.06] p-2"><div className="text-[11px] font-semibold text-sky-100">{selectedStep.title}</div><p className="mt-0.5 text-[10px] leading-relaxed text-foreground/60">{selectedStep.detail}</p><p className="mt-1 text-[10px] text-emerald-200">System action: {selectedStep.action}</p></div></section>
 
       <LiveWaterLevel />
 
       <section className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-        <div className="rounded-lg border border-violet-400/20 bg-violet-400/5 p-3"><div className="flex items-center gap-1.5 text-xs font-semibold text-violet-100"><Users size={13} /> Population exposure</div><div className="mt-1 text-xl font-bold text-violet-200">{formatPopulation(SIVASAGAR_SCENARIO.populationExposure)}</div><p className="text-[10px] text-white/45">people estimated in flood-prone zones</p><div className="mt-3 text-xs font-semibold text-white/85">Infrastructure at risk</div><ul className="mt-1 space-y-1 text-[10px] leading-snug text-white/60">{SIVASAGAR_SCENARIO.infrastructureAtRisk.map((item) => <li key={item}>• {item}</li>)}</ul></div>
-        <div className="rounded-lg border border-amber-400/20 bg-amber-400/5 p-3"><div className="flex items-center gap-1.5 text-xs font-semibold text-amber-100"><AlertTriangle size={13} /> Recommended emergency actions</div><ol className="mt-2 space-y-1.5 text-[10px] leading-snug text-white/65">{SIVASAGAR_SCENARIO.emergencyActions.map((action, index) => <li key={action}><span className="mr-1 text-amber-300">{index + 1}.</span>{action}</li>)}</ol><p className="mt-3 border-t border-white/10 pt-2 text-[9px] text-white/35"><Droplets size={10} className="mr-1 inline text-sky-300" /> {SIVASAGAR_SCENARIO.aftermath}</p></div>
+        <div className="rounded-lg border border-violet-400/20 bg-violet-400/5 p-3"><div className="flex items-center gap-1.5 text-xs font-semibold text-violet-100"><Users size={13} /> Population exposure</div><div className="mt-1 text-xl font-bold text-violet-200">{formatPopulation(SIVASAGAR_SCENARIO.populationExposure)}</div><p className="text-[10px] text-foreground/45">people estimated in flood-prone zones</p><div className="mt-3 text-xs font-semibold text-foreground/85">Infrastructure at risk</div><ul className="mt-1 space-y-1 text-[10px] leading-snug text-foreground/60">{SIVASAGAR_SCENARIO.infrastructureAtRisk.map((item) => <li key={item}>• {item}</li>)}</ul></div>
+        <div className="rounded-lg border border-amber-400/20 bg-amber-400/5 p-3"><div className="flex items-center gap-1.5 text-xs font-semibold text-amber-100"><AlertTriangle size={13} /> Recommended emergency actions</div><ol className="mt-2 space-y-1.5 text-[10px] leading-snug text-foreground/65">{SIVASAGAR_SCENARIO.emergencyActions.map((action, index) => <li key={action}><span className="mr-1 text-amber-300">{index + 1}.</span>{action}</li>)}</ol><p className="mt-3 border-t border-foreground/10 pt-2 text-[9px] text-foreground/35"><Droplets size={10} className="mr-1 inline text-sky-300" /> {SIVASAGAR_SCENARIO.aftermath}</p></div>
       </section>
     </section>
   );

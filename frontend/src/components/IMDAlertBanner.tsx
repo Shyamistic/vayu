@@ -109,7 +109,7 @@ export default function IMDAlertBanner({ gridCells }: IMDAlertBannerProps) {
       {/* Header */}
       <div className="flex items-center gap-2 mb-2">
         <Shield size={13} style={{ color: cfg.text }} />
-        <span className="text-[10px] font-semibold uppercase tracking-wider text-white/60">
+        <span className="text-[10px] font-semibold uppercase tracking-wider text-foreground/60">
           IMD Warning Level
         </span>
         <span
@@ -139,7 +139,7 @@ export default function IMDAlertBanner({ gridCells }: IMDAlertBannerProps) {
                 {alert.message}
               </span>
               {alert.cellCount > 0 && (
-                <span className="text-[9px] font-mono text-white/40">
+                <span className="text-[9px] font-mono text-foreground/40">
                   {alert.cellCount} cells
                 </span>
               )}
@@ -150,7 +150,7 @@ export default function IMDAlertBanner({ gridCells }: IMDAlertBannerProps) {
       </div>
 
       {/* Footer */}
-      <p className="text-[8px] text-white/25 mt-2 text-right">
+      <p className="text-[8px] text-foreground/25 mt-2 text-right">
         Thresholds: IMD SOP Revision 2024 • VAYU model prediction
       </p>
     </div>

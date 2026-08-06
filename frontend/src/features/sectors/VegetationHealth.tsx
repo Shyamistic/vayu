@@ -290,7 +290,7 @@ const STRESS_STYLES: Record<StressLevel, { color: string; label: string; bg: str
 
 /** NDVI color scale legend (NASA GIBS palette) */
 const NDVILegend: React.FC = () => (
-  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12, fontSize: 11, color: 'rgba(255,255,255,0.55)' }}>
+  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12, fontSize: 11, color: 'rgba(var(--fg-rgb),var(--fg-a6))' }}>
     <span>−1</span>
     <div
       aria-hidden="true"
@@ -320,7 +320,7 @@ const VSIBar: React.FC<{ vsi: VSIScore }> = ({ vsi }) => {
         style={{
           flex: 1,
           height: 8,
-          background: 'rgba(255,255,255,0.08)',
+          background: 'rgba(var(--fg-rgb),var(--fg-a08))',
           borderRadius: 4,
           overflow: 'hidden',
         }}
@@ -391,13 +391,13 @@ const NDVIProfileChart: React.FC<{ profile: NDVIProfilePoint[] }> = ({ profile }
 
   return (
     <div aria-label="Temporal NDVI profile chart" style={{ marginTop: 8 }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 4, fontSize: 10, color: 'rgba(255,255,255,0.5)' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 4, fontSize: 10, color: 'rgba(var(--fg-rgb),var(--fg-a4))' }}>
         <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
           <span style={{ width: 12, height: 2, background: '#22c55e', display: 'inline-block', borderRadius: 1 }} />
           Current Year
         </span>
         <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-          <span style={{ width: 12, height: 2, background: 'rgba(255,255,255,0.4)', display: 'inline-block', borderRadius: 1, borderTop: '1px dashed rgba(255,255,255,0.4)' }} />
+          <span style={{ width: 12, height: 2, background: 'rgba(var(--fg-rgb),var(--fg-a4))', display: 'inline-block', borderRadius: 1, borderTop: '1px dashed rgba(var(--fg-rgb),var(--fg-a4))' }} />
           Multi-year Avg
         </span>
       </div>
@@ -416,13 +416,13 @@ const NDVIProfileChart: React.FC<{ profile: NDVIProfilePoint[] }> = ({ profile }
         {/* Current-year shaded area */}
         <path d={areaPath} fill="rgba(34,197,94,0.08)" />
         {/* Multi-year average line */}
-        <path d={pathOf(scaledAvg)} fill="none" stroke="rgba(255,255,255,0.35)" strokeWidth={1.5} strokeDasharray="4 3" />
+        <path d={pathOf(scaledAvg)} fill="none" stroke="rgba(var(--fg-rgb),var(--fg-a3))" strokeWidth={1.5} strokeDasharray="4 3" />
         {/* Current-year line */}
         <path d={pathOf(scaledCurrent)} fill="none" stroke="#22c55e" strokeWidth={2} />
         {/* Week labels — show every 4th */}
         {profile.map((p, i) =>
           i % 4 === 0 ? (
-            <text key={p.week} x={toX(i)} y={H - 2} textAnchor="middle" fontSize={8} fill="rgba(255,255,255,0.35)">
+            <text key={p.week} x={toX(i)} y={H - 2} textAnchor="middle" fontSize={8} fill="rgba(var(--fg-rgb),var(--fg-a3))">
               {p.week}
             </text>
           ) : null,
@@ -440,7 +440,7 @@ const AlertRow: React.FC<{ alert: CropStressAlert; index: number }> = ({ alert, 
       style={{
         padding: '6px 8px',
         borderRadius: 6,
-        background: index % 2 === 0 ? 'rgba(255,255,255,0.02)' : 'transparent',
+        background: index % 2 === 0 ? 'rgba(var(--fg-rgb),var(--fg-a05))' : 'transparent',
         borderLeft: `3px solid ${color}`,
         display: 'flex',
         flexDirection: 'column',
@@ -449,14 +449,14 @@ const AlertRow: React.FC<{ alert: CropStressAlert; index: number }> = ({ alert, 
     >
       <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
         <AlertBadge level={alert.stressLevel} />
-        <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)' }}>
+        <span style={{ fontSize: 11, color: 'rgba(var(--fg-rgb),var(--fg-a4))' }}>
           {alert.lat.toFixed(2)}°N, {alert.lon.toFixed(2)}°E
         </span>
         <span style={{ marginLeft: 'auto', fontSize: 12, fontWeight: 700, color }}>
           VSI {alert.vsi}
         </span>
       </div>
-      <p style={{ margin: 0, fontSize: 11, color: 'rgba(255,255,255,0.65)', lineHeight: 1.35 }}>
+      <p style={{ margin: 0, fontSize: 11, color: 'rgba(var(--fg-rgb),var(--fg-a7))', lineHeight: 1.35 }}>
         {alert.message}
       </p>
     </li>
@@ -576,7 +576,7 @@ export const VegetationHealth: React.FC<VegetationHealthProps> = ({
             {alerts.filter((a) => a.stressLevel === 'critical').length} Critical Crop Stress Zone
             {alerts.filter((a) => a.stressLevel === 'critical').length > 1 ? 's' : ''} Detected
           </span>
-          <span style={{ marginLeft: 'auto', fontSize: 11, color: 'rgba(255,255,255,0.4)' }}>
+          <span style={{ marginLeft: 'auto', fontSize: 11, color: 'rgba(var(--fg-rgb),var(--fg-a4))' }}>
             VSI &gt; {CROP_STRESS_ALERT_THRESHOLD}
           </span>
         </div>
@@ -588,7 +588,7 @@ export const VegetationHealth: React.FC<VegetationHealthProps> = ({
           style={{
             fontSize: 18,
             fontWeight: 600,
-            color: 'rgba(255,255,255,0.95)',
+            color: 'rgba(var(--fg-rgb),var(--fg-a75))',
             margin: '0 0 12px 0',
             display: 'flex',
             alignItems: 'center',
@@ -596,7 +596,7 @@ export const VegetationHealth: React.FC<VegetationHealthProps> = ({
           }}
         >
           🌱 Vegetation Health &amp; NDVI
-          <span style={{ marginLeft: 'auto', fontSize: 12, fontWeight: 400, color: 'rgba(255,255,255,0.4)' }}>
+          <span style={{ marginLeft: 'auto', fontSize: 12, fontWeight: 400, color: 'rgba(var(--fg-rgb),var(--fg-a4))' }}>
             {vegCells.length} cells
           </span>
         </h3>
@@ -621,21 +621,21 @@ export const VegetationHealth: React.FC<VegetationHealthProps> = ({
             <div
               key={label}
               style={{
-                background: 'rgba(255,255,255,0.04)',
+                background: 'rgba(var(--fg-rgb),var(--fg-a05))',
                 borderRadius: 6,
                 padding: '8px',
                 textAlign: 'center',
               }}
             >
               <div style={{ fontSize: 18, fontWeight: 700, color }}>{value}</div>
-              <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.45)', marginTop: 2 }}>{label}</div>
+              <div style={{ fontSize: 10, color: 'rgba(var(--fg-rgb),var(--fg-a4))', marginTop: 2 }}>{label}</div>
             </div>
           ))}
         </div>
 
         {/* VSI distribution bar */}
         <div style={{ marginBottom: 12 }}>
-          <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)', marginBottom: 4 }}>
+          <div style={{ fontSize: 11, color: 'rgba(var(--fg-rgb),var(--fg-a4))', marginBottom: 4 }}>
             VSI Distribution
           </div>
           <div style={{ display: 'flex', height: 10, borderRadius: 5, overflow: 'hidden', gap: 1 }}>
@@ -676,7 +676,7 @@ export const VegetationHealth: React.FC<VegetationHealthProps> = ({
               display: 'flex',
               alignItems: 'center',
               gap: 6,
-              color: 'rgba(255,255,255,0.75)',
+              color: 'rgba(var(--fg-rgb),var(--fg-a75))',
               fontSize: 13,
               fontWeight: 600,
               marginBottom: showProfile ? 8 : 0,
@@ -684,7 +684,7 @@ export const VegetationHealth: React.FC<VegetationHealthProps> = ({
           >
             <span aria-hidden="true">{showProfile ? '▾' : '▸'}</span>
             Seasonal NDVI Profile
-            <span style={{ fontSize: 10, fontWeight: 400, color: 'rgba(255,255,255,0.35)', marginLeft: 4 }}>
+            <span style={{ fontSize: 10, fontWeight: 400, color: 'rgba(var(--fg-rgb),var(--fg-a3))', marginLeft: 4 }}>
               current vs multi-year avg
             </span>
           </button>
@@ -705,7 +705,7 @@ export const VegetationHealth: React.FC<VegetationHealthProps> = ({
                 display: 'flex',
                 alignItems: 'center',
                 gap: 6,
-                color: 'rgba(255,255,255,0.75)',
+                color: 'rgba(var(--fg-rgb),var(--fg-a75))',
                 fontSize: 13,
                 fontWeight: 600,
                 marginBottom: showAlerts ? 8 : 0,

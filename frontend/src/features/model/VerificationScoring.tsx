@@ -379,12 +379,12 @@ const MetricCard: React.FC<{
         flex: 1,
       }}
     >
-      <span style={{ fontSize: '10px', fontWeight: 600, color: 'rgba(255,255,255,0.45)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+      <span style={{ fontSize: '10px', fontWeight: 600, color: 'rgba(var(--fg-rgb),var(--fg-a4))', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
         {label}
       </span>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: '3px' }}>
         <span style={{ fontSize: '20px', fontWeight: 700, color }}>{value}</span>
-        {unit && <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.45)' }}>{unit}</span>}
+        {unit && <span style={{ fontSize: '11px', color: 'rgba(var(--fg-rgb),var(--fg-a4))' }}>{unit}</span>}
       </div>
     </div>
   );
@@ -407,7 +407,7 @@ const HealthGauge: React.FC<{ score: number }> = ({ score }) => {
       <div style={{ position: 'relative', width: '110px', height: '110px' }}>
         <svg width="110" height="110" viewBox="0 0 110 110" aria-hidden="true">
           {/* Track */}
-          <circle cx="55" cy="55" r={radius} fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="10" />
+          <circle cx="55" cy="55" r={radius} fill="none" stroke="rgba(var(--fg-rgb),var(--fg-a08))" strokeWidth="10" />
           {/* Progress */}
           <circle
             cx="55" cy="55" r={radius}
@@ -427,12 +427,12 @@ const HealthGauge: React.FC<{ score: number }> = ({ score }) => {
           alignItems: 'center', justifyContent: 'center',
         }}>
           <span style={{ fontSize: '22px', fontWeight: 700, color }}>{Math.round(clamped)}</span>
-          <span style={{ fontSize: '10px', color: 'rgba(255,255,255,0.4)' }}>/ 100</span>
+          <span style={{ fontSize: '10px', color: 'rgba(var(--fg-rgb),var(--fg-a4))' }}>/ 100</span>
         </div>
       </div>
       <div style={{ textAlign: 'center' }}>
         <div style={{ fontSize: '13px', fontWeight: 600, color }}>Model Health</div>
-        <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.45)' }}>{label}</div>
+        <div style={{ fontSize: '11px', color: 'rgba(var(--fg-rgb),var(--fg-a4))' }}>{label}</div>
       </div>
     </div>
   );
@@ -453,19 +453,19 @@ const ReliabilityDiagramChart: React.FC<{ points: ReliabilityPoint[] }> = ({ poi
 
   return (
     <div>
-      <div style={{ fontSize: '12px', fontWeight: 600, color: 'rgba(255,255,255,0.7)', marginBottom: '6px' }}>
+      <div style={{ fontSize: '12px', fontWeight: 600, color: 'rgba(var(--fg-rgb),var(--fg-a7))', marginBottom: '6px' }}>
         Reliability Diagram
       </div>
       <svg width={W} height={H} aria-label="Reliability diagram" role="img">
         {/* Grid */}
         {[0, 0.25, 0.5, 0.75, 1].map((v) => (
           <React.Fragment key={v}>
-            <line x1={PAD} y1={toY(v)} x2={W - PAD} y2={toY(v)} stroke="rgba(255,255,255,0.06)" strokeWidth={1} />
-            <line x1={toX(v)} y1={PAD} x2={toX(v)} y2={H - PAD} stroke="rgba(255,255,255,0.06)" strokeWidth={1} />
+            <line x1={PAD} y1={toY(v)} x2={W - PAD} y2={toY(v)} stroke="rgba(var(--fg-rgb),var(--fg-a05))" strokeWidth={1} />
+            <line x1={toX(v)} y1={PAD} x2={toX(v)} y2={H - PAD} stroke="rgba(var(--fg-rgb),var(--fg-a05))" strokeWidth={1} />
           </React.Fragment>
         ))}
         {/* Perfect reliability diagonal */}
-        <line x1={toX(0)} y1={toY(0)} x2={toX(1)} y2={toY(1)} stroke="rgba(255,255,255,0.3)" strokeWidth={1} strokeDasharray="4 4" />
+        <line x1={toX(0)} y1={toY(0)} x2={toX(1)} y2={toY(1)} stroke="rgba(var(--fg-rgb),var(--fg-a3))" strokeWidth={1} strokeDasharray="4 4" />
         {/* Forecast curve */}
         {pathD && (
           <path d={pathD} fill="none" stroke="#60a5fa" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
@@ -482,8 +482,8 @@ const ReliabilityDiagramChart: React.FC<{ points: ReliabilityPoint[] }> = ({ poi
           />
         ))}
         {/* Axis labels */}
-        <text x={W / 2} y={H - 4} textAnchor="middle" fill="rgba(255,255,255,0.35)" fontSize={9}>Forecast Probability</text>
-        <text x={8} y={H / 2} textAnchor="middle" fill="rgba(255,255,255,0.35)" fontSize={9} transform={`rotate(-90 8 ${H / 2})`}>Observed Freq.</text>
+        <text x={W / 2} y={H - 4} textAnchor="middle" fill="rgba(var(--fg-rgb),var(--fg-a3))" fontSize={9}>Forecast Probability</text>
+        <text x={8} y={H / 2} textAnchor="middle" fill="rgba(var(--fg-rgb),var(--fg-a3))" fontSize={9} transform={`rotate(-90 8 ${H / 2})`}>Observed Freq.</text>
       </svg>
     </div>
   );
@@ -506,7 +506,7 @@ const ROCCurveChart: React.FC<{ points: ROCPoint[]; auc: number }> = ({ points, 
 
   return (
     <div>
-      <div style={{ fontSize: '12px', fontWeight: 600, color: 'rgba(255,255,255,0.7)', marginBottom: '6px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <div style={{ fontSize: '12px', fontWeight: 600, color: 'rgba(var(--fg-rgb),var(--fg-a7))', marginBottom: '6px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <span>ROC Curve</span>
         <span style={{ color: '#a78bfa', fontSize: '11px' }}>AUC = {aucLabel}</span>
       </div>
@@ -514,12 +514,12 @@ const ROCCurveChart: React.FC<{ points: ROCPoint[]; auc: number }> = ({ points, 
         {/* Grid */}
         {[0, 0.25, 0.5, 0.75, 1].map((v) => (
           <React.Fragment key={v}>
-            <line x1={PAD} y1={toY(v)} x2={W - PAD} y2={toY(v)} stroke="rgba(255,255,255,0.06)" strokeWidth={1} />
-            <line x1={toX(v)} y1={PAD} x2={toX(v)} y2={H - PAD} stroke="rgba(255,255,255,0.06)" strokeWidth={1} />
+            <line x1={PAD} y1={toY(v)} x2={W - PAD} y2={toY(v)} stroke="rgba(var(--fg-rgb),var(--fg-a05))" strokeWidth={1} />
+            <line x1={toX(v)} y1={PAD} x2={toX(v)} y2={H - PAD} stroke="rgba(var(--fg-rgb),var(--fg-a05))" strokeWidth={1} />
           </React.Fragment>
         ))}
         {/* No-skill diagonal */}
-        <line x1={toX(0)} y1={toY(0)} x2={toX(1)} y2={toY(1)} stroke="rgba(255,255,255,0.3)" strokeWidth={1} strokeDasharray="4 4" />
+        <line x1={toX(0)} y1={toY(0)} x2={toX(1)} y2={toY(1)} stroke="rgba(var(--fg-rgb),var(--fg-a3))" strokeWidth={1} strokeDasharray="4 4" />
         {/* AUC fill */}
         {pathD && (
           <path
@@ -533,8 +533,8 @@ const ROCCurveChart: React.FC<{ points: ROCPoint[]; auc: number }> = ({ points, 
           <path d={pathD} fill="none" stroke="#a78bfa" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
         )}
         {/* Axis labels */}
-        <text x={W / 2} y={H - 4} textAnchor="middle" fill="rgba(255,255,255,0.35)" fontSize={9}>False Positive Rate</text>
-        <text x={8} y={H / 2} textAnchor="middle" fill="rgba(255,255,255,0.35)" fontSize={9} transform={`rotate(-90 8 ${H / 2})`}>True Positive Rate</text>
+        <text x={W / 2} y={H - 4} textAnchor="middle" fill="rgba(var(--fg-rgb),var(--fg-a3))" fontSize={9}>False Positive Rate</text>
+        <text x={8} y={H / 2} textAnchor="middle" fill="rgba(var(--fg-rgb),var(--fg-a3))" fontSize={9} transform={`rotate(-90 8 ${H / 2})`}>True Positive Rate</text>
       </svg>
     </div>
   );
@@ -547,7 +547,7 @@ const LeaderboardTable: React.FC<{ entries: LeaderboardEntry[] }> = ({ entries }
       style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11px' }}
       aria-label="Skill score leaderboard"
     >
-      <thead style={{ position: 'sticky', top: 0, background: 'rgba(6,10,22,0.95)', zIndex: 1 }}>
+      <thead style={{ position: 'sticky', top: 0, background: 'rgba(var(--panel-bg-rgb),0.95)', zIndex: 1 }}>
         <tr>
           {['Rank', 'Model', 'RMSE', 'MAE', 'Bias', 'Corr.', 'Skill'].map((h, i) => (
             <th
@@ -558,8 +558,8 @@ const LeaderboardTable: React.FC<{ entries: LeaderboardEntry[] }> = ({ entries }
                 textAlign: i <= 1 ? 'left' : 'center',
                 fontSize: '10px',
                 fontWeight: 600,
-                color: 'rgba(255,255,255,0.45)',
-                borderBottom: '1px solid rgba(255,255,255,0.1)',
+                color: 'rgba(var(--fg-rgb),var(--fg-a4))',
+                borderBottom: '1px solid rgba(var(--fg-rgb),var(--fg-a1))',
                 whiteSpace: 'nowrap',
               }}
             >
@@ -570,23 +570,23 @@ const LeaderboardTable: React.FC<{ entries: LeaderboardEntry[] }> = ({ entries }
       </thead>
       <tbody>
         {entries.map((e) => {
-          const rowBg = e.isVAYU ? 'rgba(34,197,94,0.08)' : e.rank % 2 === 0 ? 'rgba(255,255,255,0.02)' : 'transparent';
-          const modelColor = e.isVAYU ? '#22c55e' : 'rgba(255,255,255,0.8)';
+          const rowBg = e.isVAYU ? 'rgba(34,197,94,0.08)' : e.rank % 2 === 0 ? 'rgba(var(--fg-rgb),var(--fg-a05))' : 'transparent';
+          const modelColor = e.isVAYU ? '#22c55e' : 'rgba(var(--fg-rgb),var(--fg-a75))';
           const skillColor = e.skillScore >= 0.2 ? '#22c55e' : e.skillScore >= 0 ? '#f59e0b' : '#ef4444';
           return (
             <tr key={e.model} style={{ background: rowBg }}>
-              <td style={{ padding: '5px 8px', textAlign: 'center', color: 'rgba(255,255,255,0.35)', fontSize: '12px', fontWeight: 700 }}>
+              <td style={{ padding: '5px 8px', textAlign: 'center', color: 'rgba(var(--fg-rgb),var(--fg-a3))', fontSize: '12px', fontWeight: 700 }}>
                 {e.rank === 1 ? '🥇' : e.rank === 2 ? '🥈' : e.rank === 3 ? '🥉' : e.rank}
               </td>
               <td style={{ padding: '5px 8px', color: modelColor, fontWeight: e.isVAYU ? 700 : 400, whiteSpace: 'nowrap' }}>
                 {e.isVAYU && '★ '}{e.model}
               </td>
-              <td style={{ padding: '5px 8px', textAlign: 'center', color: 'rgba(255,255,255,0.75)' }}>{e.rmse.toFixed(2)}</td>
-              <td style={{ padding: '5px 8px', textAlign: 'center', color: 'rgba(255,255,255,0.75)' }}>{e.mae.toFixed(2)}</td>
+              <td style={{ padding: '5px 8px', textAlign: 'center', color: 'rgba(var(--fg-rgb),var(--fg-a75))' }}>{e.rmse.toFixed(2)}</td>
+              <td style={{ padding: '5px 8px', textAlign: 'center', color: 'rgba(var(--fg-rgb),var(--fg-a75))' }}>{e.mae.toFixed(2)}</td>
               <td style={{ padding: '5px 8px', textAlign: 'center', color: e.bias >= 0 ? '#f97316' : '#60a5fa' }}>
                 {e.bias >= 0 ? '+' : ''}{e.bias.toFixed(2)}
               </td>
-              <td style={{ padding: '5px 8px', textAlign: 'center', color: 'rgba(255,255,255,0.75)' }}>{e.correlation.toFixed(3)}</td>
+              <td style={{ padding: '5px 8px', textAlign: 'center', color: 'rgba(var(--fg-rgb),var(--fg-a75))' }}>{e.correlation.toFixed(3)}</td>
               <td style={{ padding: '5px 8px', textAlign: 'center' }}>
                 <span style={{
                   background: `${skillColor}22`, border: `1px solid ${skillColor}`,
@@ -706,9 +706,9 @@ export const VerificationScoring: React.FC<VerificationScoringProps> = ({
       <GlassPanel padding="md" className="verification-panel">
         {/* ── Header ── */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
-          <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 600, color: 'rgba(255,255,255,0.95)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 600, color: 'rgba(var(--fg-rgb),var(--fg-a75))', display: 'flex', alignItems: 'center', gap: '8px' }}>
             📊 Verification Scoring
-            <span style={{ fontSize: '11px', fontWeight: 400, color: 'rgba(255,255,255,0.4)', marginLeft: '4px' }}>
+            <span style={{ fontSize: '11px', fontWeight: 400, color: 'rgba(var(--fg-rgb),var(--fg-a4))', marginLeft: '4px' }}>
               {variableLabel}
             </span>
           </h3>
@@ -719,7 +719,7 @@ export const VerificationScoring: React.FC<VerificationScoringProps> = ({
         <div
           role="tablist"
           aria-label="Verification sections"
-          style={{ display: 'flex', gap: '4px', marginBottom: '12px', borderBottom: '1px solid rgba(255,255,255,0.08)', paddingBottom: '8px' }}
+          style={{ display: 'flex', gap: '4px', marginBottom: '12px', borderBottom: '1px solid rgba(var(--fg-rgb),var(--fg-a08))', paddingBottom: '8px' }}
         >
           {tabs.map((tab) => (
             <button
@@ -735,7 +735,7 @@ export const VerificationScoring: React.FC<VerificationScoringProps> = ({
                 fontSize: '11px',
                 fontWeight: 600,
                 background: activeTab === tab.id ? 'rgba(96,165,250,0.2)' : 'transparent',
-                color: activeTab === tab.id ? '#60a5fa' : 'rgba(255,255,255,0.45)',
+                color: activeTab === tab.id ? '#60a5fa' : 'rgba(var(--fg-rgb),var(--fg-a4))',
                 transition: 'all 150ms ease',
               }}
             >
@@ -766,15 +766,15 @@ export const VerificationScoring: React.FC<VerificationScoringProps> = ({
                   style={{
                     flex: 1,
                     minWidth: '80px',
-                    background: 'rgba(255,255,255,0.04)',
-                    border: '1px solid rgba(255,255,255,0.08)',
+                    background: 'rgba(var(--fg-rgb),var(--fg-a05))',
+                    border: '1px solid rgba(var(--fg-rgb),var(--fg-a08))',
                     borderRadius: '8px',
                     padding: '7px 10px',
                     textAlign: 'center',
                   }}
                 >
-                  <div style={{ fontSize: '10px', color: 'rgba(255,255,255,0.4)', marginBottom: '3px' }}>Skill {label}</div>
-                  <div style={{ fontSize: '16px', fontWeight: 700, color: isNaN(value) ? 'rgba(255,255,255,0.3)' : value >= 0 ? color : '#ef4444' }}>
+                  <div style={{ fontSize: '10px', color: 'rgba(var(--fg-rgb),var(--fg-a4))', marginBottom: '3px' }}>Skill {label}</div>
+                  <div style={{ fontSize: '16px', fontWeight: 700, color: isNaN(value) ? 'rgba(var(--fg-rgb),var(--fg-a3))' : value >= 0 ? color : '#ef4444' }}>
                     {isNaN(value) ? '—' : `${(value * 100).toFixed(1)}%`}
                   </div>
                 </div>
@@ -785,7 +785,7 @@ export const VerificationScoring: React.FC<VerificationScoringProps> = ({
 
         {activeTab === 'leaderboard' && (
           <div role="tabpanel" aria-label="Skill score leaderboard">
-            <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.4)', margin: '0 0 8px 0' }}>
+            <p style={{ fontSize: '11px', color: 'rgba(var(--fg-rgb),var(--fg-a4))', margin: '0 0 8px 0' }}>
               Ranked by RMSE (ascending). VAYU compared to persistence, climatology, and NWP baselines.
             </p>
             <LeaderboardTable entries={leaderboard} />
@@ -794,7 +794,7 @@ export const VerificationScoring: React.FC<VerificationScoringProps> = ({
 
         {activeTab === 'reliability' && (
           <div role="tabpanel" aria-label="Reliability diagram">
-            <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.4)', margin: '0 0 8px 0' }}>
+            <p style={{ fontSize: '11px', color: 'rgba(var(--fg-rgb),var(--fg-a4))', margin: '0 0 8px 0' }}>
               Perfect reliability follows the dashed diagonal. Point size ∝ sample count.
             </p>
             <ReliabilityDiagramChart points={reliabilityPoints} />
@@ -803,7 +803,7 @@ export const VerificationScoring: React.FC<VerificationScoringProps> = ({
 
         {activeTab === 'roc' && (
           <div role="tabpanel" aria-label="ROC curve">
-            <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.4)', margin: '0 0 8px 0' }}>
+            <p style={{ fontSize: '11px', color: 'rgba(var(--fg-rgb),var(--fg-a4))', margin: '0 0 8px 0' }}>
               Receiver Operating Characteristic curve. AUC = 0.5 = no skill; 1.0 = perfect.
             </p>
             <ROCCurveChart points={rocPoints} auc={auc} />

@@ -456,18 +456,18 @@ const ZoneRow: React.FC<{
       aria-selected={isSelected}
       style={{
         cursor: 'pointer',
-        background: isSelected ? 'rgba(255,255,255,0.08)' : rank % 2 === 0 ? 'rgba(255,255,255,0.02)' : 'transparent',
+        background: isSelected ? 'rgba(var(--fg-rgb),var(--fg-a08))' : rank % 2 === 0 ? 'rgba(var(--fg-rgb),var(--fg-a05))' : 'transparent',
         borderLeft: isSelected ? `3px solid ${color}` : '3px solid transparent',
         transition: 'background 150ms ease',
       }}
-      onMouseEnter={(e) => ((e.currentTarget as HTMLTableRowElement).style.background = 'rgba(255,255,255,0.06)')}
-      onMouseLeave={(e) => ((e.currentTarget as HTMLTableRowElement).style.background = isSelected ? 'rgba(255,255,255,0.08)' : rank % 2 === 0 ? 'rgba(255,255,255,0.02)' : 'transparent')}
+      onMouseEnter={(e) => ((e.currentTarget as HTMLTableRowElement).style.background = 'rgba(var(--fg-rgb),var(--fg-a05))')}
+      onMouseLeave={(e) => ((e.currentTarget as HTMLTableRowElement).style.background = isSelected ? 'rgba(var(--fg-rgb),var(--fg-a08))' : rank % 2 === 0 ? 'rgba(var(--fg-rgb),var(--fg-a05))' : 'transparent')}
     >
-      <td style={{ padding: '5px 8px', textAlign: 'center', color: 'rgba(255,255,255,0.35)', fontSize: '11px' }}>{rank}</td>
-      <td style={{ padding: '5px 8px', fontSize: '11px', color: 'rgba(255,255,255,0.75)' }}>
+      <td style={{ padding: '5px 8px', textAlign: 'center', color: 'rgba(var(--fg-rgb),var(--fg-a3))', fontSize: '11px' }}>{rank}</td>
+      <td style={{ padding: '5px 8px', fontSize: '11px', color: 'rgba(var(--fg-rgb),var(--fg-a75))' }}>
         {zone.cell.lat.toFixed(2)}°, {zone.cell.lon.toFixed(2)}°
       </td>
-      <td style={{ padding: '5px 8px', textAlign: 'center', fontSize: '11px', color: 'rgba(255,255,255,0.6)' }}>
+      <td style={{ padding: '5px 8px', textAlign: 'center', fontSize: '11px', color: 'rgba(var(--fg-rgb),var(--fg-a6))' }}>
         {zone.variable}
       </td>
       <td style={{ padding: '5px 8px', textAlign: 'center' }}>
@@ -498,10 +498,10 @@ const ZoneDetailCard: React.FC<{ report: MicroClimateReport }> = ({ report }) =>
     >
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '8px', gap: '8px' }}>
         <div>
-          <span style={{ fontSize: '13px', fontWeight: 700, color: 'rgba(255,255,255,0.9)' }}>
+          <span style={{ fontSize: '13px', fontWeight: 700, color: 'rgba(var(--fg-rgb),var(--fg-a75))' }}>
             📍 {zone.cell.lat.toFixed(2)}°N, {zone.cell.lon.toFixed(2)}°E
           </span>
-          <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.4)', marginTop: '2px' }}>
+          <div style={{ fontSize: '11px', color: 'rgba(var(--fg-rgb),var(--fg-a4))', marginTop: '2px' }}>
             Micro-Climate Zone · {zone.variable}
           </div>
         </div>
@@ -512,38 +512,38 @@ const ZoneDetailCard: React.FC<{ report: MicroClimateReport }> = ({ report }) =>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '6px', marginBottom: '8px' }}>
         {[
-          { label: 'Cell value', value: `${zone.value.toFixed(1)}`, color: 'rgba(255,255,255,0.85)' },
-          { label: 'Neighbor mean', value: `${zone.neighborMean.toFixed(1)}`, color: 'rgba(255,255,255,0.6)' },
-          { label: 'Neighbor σ', value: `±${zone.neighborStdDev.toFixed(1)}`, color: 'rgba(255,255,255,0.6)' },
+          { label: 'Cell value', value: `${zone.value.toFixed(1)}`, color: 'rgba(var(--fg-rgb),var(--fg-a75))' },
+          { label: 'Neighbor mean', value: `${zone.neighborMean.toFixed(1)}`, color: 'rgba(var(--fg-rgb),var(--fg-a6))' },
+          { label: 'Neighbor σ', value: `±${zone.neighborStdDev.toFixed(1)}`, color: 'rgba(var(--fg-rgb),var(--fg-a6))' },
         ].map(({ label, value, color: c }) => (
           <div key={label} style={{ fontSize: '11px' }}>
-            <div style={{ color: 'rgba(255,255,255,0.4)' }}>{label}</div>
+            <div style={{ color: 'rgba(var(--fg-rgb),var(--fg-a4))' }}>{label}</div>
             <div style={{ color: c, fontWeight: 600 }}>{value}</div>
           </div>
         ))}
       </div>
 
       <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px', flexWrap: 'wrap' }}>
-        <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.4)' }}>Cause:</span>
+        <span style={{ fontSize: '11px', color: 'rgba(var(--fg-rgb),var(--fg-a4))' }}>Cause:</span>
         <CauseBadge cause={zone.cause} />
-        <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.4)', marginLeft: 'auto' }}>LULC:</span>
+        <span style={{ fontSize: '11px', color: 'rgba(var(--fg-rgb),var(--fg-a4))', marginLeft: 'auto' }}>LULC:</span>
         <span style={{ fontSize: '11px', color: lulcColor, fontWeight: 600 }}>{LULC_LABELS[lulcClass]}</span>
       </div>
 
       <div style={{ marginBottom: '8px' }}>
-        <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.4)' }}>Historical frequency of anomalous conditions: </span>
+        <span style={{ fontSize: '11px', color: 'rgba(var(--fg-rgb),var(--fg-a4))' }}>Historical frequency of anomalous conditions: </span>
         <span style={{ fontSize: '11px', color, fontWeight: 700 }}>
           {(historicalFrequency * 100).toFixed(0)}% of days
         </span>
         <div
           aria-label={`Historical frequency: ${(historicalFrequency * 100).toFixed(0)}%`}
-          style={{ marginTop: '4px', background: 'rgba(255,255,255,0.08)', borderRadius: '4px', height: '6px', overflow: 'hidden' }}
+          style={{ marginTop: '4px', background: 'rgba(var(--fg-rgb),var(--fg-a08))', borderRadius: '4px', height: '6px', overflow: 'hidden' }}
         >
           <div style={{ width: `${(historicalFrequency * 100).toFixed(0)}%`, height: '100%', background: color, borderRadius: '4px', transition: 'width 400ms ease' }} />
         </div>
       </div>
 
-      <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.55)', lineHeight: 1.5, margin: 0 }}>
+      <p style={{ fontSize: '11px', color: 'rgba(var(--fg-rgb),var(--fg-a6))', lineHeight: 1.5, margin: 0 }}>
         {summary}
       </p>
     </div>
@@ -554,7 +554,7 @@ const ZoneDetailCard: React.FC<{ report: MicroClimateReport }> = ({ report }) =>
 const LULCLegend: React.FC = () => (
   <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginBottom: 'var(--space-md, 12px)' }}>
     {(Object.keys(LULC_COLORS) as LULCClass[]).map((cls) => (
-      <div key={cls} style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '10px', color: 'rgba(255,255,255,0.55)' }}>
+      <div key={cls} style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '10px', color: 'rgba(var(--fg-rgb),var(--fg-a6))' }}>
         <span style={{ width: '10px', height: '10px', borderRadius: '2px', background: LULC_COLORS[cls], display: 'inline-block', flexShrink: 0 }} />
         {LULC_LABELS[cls]}
       </div>
@@ -566,7 +566,7 @@ const LULCLegend: React.FC = () => (
 const CauseLegend: React.FC = () => (
   <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginBottom: 'var(--space-md, 12px)' }}>
     {(Object.keys(CAUSE_COLORS) as MicroClimateCause[]).filter(c => c !== 'unknown').map((cause) => (
-      <div key={cause} style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '10px', color: 'rgba(255,255,255,0.55)' }}>
+      <div key={cause} style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '10px', color: 'rgba(var(--fg-rgb),var(--fg-a6))' }}>
         <span style={{ width: '10px', height: '10px', borderRadius: '50%', background: CAUSE_COLORS[cause], display: 'inline-block', flexShrink: 0 }} />
         {CAUSE_DESCRIPTIONS[cause]}
       </div>
@@ -664,10 +664,10 @@ export const MicroClimateZones: React.FC<MicroClimateZonesProps> = ({
       >
         <span style={{ fontSize: '18px' }} aria-hidden="true">🌡️</span>
         <div>
-          <span style={{ fontSize: '14px', fontWeight: 700, color: zones.length > 0 ? '#fcd34d' : 'rgba(255,255,255,0.6)' }}>
+          <span style={{ fontSize: '14px', fontWeight: 700, color: zones.length > 0 ? '#fcd34d' : 'rgba(var(--fg-rgb),var(--fg-a6))' }}>
             {zones.length} micro-climate zone{zones.length !== 1 ? 's' : ''} detected
           </span>
-          <span style={{ marginLeft: '8px', fontSize: '11px', color: 'rgba(255,255,255,0.4)' }}>
+          <span style={{ marginLeft: '8px', fontSize: '11px', color: 'rgba(var(--fg-rgb),var(--fg-a4))' }}>
             &gt;{MICRO_CLIMATE_SIGMA_THRESHOLD}σ from neighbors · {variable}
           </span>
         </div>
@@ -678,7 +678,7 @@ export const MicroClimateZones: React.FC<MicroClimateZonesProps> = ({
           style={{
             fontSize: 'var(--font-heading-sm, 18px)',
             fontWeight: 600,
-            color: 'rgba(255,255,255,0.95)',
+            color: 'rgba(var(--fg-rgb),var(--fg-a75))',
             margin: '0 0 var(--space-md, 12px) 0',
             display: 'flex',
             alignItems: 'center',
@@ -686,7 +686,7 @@ export const MicroClimateZones: React.FC<MicroClimateZonesProps> = ({
           }}
         >
           🗺️ Micro-Climate Zone Identification
-          <span style={{ marginLeft: 'auto', fontSize: '12px', fontWeight: 400, color: 'rgba(255,255,255,0.4)' }}>
+          <span style={{ marginLeft: 'auto', fontSize: '12px', fontWeight: 400, color: 'rgba(var(--fg-rgb),var(--fg-a4))' }}>
             {resolvedGrid.length} cells analysed
           </span>
         </h3>
@@ -694,7 +694,7 @@ export const MicroClimateZones: React.FC<MicroClimateZonesProps> = ({
         {/* Tab selector */}
         <div
           role="tablist"
-          style={{ display: 'flex', gap: '4px', marginBottom: 'var(--space-md, 12px)', borderBottom: '1px solid rgba(255,255,255,0.08)', paddingBottom: '8px' }}
+          style={{ display: 'flex', gap: '4px', marginBottom: 'var(--space-md, 12px)', borderBottom: '1px solid rgba(var(--fg-rgb),var(--fg-a08))', paddingBottom: '8px' }}
         >
           {([
             { key: 'zones', label: '⚠ Zones' },
@@ -707,9 +707,9 @@ export const MicroClimateZones: React.FC<MicroClimateZonesProps> = ({
               onClick={() => setActiveTab(key)}
               style={{
                 background: activeTab === key ? 'rgba(245,158,11,0.2)' : 'transparent',
-                border: `1px solid ${activeTab === key ? '#f59e0b' : 'rgba(255,255,255,0.15)'}`,
+                border: `1px solid ${activeTab === key ? '#f59e0b' : 'rgba(var(--fg-rgb),var(--fg-a15))'}`,
                 borderRadius: '5px',
-                color: activeTab === key ? '#fcd34d' : 'rgba(255,255,255,0.55)',
+                color: activeTab === key ? '#fcd34d' : 'rgba(var(--fg-rgb),var(--fg-a6))',
                 cursor: 'pointer',
                 fontSize: '12px',
                 fontWeight: activeTab === key ? 600 : 400,
@@ -727,7 +727,7 @@ export const MicroClimateZones: React.FC<MicroClimateZonesProps> = ({
           <>
             <CauseLegend />
             {zones.length === 0 ? (
-              <div style={{ padding: '24px', textAlign: 'center', color: 'rgba(255,255,255,0.35)', fontSize: '13px' }}>
+              <div style={{ padding: '24px', textAlign: 'center', color: 'rgba(var(--fg-rgb),var(--fg-a3))', fontSize: '13px' }}>
                 No micro-climate zones detected above {MICRO_CLIMATE_SIGMA_THRESHOLD}σ threshold for {variable}.
               </div>
             ) : (
@@ -747,8 +747,8 @@ export const MicroClimateZones: React.FC<MicroClimateZonesProps> = ({
                             textAlign: i <= 1 ? (i === 0 ? 'center' : 'left') : 'center',
                             fontSize: '11px',
                             fontWeight: 600,
-                            color: 'rgba(255,255,255,0.5)',
-                            borderBottom: '1px solid rgba(255,255,255,0.1)',
+                            color: 'rgba(var(--fg-rgb),var(--fg-a4))',
+                            borderBottom: '1px solid rgba(var(--fg-rgb),var(--fg-a1))',
                             whiteSpace: 'nowrap',
                           }}
                         >
@@ -780,7 +780,7 @@ export const MicroClimateZones: React.FC<MicroClimateZonesProps> = ({
         {activeTab === 'lulc' && (
           <>
             <LULCLegend />
-            <div style={{ fontSize: '12px', color: 'rgba(255,255,255,0.5)', marginBottom: '12px', lineHeight: 1.5 }}>
+            <div style={{ fontSize: '12px', color: 'rgba(var(--fg-rgb),var(--fg-a4))', marginBottom: '12px', lineHeight: 1.5 }}>
               Land-use/land-cover classes are estimated from geographic heuristics for India.
               In production, data is sourced from ESA CCI LULC or Bhuvan LULC datasets.
               Overlay is correlated with detected micro-climate zones to identify surface drivers.
@@ -801,8 +801,8 @@ export const MicroClimateZones: React.FC<MicroClimateZonesProps> = ({
                           textAlign: i === 0 ? 'left' : 'center',
                           fontSize: '10px',
                           fontWeight: 600,
-                          color: 'rgba(255,255,255,0.4)',
-                          borderBottom: '1px solid rgba(255,255,255,0.08)',
+                          color: 'rgba(var(--fg-rgb),var(--fg-a4))',
+                          borderBottom: '1px solid rgba(var(--fg-rgb),var(--fg-a08))',
                         }}
                       >
                         {label}
@@ -816,9 +816,9 @@ export const MicroClimateZones: React.FC<MicroClimateZonesProps> = ({
                     return (
                       <tr
                         key={`${cell.lat}_${cell.lon}`}
-                        style={{ background: idx % 2 === 0 ? 'rgba(255,255,255,0.02)' : 'transparent' }}
+                        style={{ background: idx % 2 === 0 ? 'rgba(var(--fg-rgb),var(--fg-a05))' : 'transparent' }}
                       >
-                        <td style={{ padding: '4px 8px', color: 'rgba(255,255,255,0.65)' }}>
+                        <td style={{ padding: '4px 8px', color: 'rgba(var(--fg-rgb),var(--fg-a7))' }}>
                           {cell.lat.toFixed(2)}°, {cell.lon.toFixed(2)}°
                         </td>
                         <td style={{ padding: '4px 8px', textAlign: 'center' }}>
@@ -828,7 +828,7 @@ export const MicroClimateZones: React.FC<MicroClimateZonesProps> = ({
                           {isZone ? (
                             <span style={{ color: '#f59e0b', fontWeight: 700, fontSize: '12px' }}>⚠ Yes</span>
                           ) : (
-                            <span style={{ color: 'rgba(255,255,255,0.25)', fontSize: '11px' }}>—</span>
+                            <span style={{ color: 'rgba(var(--fg-rgb),var(--fg-a2))', fontSize: '11px' }}>—</span>
                           )}
                         </td>
                       </tr>

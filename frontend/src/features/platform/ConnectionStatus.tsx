@@ -158,8 +158,8 @@ export const ConnectionStatusIndicator: React.FC<ConnectionStatusIndicatorProps>
             alignItems: 'center',
             gap: '4px',
             paddingLeft: '6px',
-            borderLeft: '1px solid rgba(255,255,255,0.12)',
-            color: 'rgba(255,255,255,0.5)',
+            borderLeft: '1px solid rgba(var(--fg-rgb),var(--fg-a12))',
+            color: 'rgba(var(--fg-rgb),var(--fg-a4))',
           }}
           title={lastUpdated.toLocaleTimeString()}
         >
@@ -170,7 +170,7 @@ export const ConnectionStatusIndicator: React.FC<ConnectionStatusIndicatorProps>
               width: '5px',
               height: '5px',
               borderRadius: '50%',
-              backgroundColor: fresh ? '#22d3ee' : 'rgba(255,255,255,0.25)',
+              backgroundColor: fresh ? '#22d3ee' : 'rgba(var(--fg-rgb),var(--fg-a2))',
               animation: fresh ? 'freshness-pulse 2s ease-in-out infinite' : undefined,
             }}
             aria-hidden="true"
@@ -243,7 +243,7 @@ export const OfflineBanner: React.FC<OfflineBannerProps> = ({ onRetry }) => {
       </span>
 
       {/* Message */}
-      <span style={{ fontSize: '12px', color: 'rgba(255,255,255,0.85)', fontWeight: 500 }}>
+      <span style={{ fontSize: '12px', color: 'rgba(var(--fg-rgb),var(--fg-a75))', fontWeight: 500 }}>
         You're offline — showing last known data
       </span>
 
@@ -251,7 +251,7 @@ export const OfflineBanner: React.FC<OfflineBannerProps> = ({ onRetry }) => {
       <span
         style={{
           fontSize: '11px',
-          color: 'rgba(255,255,255,0.45)',
+          color: 'rgba(var(--fg-rgb),var(--fg-a4))',
           fontVariantNumeric: 'tabular-nums',
           flexShrink: 0,
         }}
@@ -382,7 +382,7 @@ export const FreshnessBadge: React.FC<FreshnessBadgeProps> = ({
         alignItems: 'center',
         gap: '4px',
         fontSize: '10px',
-        color: 'rgba(255,255,255,0.45)',
+        color: 'rgba(var(--fg-rgb),var(--fg-a4))',
         fontVariantNumeric: 'tabular-nums',
       }}
       title={lastUpdated ? lastUpdated.toLocaleString() : 'No data'}
@@ -393,7 +393,7 @@ export const FreshnessBadge: React.FC<FreshnessBadgeProps> = ({
           width: '5px',
           height: '5px',
           borderRadius: '50%',
-          backgroundColor: pulse ? '#22d3ee' : 'rgba(255,255,255,0.2)',
+          backgroundColor: pulse ? '#22d3ee' : 'rgba(var(--fg-rgb),var(--fg-a2))',
           animation: pulse ? 'freshness-pulse 2s ease-in-out infinite' : undefined,
           flexShrink: 0,
         }}

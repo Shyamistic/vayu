@@ -16,7 +16,7 @@ const AsyncCesiumGlobe = forwardRef(function AsyncCesiumGlobe(
         <div
           aria-busy="true"
           aria-label="Loading interactive climate globe"
-          className="absolute inset-0 flex items-center justify-center bg-vayu-dark text-sm text-white/60"
+          className="absolute inset-0 flex items-center justify-center bg-vayu-dark text-sm text-foreground/60"
         >
           Loading interactive climate globe…
         </div>

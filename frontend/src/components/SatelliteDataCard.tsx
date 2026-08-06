@@ -90,7 +90,7 @@ export default function SatelliteDataCard() {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Satellite size={14} className="text-[#0ea5e9]" />
-          <h3 className="text-xs font-semibold uppercase tracking-wider text-white/70">
+          <h3 className="text-xs font-semibold uppercase tracking-wider text-foreground/70">
             Satellite Data Feeds
           </h3>
         </div>
@@ -107,7 +107,7 @@ export default function SatelliteDataCard() {
             <div
               key={feed.id}
               className="flex items-center gap-3 px-3 py-2 rounded-lg"
-              style={{ background: 'rgba(255,255,255,0.03)' }}
+              style={{ background: 'rgba(var(--fg-rgb),var(--fg-a05))' }}
             >
               {/* Status indicator */}
               <div
@@ -118,7 +118,7 @@ export default function SatelliteDataCard() {
               {/* Info */}
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-1.5">
-                  <span className="text-xs font-medium text-white/85 truncate">
+                  <span className="text-xs font-medium text-foreground/85 truncate">
                     {feed.name}
                   </span>
                   <span className="text-[9px] px-1.5 py-0.5 rounded-full font-mono"
@@ -126,15 +126,15 @@ export default function SatelliteDataCard() {
                     {cfg.label}
                   </span>
                 </div>
-                <p className="text-[10px] text-white/40 truncate">
+                <p className="text-[10px] text-foreground/40 truncate">
                   {feed.products.join(' · ')}
                 </p>
               </div>
 
               {/* Last update */}
               <div className="flex items-center gap-1 shrink-0">
-                <Clock size={10} className="text-white/30" />
-                <span className="text-[10px] text-white/40 font-mono">
+                <Clock size={10} className="text-foreground/30" />
+                <span className="text-[10px] text-foreground/40 font-mono">
                   {formatTimeSince(feed.lastUpdate)}
                 </span>
               </div>
@@ -143,8 +143,8 @@ export default function SatelliteDataCard() {
         })}
       </div>
 
-      <div className="pt-1 border-t border-white/5">
-        <p className="text-[9px] text-white/30 text-center">
+      <div className="pt-1 border-t border-foreground/5">
+        <p className="text-[9px] text-foreground/30 text-center">
           Data assimilation: MOSDAC + Bhuvan APIs • Cadence varies by orbit
         </p>
       </div>

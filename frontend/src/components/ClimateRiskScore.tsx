@@ -104,7 +104,7 @@ export default function ClimateRiskScore({ gridCells, variable }: ClimateRiskSco
     <div className="panel p-4 space-y-3">
       <div className="flex items-center gap-2">
         <ShieldAlert size={14} className="text-[#0ea5e9]" />
-        <h3 className="text-xs font-semibold uppercase tracking-wider text-white/70">
+        <h3 className="text-xs font-semibold uppercase tracking-wider text-foreground/70">
           Climate Risk Index
         </h3>
       </div>
@@ -117,7 +117,7 @@ export default function ClimateRiskScore({ gridCells, variable }: ClimateRiskSco
             <circle
               cx="44" cy="44" r={radius}
               fill="none"
-              stroke="rgba(255,255,255,0.06)"
+              stroke="rgba(var(--fg-rgb),var(--fg-a05))"
               strokeWidth="6"
             />
             {/* Progress ring */}
@@ -137,7 +137,7 @@ export default function ClimateRiskScore({ gridCells, variable }: ClimateRiskSco
             <span className="text-lg font-bold font-mono" style={{ color }}>
               {composite}
             </span>
-            <span className="text-[9px] text-white/50">/100</span>
+            <span className="text-[9px] text-foreground/50">/100</span>
           </div>
         </div>
 
@@ -157,7 +157,7 @@ export default function ClimateRiskScore({ gridCells, variable }: ClimateRiskSco
             return (
               <div key={factor.name} className="flex items-center gap-2">
                 <FactorIcon size={11} style={{ color: factor.color }} className="shrink-0" />
-                <span className="text-[10px] text-white/60 flex-1 truncate">{factor.name}</span>
+                <span className="text-[10px] text-foreground/60 flex-1 truncate">{factor.name}</span>
                 <span className="text-[10px] font-mono font-medium" style={{ color: factor.color }}>
                   {factor.score.toFixed(0)}
                 </span>
@@ -168,12 +168,12 @@ export default function ClimateRiskScore({ gridCells, variable }: ClimateRiskSco
       </div>
 
       {/* Bottom bar */}
-      <div className="h-1.5 bg-white/5 rounded-full overflow-hidden flex">
+      <div className="h-1.5 bg-foreground/5 rounded-full overflow-hidden flex">
         <div className="h-full bg-green-500/60 transition-all" style={{ width: '30%' }} />
         <div className="h-full bg-amber-500/60 transition-all" style={{ width: '30%' }} />
         <div className="h-full bg-red-500/60 transition-all" style={{ width: '40%' }} />
       </div>
-      <div className="flex justify-between text-[8px] text-white/30 px-0.5">
+      <div className="flex justify-between text-[8px] text-foreground/30 px-0.5">
         <span>Low</span>
         <span>Moderate</span>
         <span>High</span>

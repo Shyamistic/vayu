@@ -4,8 +4,8 @@ import {
   CloudRain, Thermometer, Activity,
   BarChart2, Database, Layers, BookOpen,
   SplitSquareHorizontal, Mountain, Leaf, Wind,
-  Radio, Waves, Download, BarChart, Menu, X, Search, Eye, Map, Moon,
-  Plus, Minus,
+  Radio, Waves, Download, BarChart, Menu, X, Search, Eye, Map, Moon, Sun,
+  Plus, Minus, Box,
 } from 'lucide-react';
 import { format, addDays } from 'date-fns';
 import CesiumGlobe from './components/AsyncCesiumGlobe';
@@ -77,8 +77,8 @@ class GlobeErrorBoundary extends Component<{ children: ReactNode }, { hasError: 
         <div className="absolute inset-0 flex items-center justify-center bg-vayu-dark">
           <div className="text-center">
             <div className="text-4xl mb-3">🌏</div>
-            <div className="text-white/60 text-sm">3D Globe unavailable</div>
-            <div className="text-white/30 text-xs mt-1">{this.state.error?.message}</div>
+            <div className="text-foreground/60 text-sm">3D Globe unavailable</div>
+            <div className="text-foreground/30 text-xs mt-1">{this.state.error?.message}</div>
             <button
               onClick={() => this.setState({ hasError: false })}
               className="mt-4 px-4 py-2 rounded bg-vayu-blue/30 text-vayu-blue text-xs border border-vayu-blue/40 hover:bg-vayu-blue/50"
@@ -162,6 +162,18 @@ export default function App() {
   // ── New feature state ─────────────────────────────────────────────────────
   const [terrainExaggeration, setTerrainExaggeration] = useState(1);
   const [selectedCell, setSelectedCell] = useState<{ cell: GridCell; x: number; y: number } | null>(null);
+  // Light/dark theme — persisted, defaults to 'dark' so existing users see no
+  // visual change unless they explicitly opt into light mode. Only the
+  // primary chrome (this file's header + toolbar) responds to it so far; the
+  // CSS vars it drives are defined in design-system/tokens.css.
+  const [theme, setTheme] = useState<'dark' | 'light'>(
+    () => (localStorage.getItem('vayu-theme') as 'dark' | 'light' | null) ?? 'dark'
+  );
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme);
+    localStorage.setItem('vayu-theme', theme);
+  }, [theme]);
+
   const [showTour, setShowTour] = useState(false);
   const [tourStep, setTourStep] = useState<TourCameraStep | null>(null);
   const [colormap, setColormap] = useState<ColormapId | undefined>(undefined);
@@ -480,21 +492,21 @@ export default function App() {
         </GlobeErrorBoundary>
 
         {/* ── Zoom controls — work in both 3D and 2D map mode ── */}
-        <div className="absolute top-4 right-4 z-10 flex flex-col rounded-lg overflow-hidden" style={{ border: '1px solid rgba(255,255,255,0.08)' }}>
+        <div className="absolute top-4 right-4 z-10 flex flex-col rounded-lg overflow-hidden" style={{ border: '1px solid rgba(var(--fg-rgb),var(--fg-a08))' }}>
           <button
             onClick={() => globeRef.current?.zoomIn()}
-            className="flex items-center justify-center w-8 h-8 transition-colors hover:bg-white/10"
-            style={{ background: 'rgba(6,10,22,0.92)', color: 'rgba(255,255,255,0.7)' }}
+            className="flex items-center justify-center w-8 h-8 transition-colors hover:bg-foreground/10"
+            style={{ background: 'rgba(var(--panel-bg-rgb),0.92)', color: 'rgba(var(--fg-rgb),var(--fg-a7))' }}
             title="Zoom in"
             aria-label="Zoom in"
           >
             <Plus size={15} />
           </button>
-          <div style={{ height: 1, background: 'rgba(255,255,255,0.08)' }} />
+          <div style={{ height: 1, background: 'rgba(var(--fg-rgb),var(--fg-a08))' }} />
           <button
             onClick={() => globeRef.current?.zoomOut()}
-            className="flex items-center justify-center w-8 h-8 transition-colors hover:bg-white/10"
-            style={{ background: 'rgba(6,10,22,0.92)', color: 'rgba(255,255,255,0.7)' }}
+            className="flex items-center justify-center w-8 h-8 transition-colors hover:bg-foreground/10"
+            style={{ background: 'rgba(var(--panel-bg-rgb),0.92)', color: 'rgba(var(--fg-rgb),var(--fg-a7))' }}
             title="Zoom out"
             aria-label="Zoom out"
           >
@@ -510,13 +522,13 @@ export default function App() {
       <header
         ref={headerRef}
         className={`fixed top-0 left-0 right-0 z-[1000] flex items-center justify-between px-3 md:px-4 py-2 md:py-3 animate-fade-in transition-opacity duration-300 ${focusMode ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}
-        style={{ background: 'rgba(6,10,22,0.92)', borderBottom: '1px solid rgba(255,255,255,0.08)', transform: 'translateZ(0)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)' }}>
+        style={{ background: 'rgba(var(--panel-bg-rgb),0.92)', borderBottom: '1px solid rgba(var(--fg-rgb),var(--fg-a08))', transform: 'translateZ(0)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)' }}>
         <div className="flex items-center gap-3">
-          <div className="w-7 h-7 rounded-full bg-gradient-to-br from-vayu-blue to-cyan-300 flex items-center justify-center text-xs font-bold text-white">☁</div>
-          <span className="text-white font-bold text-sm tracking-wide">MAUSAM</span>
+          <div className="w-7 h-7 rounded-full bg-gradient-to-br from-vayu-blue to-cyan-300 flex items-center justify-center text-xs font-bold text-foreground">☁</div>
+          <span className="text-foreground font-bold text-sm tracking-wide">MAUSAM</span>
           <OfflineModeBadge />
-          <span className="text-white/40 text-xs hidden sm:block">Climate Digital Twin</span>
-          <span className="text-white/20 text-[10px] hidden md:block">ISRO BAH 2026</span>
+          <span className="text-foreground/40 text-xs hidden sm:block">Climate Digital Twin</span>
+          <span className="text-foreground/20 text-[10px] hidden md:block">ISRO BAH 2026</span>
         </div>
 
         <div className="hidden md:block">
@@ -528,11 +540,11 @@ export default function App() {
         </div>
 
         <div className="flex items-center gap-3">
-          <div className="hidden md:flex items-center gap-3 px-3 py-1.5 rounded-lg" style={{ background: 'rgba(6,10,22,0.8)', border: '1px solid rgba(255,255,255,0.08)' }}>
+          <div className="hidden md:flex items-center gap-3 px-3 py-1.5 rounded-lg" style={{ background: 'rgba(var(--panel-bg-rgb),0.8)', border: '1px solid rgba(var(--fg-rgb),var(--fg-a08))' }}>
             {health ? (
               <>
                 <span className="text-xs text-green-400">● {health.device.toUpperCase()}</span>
-                <span className="text-xs text-white/30">v{health.model_version}</span>
+                <span className="text-xs text-foreground/30">v{health.model_version}</span>
               </>
             ) : (
               <span className="text-xs text-red-400">● Offline</span>
@@ -552,14 +564,29 @@ export default function App() {
           {/* Language toggle */}
           <div className="hidden md:block"><LanguageToggle /></div>
 
+          {/* Light/dark theme toggle */}
+          <button
+            onClick={() => setTheme((t) => (t === 'dark' ? 'light' : 'dark'))}
+            className="flex items-center justify-center w-9 h-9 rounded-lg transition-colors"
+            style={{
+              background: 'rgba(var(--fg-rgb),var(--fg-a05))',
+              border: '1px solid rgba(var(--fg-rgb),var(--fg-a1))',
+              color: 'rgba(var(--fg-rgb),var(--fg-a7))',
+            }}
+            title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+            aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+          >
+            {theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}
+          </button>
+
           {/* Hamburger button */}
           <button
             onClick={() => setDrawerOpen((d) => !d)}
             className="flex items-center justify-center w-9 h-9 rounded-lg transition-colors"
             style={{
-              background: drawerOpen ? 'rgba(14,165,233,0.2)' : 'rgba(255,255,255,0.05)',
-              border: drawerOpen ? '1px solid rgba(14,165,233,0.5)' : '1px solid rgba(255,255,255,0.1)',
-              color: drawerOpen ? '#0ea5e9' : 'rgba(255,255,255,0.6)',
+              background: drawerOpen ? 'rgba(14,165,233,0.2)' : 'rgba(var(--fg-rgb),var(--fg-a05))',
+              border: drawerOpen ? '1px solid rgba(14,165,233,0.5)' : '1px solid rgba(var(--fg-rgb),var(--fg-a1))',
+              color: drawerOpen ? '#0ea5e9' : 'rgba(var(--fg-rgb),var(--fg-a6))',
             }}
             title="Toggle panels"
           >
@@ -593,9 +620,13 @@ export default function App() {
             title={label}
             className="flex flex-col items-center gap-1 px-3 py-2.5 rounded-lg text-xs transition-all active:scale-95"
             style={{
-              background: 'rgba(6,10,22,0.92)',
-              border: isActive ? `1px solid ${color}` : '1px solid rgba(255,255,255,0.08)',
-              color: isActive ? '#fff' : 'rgba(255,255,255,0.4)',
+              background: 'rgba(var(--panel-bg-rgb),0.92)',
+              border: isActive ? `1px solid ${color}` : '1px solid rgba(var(--fg-rgb),var(--fg-a08))',
+              // Was hardcoded '#fff' — invisible for active-state text against
+              // a white panel in light mode. rgb(var(--fg-rgb)) is opaque
+              // theme foreground: white in dark mode (same as before), near-
+              // black in light mode.
+              color: isActive ? 'rgb(var(--fg-rgb))' : 'rgba(var(--fg-rgb),var(--fg-a4))',
               boxShadow: isActive ? `0 0 12px ${color}40` : 'none',
               transform: 'translateZ(0)',
             }}
@@ -610,9 +641,9 @@ export default function App() {
             onClick={() => update((s) => ({ showSplitScreen: !s.showSplitScreen }))}
             className="flex flex-col items-center gap-1 px-3 py-2.5 rounded-lg text-xs mt-2 transition-all"
             style={{
-              background: 'rgba(6,10,22,0.92)',
-              border: state.showSplitScreen ? '1px solid #22d3ee' : '1px solid rgba(255,255,255,0.08)',
-              color: state.showSplitScreen ? '#22d3ee' : 'rgba(255,255,255,0.4)',
+              background: 'rgba(var(--panel-bg-rgb),0.92)',
+              border: state.showSplitScreen ? '1px solid #22d3ee' : '1px solid rgba(var(--fg-rgb),var(--fg-a08))',
+              color: state.showSplitScreen ? '#22d3ee' : 'rgba(var(--fg-rgb),var(--fg-a4))',
             }}
           >
             <SplitSquareHorizontal size={14} /><span>Split</span>
@@ -623,14 +654,14 @@ export default function App() {
         <div
           className="flex flex-col items-center gap-1.5 px-3 py-2.5 rounded-lg mt-2 select-none"
           style={{
-            background: 'rgba(6,10,22,0.92)',
-            border: terrainExaggeration > 1 ? '1px solid #f97316' : '1px solid rgba(255,255,255,0.08)',
+            background: 'rgba(var(--panel-bg-rgb),0.92)',
+            border: terrainExaggeration > 1 ? '1px solid #f97316' : '1px solid rgba(var(--fg-rgb),var(--fg-a08))',
             boxShadow: terrainExaggeration > 1 ? '0 0 10px rgba(249,115,22,0.25)' : 'none',
           }}
           title="Orographic Enhancement View"
         >
-          <Mountain size={14} style={{ color: terrainExaggeration > 1 ? '#f97316' : 'rgba(255,255,255,0.4)' }} />
-          <span className="text-[9px] text-white/40">Terrain</span>
+          <Mountain size={14} style={{ color: terrainExaggeration > 1 ? '#f97316' : 'rgba(var(--fg-rgb),var(--fg-a4))' }} />
+          <span className="text-[9px] text-foreground/40">Terrain</span>
           <input
             type="range"
             min={1}
@@ -641,7 +672,7 @@ export default function App() {
             className="w-10 h-0.5 appearance-none cursor-pointer"
             style={{ accentColor: '#f97316' }}
           />
-          <span className="text-[9px] font-mono" style={{ color: terrainExaggeration > 1 ? '#f97316' : 'rgba(255,255,255,0.3)' }}>
+          <span className="text-[9px] font-mono" style={{ color: terrainExaggeration > 1 ? '#f97316' : 'rgba(var(--fg-rgb),var(--fg-a3))' }}>
             {terrainExaggeration}×
           </span>
         </div>
@@ -651,9 +682,9 @@ export default function App() {
           onClick={() => setMapMode((m) => (m === '3d' ? '2d' : '3d'))}
           className="flex flex-col items-center gap-1 px-3 py-2.5 rounded-lg mt-1 transition-all"
           style={{
-            background: 'rgba(6,10,22,0.92)',
-            border: mapMode === '2d' ? '1px solid #22d3ee' : '1px solid rgba(255,255,255,0.08)',
-            color: mapMode === '2d' ? '#22d3ee' : 'rgba(255,255,255,0.4)',
+            background: 'rgba(var(--panel-bg-rgb),0.92)',
+            border: mapMode === '2d' ? '1px solid #22d3ee' : '1px solid rgba(var(--fg-rgb),var(--fg-a08))',
+            color: mapMode === '2d' ? '#22d3ee' : 'rgba(var(--fg-rgb),var(--fg-a4))',
             boxShadow: mapMode === '2d' ? '0 0 10px rgba(34,211,238,0.3)' : 'none',
           }}
           title={mapMode === '3d' ? 'Switch to 2D map (India)' : 'Switch to 3D globe'}
@@ -668,14 +699,14 @@ export default function App() {
             onClick={() => setShow3D((v) => !v)}
             className="flex flex-col items-center gap-1 px-3 py-2.5 rounded-lg mt-1 transition-all"
             style={{
-              background: 'rgba(6,10,22,0.92)',
-              border: show3D ? '1px solid #f97316' : '1px solid rgba(255,255,255,0.08)',
-              color: show3D ? '#f97316' : 'rgba(255,255,255,0.4)',
+              background: 'rgba(var(--panel-bg-rgb),0.92)',
+              border: show3D ? '1px solid #f97316' : '1px solid rgba(var(--fg-rgb),var(--fg-a08))',
+              color: show3D ? '#f97316' : 'rgba(var(--fg-rgb),var(--fg-a4))',
               boxShadow: show3D ? '0 0 10px rgba(249,115,22,0.3)' : 'none',
             }}
             title="3D Extruded Rainfall Columns"
           >
-            <span className="text-sm">⬛</span>
+            <Box size={14} />
             <span className="text-[9px] font-medium">3D</span>
           </button>
         )}
@@ -698,9 +729,9 @@ export default function App() {
           disabled={mapMode === '2d'}
           className="flex flex-col items-center gap-1 px-3 py-2.5 rounded-lg mt-1 transition-all"
           style={{
-            background: 'rgba(6,10,22,0.92)',
-            border: showWind && mapMode === '3d' ? '1px solid #0ea5e9' : '1px solid rgba(255,255,255,0.08)',
-            color: mapMode === '2d' ? 'rgba(255,255,255,0.15)' : showWind ? '#0ea5e9' : 'rgba(255,255,255,0.3)',
+            background: 'rgba(var(--panel-bg-rgb),0.92)',
+            border: showWind && mapMode === '3d' ? '1px solid #0ea5e9' : '1px solid rgba(var(--fg-rgb),var(--fg-a08))',
+            color: mapMode === '2d' ? 'rgba(var(--fg-rgb),var(--fg-a15))' : showWind ? '#0ea5e9' : 'rgba(var(--fg-rgb),var(--fg-a3))',
             boxShadow: showWind && mapMode === '3d' ? '0 0 8px rgba(14,165,233,0.25)' : 'none',
             cursor: mapMode === '2d' ? 'not-allowed' : 'pointer',
           }}
@@ -718,7 +749,7 @@ export default function App() {
             title="Wind animation style"
             className="mt-1 text-[9px] font-medium rounded-md px-1.5 py-1 outline-none cursor-pointer"
             style={{
-              background: 'rgba(6,10,22,0.92)',
+              background: 'rgba(var(--panel-bg-rgb),0.92)',
               border: '1px solid rgba(14,165,233,0.3)',
               color: '#0ea5e9',
             }}
@@ -735,9 +766,9 @@ export default function App() {
           onClick={() => setShowTerminator((v) => !v)}
           className="flex flex-col items-center gap-1 px-3 py-2.5 rounded-lg mt-1 transition-all"
           style={{
-            background: 'rgba(6,10,22,0.92)',
-            border: showTerminator ? '1px solid #818cf8' : '1px solid rgba(255,255,255,0.08)',
-            color: showTerminator ? '#818cf8' : 'rgba(255,255,255,0.3)',
+            background: 'rgba(var(--panel-bg-rgb),0.92)',
+            border: showTerminator ? '1px solid #818cf8' : '1px solid rgba(var(--fg-rgb),var(--fg-a08))',
+            color: showTerminator ? '#818cf8' : 'rgba(var(--fg-rgb),var(--fg-a3))',
             boxShadow: showTerminator ? '0 0 8px rgba(129,140,248,0.25)' : 'none',
           }}
           title="Toggle day/night terminator"
@@ -754,9 +785,9 @@ export default function App() {
           disabled={mapMode === '2d'}
           className="flex flex-col items-center gap-1 px-3 py-2.5 rounded-lg mt-1 transition-all"
           style={{
-            background: 'rgba(6,10,22,0.92)',
-            border: inspectMode && mapMode === '3d' ? '1px solid #a855f7' : '1px solid rgba(255,255,255,0.08)',
-            color: mapMode === '2d' ? 'rgba(255,255,255,0.15)' : inspectMode ? '#a855f7' : 'rgba(255,255,255,0.3)',
+            background: 'rgba(var(--panel-bg-rgb),0.92)',
+            border: inspectMode && mapMode === '3d' ? '1px solid #a855f7' : '1px solid rgba(var(--fg-rgb),var(--fg-a08))',
+            color: mapMode === '2d' ? 'rgba(var(--fg-rgb),var(--fg-a15))' : inspectMode ? '#a855f7' : 'rgba(var(--fg-rgb),var(--fg-a3))',
             boxShadow: inspectMode && mapMode === '3d' ? '0 0 8px rgba(168,85,247,0.25)' : 'none',
             cursor: mapMode === '2d' ? 'not-allowed' : 'pointer',
           }}
@@ -773,7 +804,7 @@ export default function App() {
           type="button"
           onClick={() => setDrawerOpen(true)}
           className="flex h-10 w-10 items-center justify-center rounded-full border text-cyan-200 shadow-lg"
-          style={{ background: 'rgba(6,10,22,0.9)', borderColor: 'rgba(34,211,238,0.45)' }}
+          style={{ background: 'rgba(var(--panel-bg-rgb),0.9)', borderColor: 'rgba(34,211,238,0.45)' }}
           aria-label="Open climate data sheet"
           title="Data sheet"
         >
@@ -783,7 +814,7 @@ export default function App() {
           type="button"
           onClick={() => setInspectMode((enabled) => !enabled)}
           className="flex h-10 w-10 items-center justify-center rounded-full border shadow-lg"
-          style={{ background: 'rgba(6,10,22,0.9)', borderColor: inspectMode ? '#a855f7' : 'rgba(255,255,255,0.2)', color: inspectMode ? '#d8b4fe' : 'rgba(255,255,255,0.75)' }}
+          style={{ background: 'rgba(var(--panel-bg-rgb),0.9)', borderColor: inspectMode ? '#a855f7' : 'rgba(var(--fg-rgb),var(--fg-a2))', color: inspectMode ? '#d8b4fe' : 'rgba(var(--fg-rgb),var(--fg-a75))' }}
           aria-pressed={inspectMode}
           aria-label="Toggle inspect mode; long press any location to inspect"
           title="Inspect; long press on the globe"
@@ -793,8 +824,8 @@ export default function App() {
         <button
           type="button"
           onClick={() => setDrawerOpen((open) => !open)}
-          className="flex h-10 w-10 items-center justify-center rounded-full border text-white/80 shadow-lg"
-          style={{ background: 'rgba(6,10,22,0.9)', borderColor: 'rgba(255,255,255,0.2)' }}
+          className="flex h-10 w-10 items-center justify-center rounded-full border text-foreground/80 shadow-lg"
+          style={{ background: 'rgba(var(--panel-bg-rgb),0.9)', borderColor: 'rgba(var(--fg-rgb),var(--fg-a2))' }}
           aria-expanded={drawerOpen}
           aria-label="Toggle climate data sheet"
           title="Menu"
@@ -813,11 +844,11 @@ export default function App() {
           h-[30dvh] max-h-[30dvh] md:h-auto md:max-h-none
           rounded-t-2xl md:rounded-t-none"
         style={{
-          background: 'rgba(6,10,22,0.96)',
+          background: 'rgba(var(--panel-bg-rgb),0.96)',
           backdropFilter: 'blur(12px)',
           WebkitBackdropFilter: 'blur(12px)',
-          borderLeft: '1px solid rgba(255,255,255,0.08)',
-          borderTop: '1px solid rgba(255,255,255,0.08)',
+          borderLeft: '1px solid rgba(var(--fg-rgb),var(--fg-a08))',
+          borderTop: '1px solid rgba(var(--fg-rgb),var(--fg-a08))',
           transform: drawerOpen && !focusMode
             ? 'translateX(0) translateY(0)'
             : 'translateX(0) translateY(100%)',
@@ -847,7 +878,7 @@ export default function App() {
                   key={id}
                   onClick={() => update({ viewMode: id })}
                   className={`flex flex-col items-center gap-1 px-2 py-2 rounded-md text-[10px] transition-colors ${
-                    state.viewMode === id ? 'bg-vayu-blue text-white font-medium' : 'text-white/50 hover:text-white/80'
+                    state.viewMode === id ? 'bg-vayu-blue text-foreground font-medium' : 'text-foreground/50 hover:text-foreground/80'
                   }`}
                 >
                   {icon}<span>{label}</span>
@@ -858,7 +889,7 @@ export default function App() {
 
           {/* ISRO Data Sources */}
           <div className="panel-tight p-3">
-            <div className="text-[10px] text-white/50 font-semibold uppercase tracking-wide mb-2 flex items-center gap-1.5">
+            <div className="text-[10px] text-foreground/50 font-semibold uppercase tracking-wide mb-2 flex items-center gap-1.5">
               <Database size={11} /> Data Sources
             </div>
             <div className="flex flex-col gap-1">
@@ -870,7 +901,7 @@ export default function App() {
                 'GEBCO Elevation & Bathymetry',
                 'NASA GIBS Earth Observation Layers',
               ].map((ds) => (
-                <div key={ds} className="text-[10px] text-white/40 flex items-center gap-1.5">
+                <div key={ds} className="text-[10px] text-foreground/40 flex items-center gap-1.5">
                   <span className="text-green-400 text-[9px]">✓</span>{ds}
                 </div>
               ))}
@@ -994,8 +1025,8 @@ export default function App() {
       {focusMode && (
         <button
           onClick={() => setFocusMode(false)}
-          className="fixed top-3 right-3 z-[1000] flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs text-white/70 hover:text-white transition-all animate-fade-in"
-          style={{ background: 'rgba(6,10,22,0.7)', border: '1px solid rgba(255,255,255,0.12)', backdropFilter: 'blur(8px)' }}
+          className="fixed top-3 right-3 z-[1000] flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs text-foreground/70 hover:text-foreground transition-all animate-fade-in"
+          style={{ background: 'rgba(var(--panel-bg-rgb),0.7)', border: '1px solid rgba(var(--fg-rgb),var(--fg-a12))', backdropFilter: 'blur(8px)' }}
           title="Show panels (Esc)"
         >
           <Eye size={14} /> Show panels
@@ -1042,16 +1073,16 @@ export default function App() {
         </div>
       )}
       {state.isLoading && (
-        <div className="fixed top-20 left-1/2 -translate-x-1/2 z-[1001] panel-tight px-4 py-2 flex items-center gap-2 text-xs text-white/60">
+        <div className="fixed top-20 left-1/2 -translate-x-1/2 z-[1001] panel-tight px-4 py-2 flex items-center gap-2 text-xs text-foreground/60">
           <div className="w-3 h-3 border border-vayu-blue border-t-transparent rounded-full animate-spin" />
           Loading prediction…
         </div>
       )}
       {state.showSplitScreen && state.activeScenario && (
         <div className="fixed top-[64px] left-1/2 -translate-x-1/2 z-[999] flex gap-3">
-          <div className="panel-tight px-3 py-1 text-xs text-white/60">← Baseline</div>
+          <div className="panel-tight px-3 py-1 text-xs text-foreground/60">← Baseline</div>
           <div className="panel-tight px-3 py-1 text-xs text-vayu-accent">Δ {state.activeScenario.scenario_type.replace('_', ' ')} +{state.activeScenario.magnitude}</div>
-          <div className="panel-tight px-3 py-1 text-xs text-white/60">Scenario →</div>
+          <div className="panel-tight px-3 py-1 text-xs text-foreground/60">Scenario →</div>
         </div>
       )}
 
@@ -1095,10 +1126,10 @@ function PredictionSummaryPanel({
   return (
     <div className="panel p-4 w-full flex flex-col gap-3">
       <div className="flex justify-between items-center">
-        <h3 className="text-white/80 font-medium text-sm">
+        <h3 className="text-foreground/80 font-medium text-sm">
           {variable === 'rainfall' ? 'Rainfall' : variable === 'temp_max' ? 'Max Temperature' : 'Min Temperature'}
         </h3>
-        <span className="text-xs text-white/30">{format(date, 'dd MMM yyyy')}</span>
+        <span className="text-xs text-foreground/30">{format(date, 'dd MMM yyyy')}</span>
       </div>
 
       <div className="grid grid-cols-3 gap-2">
@@ -1112,15 +1143,15 @@ function PredictionSummaryPanel({
             <span className="text-lg font-bold text-vayu-accent font-mono tabular-nums">
               {val.toFixed(1)}
             </span>
-            <span className="text-xs text-white/25">{unit}</span>
+            <span className="text-xs text-foreground/25">{unit}</span>
           </div>
         ))}
       </div>
 
-      <p className="text-xs text-white/30 text-center">
+      <p className="text-xs text-foreground/30 text-center">
         {gridCells.length} grid cells · {region === 'full_india' ? '0.5°' : '0.25°'} resolution
       </p>
-      <p className="text-xs text-white/20 text-center">
+      <p className="text-xs text-foreground/20 text-center">
         T+1 to T+7 day forecast · Click a cell for details
       </p>
     </div>
@@ -1144,7 +1175,7 @@ function KeyboardHint() {
       className="fixed z-[999] panel-tight px-4 py-2 flex items-center gap-3 animate-fade-in pointer-events-none"
       style={{ opacity: 0.7, bottom: 170, left: '38%' }}
     >
-      <span className="text-[10px] text-white/40">Shortcuts:</span>
+      <span className="text-[10px] text-foreground/40">Shortcuts:</span>
       {[
         ['1-7', 'Forecast day'],
         ['R/T/M', 'Variable'],
@@ -1152,8 +1183,8 @@ function KeyboardHint() {
         ['←/→', 'Step date'],
         ['Esc', 'Close'],
       ].map(([key, desc]) => (
-        <span key={key} className="flex items-center gap-1 text-[10px] text-white/30">
-          <kbd className="px-1 py-0.5 rounded text-[9px] font-mono" style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.15)' }}>{key}</kbd>
+        <span key={key} className="flex items-center gap-1 text-[10px] text-foreground/30">
+          <kbd className="px-1 py-0.5 rounded text-[9px] font-mono" style={{ background: 'rgba(var(--fg-rgb),var(--fg-a08))', border: '1px solid rgba(var(--fg-rgb),var(--fg-a15))' }}>{key}</kbd>
           <span>{desc}</span>
         </span>
       ))}

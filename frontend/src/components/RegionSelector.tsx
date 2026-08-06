@@ -81,7 +81,7 @@ interface RegionSelectorProps {
 export default function RegionSelector({ selected, onChange, realDataRegions }: RegionSelectorProps) {
   return (
     <div className="panel-tight px-2 py-1.5 flex items-center gap-1.5">
-      <span className="text-xs text-white/40 font-medium uppercase tracking-wider pr-1">Region</span>
+      <span className="text-xs text-foreground/40 font-medium uppercase tracking-wider pr-1">Region</span>
       {REGIONS.map((r) => {
         const isLive = realDataRegions?.includes(r.id) ?? false;
         return (
@@ -92,7 +92,7 @@ export default function RegionSelector({ selected, onChange, realDataRegions }: 
             className={`relative text-xs px-2.5 py-1 rounded-md border transition-all duration-200 whitespace-nowrap ${
               selected === r.id
                 ? 'bg-blue-500/20 border-blue-400/60 text-blue-300 font-medium shadow-[0_0_8px_rgba(59,130,246,0.3)] hover:scale-[1.03] active:scale-95'
-                : 'border-white/10 text-white/40 hover:text-white/70 hover:border-white/20 hover:bg-white/5 hover:scale-[1.03] active:scale-95'
+                : 'border-foreground/10 text-foreground/40 hover:text-foreground/70 hover:border-foreground/20 hover:bg-foreground/5 hover:scale-[1.03] active:scale-95'
             }`}
           >
             {isLive && (

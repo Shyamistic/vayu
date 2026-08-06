@@ -417,11 +417,20 @@ function CesiumGlobeInner({
     if (viewer.isDestroyed()) return;
     const rectangle = Cesium.Rectangle.fromDegrees(bounds.lonMin, bounds.latMin, bounds.lonMax, bounds.latMax);
     const boundingSphere = Cesium.BoundingSphere.fromRectangle3D(rectangle, viewer.scene.globe.ellipsoid);
+    // flyToBoundingSphere's auto-computed distance fits the sphere to the
+    // FULL canvas frustum — but the canvas runs edge-to-edge underneath the
+    // fixed header, left toolbar, and bottom timeline/legend chrome, which
+    // visually eat into that same frustum. Framing to 100% of the frustum
+    // therefore looks "cut off" by that chrome. Inflating the sphere's
+    // radius before framing makes Cesium back the camera off further,
+    // leaving a margin that keeps the globe clear of the overlays.
+    boundingSphere.radius *= 2.43;
     try { viewer.camera.cancelFlight(); } catch { /* no flight in progress */ }
     setProgrammaticFlight(true);
     viewer.camera.flyToBoundingSphere(boundingSphere, {
       // A zero range asks Cesium to compute the distance required to contain
-      // the sphere in the current frustum; no hand-tuned region altitude.
+      // the (padded) sphere in the current frustum; no hand-tuned region
+      // altitude beyond the padding factor above.
       offset: new Cesium.HeadingPitchRange(0, Cesium.Math.toRadians(options.pitchDegrees), 0),
       duration: options.duration,
       easingFunction: Cesium.EasingFunction.CUBIC_IN_OUT,

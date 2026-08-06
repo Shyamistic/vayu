@@ -21,7 +21,7 @@ const paddingValues: Record<NonNullable<GlassPanelProps['padding']>, string | un
  *
  * Applies:
  * - backdrop-filter: blur(12px)
- * - background: rgba(6, 10, 22, 0.85)
+ * - background: rgba(var(--panel-bg-rgb),0.85)
  * - Subtle border and shadow
  *
  * Validates: Requirements 5.2
@@ -33,10 +33,10 @@ export const GlassPanel: React.FC<GlassPanelProps> = ({
   as: Component = 'div',
 }) => {
   const style: React.CSSProperties = {
-    background: 'rgba(6, 10, 22, 0.85)',
+    background: 'rgba(var(--panel-bg-rgb),0.85)',
     backdropFilter: 'blur(12px)',
     WebkitBackdropFilter: 'blur(12px)',
-    border: '1px solid rgba(255, 255, 255, 0.08)',
+    border: '1px solid rgba(var(--fg-rgb),var(--fg-a08))',
     borderRadius: '12px',
     boxShadow: '0 4px 24px rgba(0, 0, 0, 0.4)',
     padding: paddingValues[padding],

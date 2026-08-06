@@ -54,8 +54,14 @@ export default function ForecastAnimation({ currentDay, onDayChange }: ForecastA
 
   return (
     <div
-      className="px-1 py-1 flex flex-col gap-1.5 animate-slide-in-up"
-      style={{ minWidth: 180, textShadow: '0 1px 3px rgba(0,0,0,0.9), 0 0 6px rgba(0,0,0,0.6)' }}
+      className="px-2 py-1.5 flex flex-col gap-1.5 animate-slide-in-up rounded-xl"
+      style={{
+        minWidth: 180,
+        background: 'rgba(var(--panel-bg-rgb),0.92)',
+        border: '1px solid rgba(var(--fg-rgb),var(--fg-a08))',
+        backdropFilter: 'blur(12px)',
+        WebkitBackdropFilter: 'blur(12px)',
+      }}
     >
       {/* Day timeline */}
       <div className="flex gap-1">
@@ -67,17 +73,17 @@ export default function ForecastAnimation({ currentDay, onDayChange }: ForecastA
             style={{
               background: currentDay === day
                 ? 'rgba(14,165,233,0.25)'
-                : 'rgba(255,255,255,0.04)',
+                : 'rgba(var(--fg-rgb),var(--fg-a05))',
               border: currentDay === day
                 ? '1px solid rgba(14,165,233,0.5)'
-                : '1px solid rgba(255,255,255,0.08)',
+                : '1px solid rgba(var(--fg-rgb),var(--fg-a08))',
               boxShadow: currentDay === day ? '0 0 8px rgba(14,165,233,0.3)' : 'none',
             }}
           >
-            <span className="text-[9px] text-white/40">{DAY_LABELS[day - 1]}</span>
+            <span className="text-[9px] text-foreground/40">{DAY_LABELS[day - 1]}</span>
             <span
               className="text-xs font-bold font-mono"
-              style={{ color: currentDay === day ? '#38bdf8' : 'rgba(255,255,255,0.5)' }}
+              style={{ color: currentDay === day ? '#38bdf8' : 'rgba(var(--fg-rgb),var(--fg-a6))' }}
             >
               T+{day}
             </span>
@@ -89,7 +95,7 @@ export default function ForecastAnimation({ currentDay, onDayChange }: ForecastA
       <div className="flex items-center gap-2">
         <button
           onClick={() => { onDayChange(1); setIsPlaying(false); }}
-          className="p-1.5 rounded text-white/40 hover:text-white/80 hover:bg-white/5 transition-all"
+          className="p-1.5 rounded text-foreground/40 hover:text-foreground/80 hover:bg-foreground/5 transition-all"
         >
           <SkipBack size={12} />
         </button>
@@ -97,9 +103,9 @@ export default function ForecastAnimation({ currentDay, onDayChange }: ForecastA
           onClick={toggle}
           className="flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-medium transition-all"
           style={{
-            background: isPlaying ? 'rgba(14,165,233,0.25)' : 'rgba(255,255,255,0.08)',
-            border: isPlaying ? '1px solid rgba(14,165,233,0.4)' : '1px solid rgba(255,255,255,0.1)',
-            color: isPlaying ? '#38bdf8' : 'rgba(255,255,255,0.7)',
+            background: isPlaying ? 'rgba(14,165,233,0.25)' : 'rgba(var(--fg-rgb),var(--fg-a08))',
+            border: isPlaying ? '1px solid rgba(14,165,233,0.4)' : '1px solid rgba(var(--fg-rgb),var(--fg-a1))',
+            color: isPlaying ? '#38bdf8' : 'rgba(var(--fg-rgb),var(--fg-a7))',
           }}
         >
           {isPlaying ? <Pause size={11} /> : <Play size={11} />}
@@ -115,7 +121,7 @@ export default function ForecastAnimation({ currentDay, onDayChange }: ForecastA
               className="text-[9px] px-1.5 py-0.5 rounded transition-colors"
               style={{
                 background: speedIdx === i ? 'rgba(14,165,233,0.2)' : 'transparent',
-                color: speedIdx === i ? '#38bdf8' : 'rgba(255,255,255,0.35)',
+                color: speedIdx === i ? '#38bdf8' : 'rgba(var(--fg-rgb),var(--fg-a3))',
               }}
             >
               {s.label}
@@ -125,7 +131,7 @@ export default function ForecastAnimation({ currentDay, onDayChange }: ForecastA
       </div>
 
       {/* Progress bar */}
-      <div className="h-0.5 rounded-full bg-white/10 overflow-hidden">
+      <div className="h-0.5 rounded-full bg-foreground/10 overflow-hidden">
         <div
           className="h-full rounded-full transition-all duration-500"
           style={{

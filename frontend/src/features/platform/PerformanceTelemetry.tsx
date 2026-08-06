@@ -99,7 +99,7 @@ const MetricRow: React.FC<{
   value: string;
   valueColor?: string;
   children?: React.ReactNode;
-}> = ({ label, value, valueColor = 'rgba(255,255,255,0.85)', children }) => (
+}> = ({ label, value, valueColor = 'rgba(var(--fg-rgb),var(--fg-a75))', children }) => (
   <div
     style={{
       display: 'flex',
@@ -111,7 +111,7 @@ const MetricRow: React.FC<{
   >
     <span
       style={{
-        color: 'rgba(255,255,255,0.45)',
+        color: 'rgba(var(--fg-rgb),var(--fg-a4))',
         fontSize: '11px',
         fontFamily: 'monospace',
         letterSpacing: '0.04em',
@@ -143,7 +143,7 @@ const MetricRow: React.FC<{
 const Divider: React.FC = () => (
   <div
     style={{
-      borderTop: '1px solid rgba(255,255,255,0.07)',
+      borderTop: '1px solid rgba(var(--fg-rgb),var(--fg-a08))',
       margin: '6px 0',
     }}
     aria-hidden="true"
@@ -215,7 +215,7 @@ const PerformanceTelemetry: React.FC<PerformanceTelemetryProps> = ({ onLowFps })
         background: 'rgba(4, 8, 18, 0.90)',
         backdropFilter: 'blur(12px)',
         WebkitBackdropFilter: 'blur(12px)',
-        border: '1px solid rgba(255, 255, 255, 0.10)',
+        border: '1px solid rgba(var(--fg-rgb),var(--fg-a1))',
         borderRadius: '10px',
         boxShadow: '0 8px 32px rgba(0,0,0,0.55)',
         padding: '10px 12px',
@@ -248,7 +248,7 @@ const PerformanceTelemetry: React.FC<PerformanceTelemetryProps> = ({ onLowFps })
           style={{
             background: 'none',
             border: 'none',
-            color: 'rgba(255,255,255,0.35)',
+            color: 'rgba(var(--fg-rgb),var(--fg-a3))',
             cursor: 'pointer',
             fontSize: '13px',
             padding: '0 2px',
@@ -284,7 +284,7 @@ const PerformanceTelemetry: React.FC<PerformanceTelemetryProps> = ({ onLowFps })
       <MetricRow
         label="FPS"
         value={fps > 0 ? `${fps}` : '—'}
-        valueColor={fps > 0 ? fpsColor(fps) : 'rgba(255,255,255,0.3)'}
+        valueColor={fps > 0 ? fpsColor(fps) : 'rgba(var(--fg-rgb),var(--fg-a3))'}
       >
         {/* Mini FPS bar */}
         <div
@@ -292,7 +292,7 @@ const PerformanceTelemetry: React.FC<PerformanceTelemetryProps> = ({ onLowFps })
           style={{
             width: '40px',
             height: '6px',
-            background: 'rgba(255,255,255,0.08)',
+            background: 'rgba(var(--fg-rgb),var(--fg-a08))',
             borderRadius: '3px',
             overflow: 'hidden',
           }}
@@ -328,7 +328,7 @@ const PerformanceTelemetry: React.FC<PerformanceTelemetryProps> = ({ onLowFps })
                   : heapUsedMB / heapLimitMB > 0.6
                   ? '#fbbf24'
                   : '#4ade80'
-                : 'rgba(255,255,255,0.3)'
+                : 'rgba(var(--fg-rgb),var(--fg-a3))'
             }
           />
           <MetricRow
@@ -341,7 +341,7 @@ const PerformanceTelemetry: React.FC<PerformanceTelemetryProps> = ({ onLowFps })
           />
         </>
       ) : (
-        <MetricRow label="Heap" value="N/A" valueColor="rgba(255,255,255,0.3)" />
+        <MetricRow label="Heap" value="N/A" valueColor="rgba(var(--fg-rgb),var(--fg-a3))" />
       )}
 
       <Divider />
@@ -358,7 +358,7 @@ const PerformanceTelemetry: React.FC<PerformanceTelemetryProps> = ({ onLowFps })
         >
           <span
             style={{
-              color: 'rgba(255,255,255,0.45)',
+              color: 'rgba(var(--fg-rgb),var(--fg-a4))',
               fontSize: '11px',
               textTransform: 'uppercase',
               letterSpacing: '0.04em',
@@ -371,7 +371,7 @@ const PerformanceTelemetry: React.FC<PerformanceTelemetryProps> = ({ onLowFps })
               color:
                 apiLatencyMs !== null
                   ? latencyColor(apiLatencyMs)
-                  : 'rgba(255,255,255,0.3)',
+                  : 'rgba(var(--fg-rgb),var(--fg-a3))',
               fontSize: '12px',
               fontWeight: 600,
             }}
@@ -392,7 +392,7 @@ const PerformanceTelemetry: React.FC<PerformanceTelemetryProps> = ({ onLowFps })
       {/* ── CesiumJS render stats (Req 46.4) ────────────────────────────── */}
       <div
         style={{
-          color: 'rgba(255,255,255,0.35)',
+          color: 'rgba(var(--fg-rgb),var(--fg-a3))',
           fontSize: '10px',
           textTransform: 'uppercase',
           letterSpacing: '0.06em',
@@ -429,7 +429,7 @@ const PerformanceTelemetry: React.FC<PerformanceTelemetryProps> = ({ onLowFps })
       ) : (
         <div
           style={{
-            color: 'rgba(255,255,255,0.25)',
+            color: 'rgba(var(--fg-rgb),var(--fg-a2))',
             fontSize: '11px',
             textAlign: 'center',
             padding: '4px 0',
@@ -442,11 +442,11 @@ const PerformanceTelemetry: React.FC<PerformanceTelemetryProps> = ({ onLowFps })
       {/* ── Footer hint ─────────────────────────────────────────────────── */}
       <div
         style={{
-          borderTop: '1px solid rgba(255,255,255,0.05)',
+          borderTop: '1px solid rgba(var(--fg-rgb),var(--fg-a05))',
           marginTop: '8px',
           paddingTop: '6px',
           textAlign: 'center',
-          color: 'rgba(255,255,255,0.2)',
+          color: 'rgba(var(--fg-rgb),var(--fg-a2))',
           fontSize: '10px',
         }}
       >

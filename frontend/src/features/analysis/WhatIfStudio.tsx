@@ -193,11 +193,11 @@ export default function WhatIfStudio({
       {/* ── Header ──────────────────────────────────────────────────────────── */}
       <header className="flex items-start justify-between gap-3">
         <div className="flex flex-col gap-1">
-          <h2 className="text-white font-semibold text-base tracking-wide flex items-center gap-2">
+          <h2 className="text-foreground font-semibold text-base tracking-wide flex items-center gap-2">
             <Sigma size={17} className="text-amber-400" />
             What-If Studio
           </h2>
-          <p className="text-xs text-white/50 max-w-md leading-snug">
+          <p className="text-xs text-foreground/50 max-w-md leading-snug">
             Sensitivity regressed from the observed 1981&ndash;2025 record, then applied to a
             driver change you choose. Every figure below traces to measurements.
           </p>
@@ -263,33 +263,33 @@ export default function WhatIfStudio({
           ) : (
             <div className="flex items-end gap-2">
               <label className="flex flex-col gap-1 flex-1">
-                <span className="text-[10px] uppercase tracking-wider text-white/45">From (MM-DD)</span>
+                <span className="text-[10px] uppercase tracking-wider text-foreground/45">From (MM-DD)</span>
                 <input
                   type="text"
                   value={windowStart}
                   onChange={(e) => setWindowStart(e.target.value)}
                   placeholder="06-01"
                   pattern="\d{2}-\d{2}"
-                  className="bg-white/[0.06] border border-white/15 rounded-md px-2 py-1.5 text-sm
-                             text-white font-mono focus:border-amber-400/60 focus:outline-none"
+                  className="bg-foreground/[0.06] border border-foreground/15 rounded-md px-2 py-1.5 text-sm
+                             text-foreground font-mono focus:border-amber-400/60 focus:outline-none"
                 />
               </label>
-              <span className="text-white/40 pb-2">&rarr;</span>
+              <span className="text-foreground/40 pb-2">&rarr;</span>
               <label className="flex flex-col gap-1 flex-1">
-                <span className="text-[10px] uppercase tracking-wider text-white/45">To (MM-DD)</span>
+                <span className="text-[10px] uppercase tracking-wider text-foreground/45">To (MM-DD)</span>
                 <input
                   type="text"
                   value={windowEnd}
                   onChange={(e) => setWindowEnd(e.target.value)}
                   placeholder="09-30"
                   pattern="\d{2}-\d{2}"
-                  className="bg-white/[0.06] border border-white/15 rounded-md px-2 py-1.5 text-sm
-                             text-white font-mono focus:border-amber-400/60 focus:outline-none"
+                  className="bg-foreground/[0.06] border border-foreground/15 rounded-md px-2 py-1.5 text-sm
+                             text-foreground font-mono focus:border-amber-400/60 focus:outline-none"
                 />
               </label>
             </div>
           )}
-          <p className="text-[10px] text-white/40 mt-1.5">
+          <p className="text-[10px] text-foreground/40 mt-1.5">
             The historical mean rainfall reported as the baseline is computed over exactly this
             range, repeated every year of the record.
           </p>
@@ -304,7 +304,7 @@ export default function WhatIfStudio({
               onChange={setStartYear}
               ariaLabel="First year"
             />
-            <span className="text-white/40">&ndash;</span>
+            <span className="text-foreground/40">&ndash;</span>
             <NumberInput
               value={endYear}
               min={startYear + 2}
@@ -312,7 +312,7 @@ export default function WhatIfStudio({
               onChange={setEndYear}
               ariaLabel="Last year"
             />
-            <span className="text-xs text-white/45 ml-1">{endYear - startYear + 1} seasons</span>
+            <span className="text-xs text-foreground/45 ml-1">{endYear - startYear + 1} seasons</span>
           </div>
         </Field>
 
@@ -326,17 +326,17 @@ export default function WhatIfStudio({
               value={delta}
               onChange={(e) => setDelta(Number(e.target.value))}
               aria-label={`Change in ${driver.label}`}
-              className="flex-1 h-1.5 appearance-none bg-white/12 rounded-full cursor-pointer
+              className="flex-1 h-1.5 appearance-none bg-foreground/12 rounded-full cursor-pointer
                          [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4
                          [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full
                          [&::-webkit-slider-thumb]:bg-amber-400 [&::-webkit-slider-thumb]:cursor-pointer"
             />
             <span className="text-lg font-bold font-mono text-amber-400 w-20 text-right tabular-nums">
               {fmtSigned(delta, 2)}
-              <span className="text-xs text-white/45 ml-0.5">{driver.unit}</span>
+              <span className="text-xs text-foreground/45 ml-0.5">{driver.unit}</span>
             </span>
           </div>
-          <div className="flex justify-between text-[10px] text-white/30 mt-1">
+          <div className="flex justify-between text-[10px] text-foreground/30 mt-1">
             <span>{driver.min}{driver.unit}</span>
             <span>{driver.max}{driver.unit}</span>
           </div>
@@ -349,7 +349,7 @@ export default function WhatIfStudio({
         >
           {isLoading ? (
             <>
-              <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+              <span className="w-4 h-4 border-2 border-foreground/40 border-t-white rounded-full animate-spin" />
               Fitting sensitivity over {endYear - startYear + 1} seasons…
             </>
           ) : (
@@ -378,14 +378,14 @@ export default function WhatIfStudio({
       {/* ── Results ─────────────────────────────────────────────────────────── */}
       {result && level && (
         <>
-          <hr className="border-white/10" />
+          <hr className="border-foreground/10" />
 
           {/* Sensitivity headline */}
           <section aria-labelledby="whatif-sens-heading" className="flex flex-col gap-3">
             <div className="flex items-center justify-between gap-2">
               <h3
                 id="whatif-sens-heading"
-                className="text-sm font-semibold text-white/90 tracking-wide uppercase"
+                className="text-sm font-semibold text-foreground/90 tracking-wide uppercase"
               >
                 Observed sensitivity ∂R/∂T
               </h3>
@@ -396,13 +396,13 @@ export default function WhatIfStudio({
               <span className="text-3xl font-bold font-mono text-amber-400 leading-none">
                 {fmt(result.fit.slope, 3)}
               </span>
-              <span className="text-xs text-white/55">{result.fit.slope_unit}</span>
-              <span className="text-base font-semibold text-white/80 ml-1">
+              <span className="text-xs text-foreground/55">{result.fit.slope_unit}</span>
+              <span className="text-base font-semibold text-foreground/80 ml-1">
                 ({fmtSigned(result.fit.slope_percent_per_unit, 1)}% per {result.fit.predictor_unit})
               </span>
             </div>
 
-            <p className="text-xs text-white/70 leading-relaxed">
+            <p className="text-xs text-foreground/70 leading-relaxed">
               {describeSensitivity(result.fit, result.region)}
             </p>
 
@@ -422,7 +422,7 @@ export default function WhatIfStudio({
               <Stat label="sample" value={`n = ${result.fit.n}`} note="seasons in the fit" />
             </div>
 
-            <p className="text-xs text-white/45">
+            <p className="text-xs text-foreground/45">
               {CONFIDENCE_COPY[level].detail}
               {result.excluded_years.length > 0 && (
                 <>
@@ -433,9 +433,9 @@ export default function WhatIfStudio({
             </p>
 
             {ccNote && (
-              <div className="flex gap-2 p-2.5 bg-white/[0.04] border border-white/10 rounded-lg">
+              <div className="flex gap-2 p-2.5 bg-foreground/[0.04] border border-foreground/10 rounded-lg">
                 <Info size={13} className="text-amber-400/80 mt-0.5 shrink-0" />
-                <p className="text-xs text-white/65 leading-relaxed">{ccNote}</p>
+                <p className="text-xs text-foreground/65 leading-relaxed">{ccNote}</p>
               </div>
             )}
           </section>
@@ -444,13 +444,13 @@ export default function WhatIfStudio({
           <section aria-labelledby="whatif-chart-heading" className="flex flex-col gap-2">
             <h3
               id="whatif-chart-heading"
-              className="text-sm font-semibold text-white/90 tracking-wide uppercase flex items-center gap-2"
+              className="text-sm font-semibold text-foreground/90 tracking-wide uppercase flex items-center gap-2"
             >
-              <BarChart3 size={14} className="text-white/50" />
+              <BarChart3 size={14} className="text-foreground/50" />
               Fit and error
             </h3>
             <Suspense
-              fallback={<div className="h-64 flex items-center justify-center text-xs text-white/40">Loading chart…</div>}
+              fallback={<div className="h-64 flex items-center justify-center text-xs text-foreground/40">Loading chart…</div>}
             >
               <WhatIfRegressionChart
                 points={result.scatter}
@@ -460,7 +460,7 @@ export default function WhatIfStudio({
             </Suspense>
           </section>
 
-          <hr className="border-white/10" />
+          <hr className="border-foreground/10" />
 
           {/* Before / after + timeline + spatial */}
           <WhatIfBeforeAfter result={result} />
@@ -470,13 +470,13 @@ export default function WhatIfStudio({
             <section aria-labelledby="whatif-hot-heading" className="flex flex-col gap-2">
               <h3
                 id="whatif-hot-heading"
-                className="text-sm font-semibold text-white/90 tracking-wide uppercase"
+                className="text-sm font-semibold text-foreground/90 tracking-wide uppercase"
               >
                 Strongest local responses
               </h3>
-              <div className="overflow-x-auto rounded-lg border border-white/10">
+              <div className="overflow-x-auto rounded-lg border border-foreground/10">
                 <table className="w-full text-xs">
-                  <thead className="bg-white/[0.06] text-white/60">
+                  <thead className="bg-foreground/[0.06] text-foreground/60">
                     <tr>
                       <th scope="col" className="text-left py-1.5 px-2 font-medium">Lat</th>
                       <th scope="col" className="text-left py-1.5 px-2 font-medium">Lon</th>
@@ -489,9 +489,9 @@ export default function WhatIfStudio({
                   </thead>
                   <tbody>
                     {result.hotspots.slice(0, 10).map((h) => (
-                      <tr key={h.node_idx} className="border-t border-white/[0.06]">
-                        <td className="py-1.5 px-2 font-mono text-white/75">{fmt(h.lat, 2)}</td>
-                        <td className="py-1.5 px-2 font-mono text-white/75">{fmt(h.lon, 2)}</td>
+                      <tr key={h.node_idx} className="border-t border-foreground/[0.06]">
+                        <td className="py-1.5 px-2 font-mono text-foreground/75">{fmt(h.lat, 2)}</td>
+                        <td className="py-1.5 px-2 font-mono text-foreground/75">{fmt(h.lon, 2)}</td>
                         <td
                           className={`py-1.5 px-2 font-mono text-right ${
                             (h.delta_value ?? 0) < 0 ? 'text-amber-300' : 'text-sky-300'
@@ -499,10 +499,10 @@ export default function WhatIfStudio({
                         >
                           {fmtSigned(h.delta_value, 3)}
                         </td>
-                        <td className="py-1.5 px-2 font-mono text-right text-white/65">
+                        <td className="py-1.5 px-2 font-mono text-right text-foreground/65">
                           {fmtSigned(h.delta_percent, 1)}%
                         </td>
-                        <td className="py-1.5 px-2 text-white/55">
+                        <td className="py-1.5 px-2 text-foreground/55">
                           {h.significant ? 'yes' : 'no'}
                         </td>
                       </tr>
@@ -510,7 +510,7 @@ export default function WhatIfStudio({
                   </tbody>
                 </table>
               </div>
-              <p className="text-[10px] text-white/35">
+              <p className="text-[10px] text-foreground/35">
                 Ranked from {result.hotspots[0]?.selection_basis ?? 'available cells'}.
               </p>
             </section>
@@ -541,9 +541,9 @@ export default function WhatIfStudio({
           <section aria-labelledby="whatif-export-heading" className="flex flex-col gap-2">
             <h3
               id="whatif-export-heading"
-              className="text-sm font-semibold text-white/90 tracking-wide uppercase flex items-center gap-2"
+              className="text-sm font-semibold text-foreground/90 tracking-wide uppercase flex items-center gap-2"
             >
-              <Download size={14} className="text-white/50" />
+              <Download size={14} className="text-foreground/50" />
               Download this analysis
             </h3>
             <div className="grid grid-cols-3 gap-2">
@@ -566,14 +566,14 @@ export default function WhatIfStudio({
                 <FileSpreadsheet size={13} /> CSV grid
               </button>
             </div>
-            <p className="text-[10px] text-white/35">
+            <p className="text-[10px] text-foreground/35">
               JSON carries the full fit, scatter, per-cell field, and provenance. PDF is a
               formatted report via your browser&apos;s print dialog. CSV is the per-cell
               before/after grid.
             </p>
           </section>
 
-          <p className="text-[10px] text-white/25 text-center">
+          <p className="text-[10px] text-foreground/25 text-center">
             {regionLabel(result.region)} &middot; {result.season_label} &middot; fitted in{' '}
             {fmt(result.computation_time_s, 3)} s
           </p>
@@ -596,9 +596,9 @@ function Field({
 }) {
   return (
     <div className="flex flex-col gap-1.5">
-      <span className="text-xs font-medium text-white/65">{label}</span>
+      <span className="text-xs font-medium text-foreground/65">{label}</span>
       {children}
-      {hint && <p className="text-[10px] text-white/40 leading-snug">{hint}</p>}
+      {hint && <p className="text-[10px] text-foreground/40 leading-snug">{hint}</p>}
     </div>
   );
 }
@@ -618,8 +618,8 @@ function Choice({
       aria-pressed={active}
       className={`text-xs py-1.5 px-2.5 rounded-md border transition-colors text-center ${
         active
-          ? 'border-amber-400/70 bg-amber-400/15 text-white font-medium'
-          : 'border-white/12 bg-white/[0.03] text-white/55 hover:text-white/80 hover:border-white/25'
+          ? 'border-amber-400/70 bg-amber-400/15 text-foreground font-medium'
+          : 'border-foreground/12 bg-foreground/[0.03] text-foreground/55 hover:text-foreground/80 hover:border-foreground/25'
       }`}
     >
       {children}
@@ -651,8 +651,8 @@ function NumberInput({
         const n = Number(e.target.value);
         if (Number.isFinite(n)) onChange(Math.min(max, Math.max(min, Math.round(n))));
       }}
-      className="bg-white/[0.06] border border-white/15 rounded-md px-2 py-1.5 text-sm w-20
-                 text-white font-mono focus:border-amber-400/60 focus:outline-none"
+      className="bg-foreground/[0.06] border border-foreground/15 rounded-md px-2 py-1.5 text-sm w-20
+                 text-foreground font-mono focus:border-amber-400/60 focus:outline-none"
     />
   );
 }
@@ -669,12 +669,12 @@ function Stat({
   tone?: 'good' | 'warn';
 }) {
   const color =
-    tone === 'good' ? 'text-emerald-300' : tone === 'warn' ? 'text-amber-300' : 'text-white';
+    tone === 'good' ? 'text-emerald-300' : tone === 'warn' ? 'text-amber-300' : 'text-foreground';
   return (
-    <div className="rounded-lg bg-white/[0.04] border border-white/10 p-2 flex flex-col gap-0.5">
-      <span className="text-[10px] uppercase tracking-wider text-white/45">{label}</span>
+    <div className="rounded-lg bg-foreground/[0.04] border border-foreground/10 p-2 flex flex-col gap-0.5">
+      <span className="text-[10px] uppercase tracking-wider text-foreground/45">{label}</span>
       <span className={`text-sm font-bold font-mono leading-tight ${color}`}>{value}</span>
-      <span className="text-[10px] text-white/35 leading-tight">{note}</span>
+      <span className="text-[10px] text-foreground/35 leading-tight">{note}</span>
     </div>
   );
 }

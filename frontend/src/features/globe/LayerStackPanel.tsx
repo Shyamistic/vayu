@@ -76,7 +76,7 @@ const SlotRow: React.FC<SlotRowProps> = ({ entry, isFirst, isLast }) => {
         padding: '8px 10px',
         borderRadius: 8,
         background: CHANNEL_COLORS[entry.channel],
-        border: '1px solid rgba(255,255,255,0.08)',
+        border: '1px solid rgba(var(--fg-rgb),var(--fg-a08))',
         opacity: entry.visible ? 1 : 0.45,
         transition: 'opacity 0.2s',
       }}
@@ -102,7 +102,7 @@ const SlotRow: React.FC<SlotRowProps> = ({ entry, isFirst, isLast }) => {
             style={{
               marginLeft: 6,
               fontSize: 10,
-              color: 'rgba(255,255,255,0.55)',
+              color: 'rgba(var(--fg-rgb),var(--fg-a6))',
               fontWeight: 400,
             }}
           >
@@ -145,7 +145,7 @@ const SlotRow: React.FC<SlotRowProps> = ({ entry, isFirst, isLast }) => {
       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
         <label
           htmlFor={`opacity-slider-${entry.slotId}`}
-          style={{ fontSize: 10, color: 'rgba(255,255,255,0.55)', whiteSpace: 'nowrap' }}
+          style={{ fontSize: 10, color: 'rgba(var(--fg-rgb),var(--fg-a6))', whiteSpace: 'nowrap' }}
         >
           Opacity
         </label>
@@ -160,7 +160,7 @@ const SlotRow: React.FC<SlotRowProps> = ({ entry, isFirst, isLast }) => {
           aria-label={`Opacity for ${VARIABLE_LABELS[entry.variable]}`}
           style={{ flex: 1, accentColor: '#00b4ff' }}
         />
-        <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.55)', width: 30, textAlign: 'right' }}>
+        <span style={{ fontSize: 10, color: 'rgba(var(--fg-rgb),var(--fg-a6))', width: 30, textAlign: 'right' }}>
           {Math.round(entry.opacity * 100)}%
         </span>
       </div>
@@ -170,7 +170,7 @@ const SlotRow: React.FC<SlotRowProps> = ({ entry, isFirst, isLast }) => {
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <label
             htmlFor={`colormap-${entry.slotId}`}
-            style={{ fontSize: 10, color: 'rgba(255,255,255,0.55)', whiteSpace: 'nowrap' }}
+            style={{ fontSize: 10, color: 'rgba(var(--fg-rgb),var(--fg-a6))', whiteSpace: 'nowrap' }}
           >
             Colormap
           </label>
@@ -224,19 +224,19 @@ const AddOverlayPicker: React.FC<AddOverlayPickerProps> = ({
       style={{
         padding: '8px 10px',
         borderRadius: 8,
-        background: 'rgba(255,255,255,0.06)',
-        border: '1px dashed rgba(255,255,255,0.2)',
+        background: 'rgba(var(--fg-rgb),var(--fg-a05))',
+        border: '1px dashed rgba(var(--fg-rgb),var(--fg-a2))',
         display: 'flex',
         flexDirection: 'column',
         gap: 8,
       }}
     >
-      <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.7)', fontWeight: 500 }}>
+      <div style={{ fontSize: 11, color: 'rgba(var(--fg-rgb),var(--fg-a7))', fontWeight: 500 }}>
         Add Overlay
       </div>
 
       <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-        <label style={{ fontSize: 10, color: 'rgba(255,255,255,0.55)', width: 56 }}>Channel</label>
+        <label style={{ fontSize: 10, color: 'rgba(var(--fg-rgb),var(--fg-a6))', width: 56 }}>Channel</label>
         <select
           value={selectedChannel}
           onChange={(e) => {
@@ -256,7 +256,7 @@ const AddOverlayPicker: React.FC<AddOverlayPickerProps> = ({
       </div>
 
       <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-        <label style={{ fontSize: 10, color: 'rgba(255,255,255,0.55)', width: 56 }}>Variable</label>
+        <label style={{ fontSize: 10, color: 'rgba(var(--fg-rgb),var(--fg-a6))', width: 56 }}>Variable</label>
         <select
           value={selectedVariable}
           onChange={(e) => setSelectedVariable(e.target.value as VariableId)}
@@ -280,7 +280,7 @@ const AddOverlayPicker: React.FC<AddOverlayPickerProps> = ({
         >
           Add
         </button>
-        <button onClick={onCancel} style={{ ...actionBtn, background: 'rgba(255,255,255,0.08)' }} aria-label="Cancel">
+        <button onClick={onCancel} style={{ ...actionBtn, background: 'rgba(var(--fg-rgb),var(--fg-a08))' }} aria-label="Cancel">
           Cancel
         </button>
       </div>
@@ -311,7 +311,7 @@ const BivariatePicker: React.FC = () => {
 
       {(['variableX', 'variableY'] as const).map((axis) => (
         <div key={axis} style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-          <label style={{ fontSize: 10, color: 'rgba(255,255,255,0.55)', width: 52 }}>
+          <label style={{ fontSize: 10, color: 'rgba(var(--fg-rgb),var(--fg-a6))', width: 52 }}>
             {axis === 'variableX' ? 'X-axis' : 'Y-axis'}
           </label>
           <select
@@ -397,7 +397,7 @@ export const LayerStackPanel: React.FC<LayerStackPanelProps> = ({
           justifyContent: 'space-between',
           marginBottom: 8,
           paddingBottom: 6,
-          borderBottom: '1px solid rgba(255,255,255,0.08)',
+          borderBottom: '1px solid rgba(var(--fg-rgb),var(--fg-a08))',
         }}
       >
         <span
@@ -406,7 +406,7 @@ export const LayerStackPanel: React.FC<LayerStackPanelProps> = ({
         >
           🗂 Layer Stack
         </span>
-        <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)' }}>
+        <span style={{ fontSize: 10, color: 'rgba(var(--fg-rgb),var(--fg-a4))' }}>
           {overlays.length}/3 active
         </span>
       </div>
@@ -420,7 +420,7 @@ export const LayerStackPanel: React.FC<LayerStackPanelProps> = ({
           marginBottom: 8,
         }}
       >
-        <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.7)' }}>
+        <span style={{ fontSize: 11, color: 'rgba(var(--fg-rgb),var(--fg-a7))' }}>
           Bivariate Map
         </span>
         <button
@@ -430,7 +430,7 @@ export const LayerStackPanel: React.FC<LayerStackPanelProps> = ({
           onClick={() => setBivariateMode(!bivariateMode)}
           style={{
             ...toggleBtn,
-            background: bivariateMode ? 'rgba(180,0,255,0.6)' : 'rgba(255,255,255,0.1)',
+            background: bivariateMode ? 'rgba(180,0,255,0.6)' : 'rgba(var(--fg-rgb),var(--fg-a1))',
           }}
         >
           {bivariateMode ? 'ON' : 'OFF'}
@@ -480,7 +480,7 @@ export const LayerStackPanel: React.FC<LayerStackPanelProps> = ({
             <div
               style={{
                 fontSize: 10,
-                color: 'rgba(255,255,255,0.35)',
+                color: 'rgba(var(--fg-rgb),var(--fg-a3))',
                 textAlign: 'center',
                 paddingTop: 4,
               }}
@@ -502,7 +502,7 @@ const iconBtn: React.CSSProperties = {
   cursor: 'pointer',
   padding: '2px 4px',
   fontSize: 13,
-  color: 'rgba(255,255,255,0.7)',
+  color: 'rgba(var(--fg-rgb),var(--fg-a7))',
   lineHeight: 1,
   borderRadius: 4,
   transition: 'background 0.15s',
@@ -522,8 +522,8 @@ const actionBtn: React.CSSProperties = {
 
 const selectStyle: React.CSSProperties = {
   flex: 1,
-  background: 'rgba(255,255,255,0.08)',
-  border: '1px solid rgba(255,255,255,0.15)',
+  background: 'rgba(var(--fg-rgb),var(--fg-a08))',
+  border: '1px solid rgba(var(--fg-rgb),var(--fg-a15))',
   borderRadius: 4,
   color: '#fff',
   fontSize: 11,
@@ -531,7 +531,7 @@ const selectStyle: React.CSSProperties = {
 };
 
 const toggleBtn: React.CSSProperties = {
-  border: '1px solid rgba(255,255,255,0.2)',
+  border: '1px solid rgba(var(--fg-rgb),var(--fg-a2))',
   borderRadius: 12,
   padding: '3px 10px',
   fontSize: 10,

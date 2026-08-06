@@ -31,19 +31,19 @@ export default function IoTSensorPanel() {
       <header className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2">
           <Radio size={14} className="text-cyan-300" />
-          <span className="text-sm font-semibold text-white/85">Sensor Network Health</span>
+          <span className="text-sm font-semibold text-foreground/85">Sensor Network Health</span>
         </div>
         <span className="text-[10px] text-green-300">{connected}/{stations.length} connected</span>
       </header>
 
-      <p className="text-[10px] text-white/40">
+      <p className="text-[10px] text-foreground/40">
         Live AWS IoT Core telemetry {isFetching ? '· refreshing…' : '· updates every 30s'}
       </p>
 
-      {isLoading && <p className="text-xs text-white/50">Loading sensor telemetry…</p>}
+      {isLoading && <p className="text-xs text-foreground/50">Loading sensor telemetry…</p>}
       {isError && <p className="text-xs text-red-300">{error.message}</p>}
       {!isLoading && !isError && stations.length === 0 && (
-        <p className="text-xs text-white/50">No registered sensor stations.</p>
+        <p className="text-xs text-foreground/50">No registered sensor stations.</p>
       )}
 
       <div className="flex flex-col gap-2 max-h-64 overflow-y-auto">
@@ -53,20 +53,20 @@ export default function IoTSensorPanel() {
             <article
               key={station.station_id}
               className="rounded-lg p-2.5"
-              style={{ background: 'rgba(255,255,255,0.035)', border: `1px solid ${status.color}33` }}
+              style={{ background: 'rgba(var(--fg-rgb),var(--fg-a05))', border: `1px solid ${status.color}33` }}
             >
               <div className="flex items-start justify-between gap-2">
                 <div>
-                  <h3 className="text-[11px] font-semibold text-white/85">{station.name}</h3>
-                  <p className="text-[9px] font-mono text-white/35">{station.station_id}</p>
+                  <h3 className="text-[11px] font-semibold text-foreground/85">{station.name}</h3>
+                  <p className="text-[9px] font-mono text-foreground/35">{station.station_id}</p>
                 </div>
                 <span className="flex items-center gap-1 text-[10px]" style={{ color: status.color }}>
                   <Activity size={11} /> {status.label}
                 </span>
               </div>
               <div className="grid grid-cols-2 gap-x-3 gap-y-1 mt-2 text-[10px]">
-                <span className="flex items-center gap-1 text-white/55"><Battery size={11} /> Battery: <b className="text-white/80">{batteryLabel(station)}</b></span>
-                <span className="flex items-center gap-1 text-white/55"><Clock size={11} /> Last report: <b className="text-white/80">{formatLastReport(station.last_seen)}</b></span>
+                <span className="flex items-center gap-1 text-foreground/55"><Battery size={11} /> Battery: <b className="text-foreground/80">{batteryLabel(station)}</b></span>
+                <span className="flex items-center gap-1 text-foreground/55"><Clock size={11} /> Last report: <b className="text-foreground/80">{formatLastReport(station.last_seen)}</b></span>
               </div>
               {station.status === 'low_battery' && (
                 <p className="mt-2 flex items-center gap-1 text-[10px] text-amber-300"><TriangleAlert size={11} /> Maintenance attention required</p>

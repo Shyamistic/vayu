@@ -503,14 +503,14 @@ const AnnotationPopup: React.FC<AnnotationPopupProps> = ({
         <button
           onClick={onClose}
           aria-label="Close popup"
-          style={{ marginLeft: 'auto', background: 'none', border: 'none', color: 'rgba(255,255,255,0.5)', cursor: 'pointer', fontSize: '16px', lineHeight: 1 }}
+          style={{ marginLeft: 'auto', background: 'none', border: 'none', color: 'rgba(var(--fg-rgb),var(--fg-a4))', cursor: 'pointer', fontSize: '16px', lineHeight: 1 }}
         >
           ×
         </button>
       </div>
 
       {/* Creator */}
-      <label style={{ display: 'block', fontSize: '11px', color: 'rgba(255,255,255,0.45)', marginBottom: '3px' }}>
+      <label style={{ display: 'block', fontSize: '11px', color: 'rgba(var(--fg-rgb),var(--fg-a4))', marginBottom: '3px' }}>
         Creator
       </label>
       <input
@@ -520,13 +520,13 @@ const AnnotationPopup: React.FC<AnnotationPopupProps> = ({
         aria-label="Annotation creator"
         style={{
           width: '100%', boxSizing: 'border-box', marginBottom: '8px',
-          background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)',
+          background: 'rgba(var(--fg-rgb),var(--fg-a05))', border: '1px solid rgba(var(--fg-rgb),var(--fg-a12))',
           borderRadius: '6px', color: '#e2e8f0', fontSize: '12px', padding: '5px 8px',
         }}
       />
 
       {/* Notes */}
-      <label style={{ display: 'block', fontSize: '11px', color: 'rgba(255,255,255,0.45)', marginBottom: '3px' }}>
+      <label style={{ display: 'block', fontSize: '11px', color: 'rgba(var(--fg-rgb),var(--fg-a4))', marginBottom: '3px' }}>
         Notes
       </label>
       <textarea
@@ -538,13 +538,13 @@ const AnnotationPopup: React.FC<AnnotationPopupProps> = ({
         placeholder="Add a description…"
         style={{
           width: '100%', boxSizing: 'border-box', marginBottom: '8px', resize: 'vertical',
-          background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)',
+          background: 'rgba(var(--fg-rgb),var(--fg-a05))', border: '1px solid rgba(var(--fg-rgb),var(--fg-a12))',
           borderRadius: '6px', color: '#e2e8f0', fontSize: '12px', padding: '5px 8px',
         }}
       />
 
       {/* Timestamp */}
-      <div style={{ fontSize: '10px', color: 'rgba(255,255,255,0.3)', marginBottom: '10px' }}>
+      <div style={{ fontSize: '10px', color: 'rgba(var(--fg-rgb),var(--fg-a3))', marginBottom: '10px' }}>
         {formatTimestamp(annotation.timestamp)} · <SyncBadge status={annotation.syncStatus} />
       </div>
 
@@ -608,7 +608,7 @@ const AnnotationRow: React.FC<AnnotationRowProps> = ({
         gap: '8px',
         padding: '8px 10px',
         borderRadius: '8px',
-        background: isSelected ? 'rgba(255,255,255,0.07)' : 'transparent',
+        background: isSelected ? 'rgba(var(--fg-rgb),var(--fg-a08))' : 'transparent',
         borderLeft: `3px solid ${isSelected ? annotation.color : 'transparent'}`,
         cursor: 'pointer',
         transition: 'background 120ms ease',
@@ -628,11 +628,11 @@ const AnnotationRow: React.FC<AnnotationRowProps> = ({
           <SyncBadge status={annotation.syncStatus} />
         </div>
         {annotation.content && (
-          <div style={{ fontSize: '12px', color: 'rgba(255,255,255,0.75)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          <div style={{ fontSize: '12px', color: 'rgba(var(--fg-rgb),var(--fg-a75))', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
             {annotation.content}
           </div>
         )}
-        <div style={{ fontSize: '10px', color: 'rgba(255,255,255,0.35)', marginTop: '2px' }}>
+        <div style={{ fontSize: '10px', color: 'rgba(var(--fg-rgb),var(--fg-a3))', marginTop: '2px' }}>
           {annotation.creator} · {latStr}°N, {lonStr}°E
         </div>
       </div>
@@ -640,12 +640,12 @@ const AnnotationRow: React.FC<AnnotationRowProps> = ({
         onClick={(e) => { e.stopPropagation(); onDelete(annotation.id); }}
         aria-label={`Delete ${annotation.type} annotation`}
         style={{
-          background: 'none', border: 'none', color: 'rgba(255,255,255,0.3)',
+          background: 'none', border: 'none', color: 'rgba(var(--fg-rgb),var(--fg-a3))',
           cursor: 'pointer', fontSize: '14px', padding: '2px 4px', flexShrink: 0,
           borderRadius: '4px',
         }}
         onMouseEnter={(e) => ((e.currentTarget as HTMLButtonElement).style.color = '#ef4444')}
-        onMouseLeave={(e) => ((e.currentTarget as HTMLButtonElement).style.color = 'rgba(255,255,255,0.3)')}
+        onMouseLeave={(e) => ((e.currentTarget as HTMLButtonElement).style.color = 'rgba(var(--fg-rgb),var(--fg-a3))')}
       >
         ×
       </button>
@@ -684,9 +684,9 @@ const AnnotationToolbar: React.FC<ToolbarProps> = ({
           style={{
             padding: '5px 10px',
             borderRadius: '6px',
-            border: `1px solid ${isActive ? ANNOTATION_COLORS[type] : 'rgba(255,255,255,0.12)'}`,
-            background: isActive ? `${ANNOTATION_COLORS[type]}22` : 'rgba(255,255,255,0.04)',
-            color: isActive ? ANNOTATION_COLORS[type] : 'rgba(255,255,255,0.7)',
+            border: `1px solid ${isActive ? ANNOTATION_COLORS[type] : 'rgba(var(--fg-rgb),var(--fg-a12))'}`,
+            background: isActive ? `${ANNOTATION_COLORS[type]}22` : 'rgba(var(--fg-rgb),var(--fg-a05))',
+            color: isActive ? ANNOTATION_COLORS[type] : 'rgba(var(--fg-rgb),var(--fg-a7))',
             fontWeight: isActive ? 700 : 400,
             fontSize: '12px',
             cursor: 'pointer',
@@ -855,7 +855,7 @@ export const Annotations: React.FC<AnnotationsProps> = ({
             style={{
               fontSize: '18px',
               fontWeight: 600,
-              color: 'rgba(255,255,255,0.95)',
+              color: 'rgba(var(--fg-rgb),var(--fg-a75))',
               margin: 0,
               display: 'flex',
               alignItems: 'center',
@@ -876,7 +876,7 @@ export const Annotations: React.FC<AnnotationsProps> = ({
             {isOnline ? '● Online' : '○ Offline'}
           </span>
           {annotations.length > 0 && (
-            <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.35)' }}>
+            <span style={{ fontSize: '11px', color: 'rgba(var(--fg-rgb),var(--fg-a3))' }}>
               {syncedCount}/{annotations.length} synced
             </span>
           )}
@@ -926,7 +926,7 @@ export const Annotations: React.FC<AnnotationsProps> = ({
               style={{
                 textAlign: 'center',
                 padding: '24px 0',
-                color: 'rgba(255,255,255,0.25)',
+                color: 'rgba(var(--fg-rgb),var(--fg-a2))',
                 fontSize: '13px',
               }}
             >

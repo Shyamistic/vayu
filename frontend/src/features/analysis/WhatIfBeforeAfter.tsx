@@ -30,7 +30,7 @@ function barScale(values: number[]): (v: number) => number {
 
 function ChangeArrow({ delta }: { delta: number | null }) {
   if (delta === null || !Number.isFinite(delta) || delta === 0) {
-    return <span className="text-white/40 text-2xl leading-none">→</span>;
+    return <span className="text-foreground/40 text-2xl leading-none">→</span>;
   }
   const drying = delta < 0;
   return (
@@ -61,7 +61,7 @@ export default function WhatIfBeforeAfter({ result }: WhatIfBeforeAfterProps) {
       <section aria-labelledby="whatif-ba-heading" className="flex flex-col gap-3">
         <h3
           id="whatif-ba-heading"
-          className="text-sm font-semibold text-white/90 tracking-wide uppercase"
+          className="text-sm font-semibold text-foreground/90 tracking-wide uppercase"
         >
           Before &rarr; After
         </h3>
@@ -73,7 +73,7 @@ export default function WhatIfBeforeAfter({ result }: WhatIfBeforeAfterProps) {
             value={regional.baseline}
             unit={unit}
             barPct={scaleBA(regional.baseline ?? 0)}
-            barClass="bg-white/35"
+            barClass="bg-foreground/35"
           />
 
           <div className="flex flex-col items-center justify-center gap-1 px-1">
@@ -81,7 +81,7 @@ export default function WhatIfBeforeAfter({ result }: WhatIfBeforeAfterProps) {
             <span className={`text-base font-bold font-mono ${deltaColor}`}>
               {fmtSigned(regional.delta, 2)}
             </span>
-            <span className="text-xs text-white/50">{unit}</span>
+            <span className="text-xs text-foreground/50">{unit}</span>
             <span className={`text-sm font-semibold ${deltaColor}`}>
               {fmtSigned(regional.delta_percent, 1)}%
             </span>
@@ -98,9 +98,9 @@ export default function WhatIfBeforeAfter({ result }: WhatIfBeforeAfterProps) {
           />
         </div>
 
-        <p className="text-xs text-white/55">
+        <p className="text-xs text-foreground/55">
           95 % confidence interval on the change:{' '}
-          <span className="font-mono text-white/80">
+          <span className="font-mono text-foreground/80">
             {fmtCI(regional.delta_ci95_low, regional.delta_ci95_high, 2)} {unit}
           </span>
           {regional.delta_ci95_low !== null &&
@@ -141,7 +141,7 @@ export default function WhatIfBeforeAfter({ result }: WhatIfBeforeAfterProps) {
       <section aria-labelledby="whatif-timeline-heading" className="flex flex-col gap-3">
         <h3
           id="whatif-timeline-heading"
-          className="text-sm font-semibold text-white/90 tracking-wide uppercase"
+          className="text-sm font-semibold text-foreground/90 tracking-wide uppercase"
         >
           Past &middot; Current &middot; Projected
         </h3>
@@ -157,7 +157,7 @@ export default function WhatIfBeforeAfter({ result }: WhatIfBeforeAfterProps) {
           ))}
         </div>
 
-        <p className="text-xs text-white/55">
+        <p className="text-xs text-foreground/55">
           Past and current bars are measured means from the observed record with their
           interannual 95 % interval. The projected bar applies the fitted sensitivity to the
           current baseline — it is an extrapolation of an observed relationship, not a forecast.
@@ -168,13 +168,13 @@ export default function WhatIfBeforeAfter({ result }: WhatIfBeforeAfterProps) {
       <section aria-labelledby="whatif-dist-heading" className="flex flex-col gap-2">
         <h3
           id="whatif-dist-heading"
-          className="text-sm font-semibold text-white/90 tracking-wide uppercase"
+          className="text-sm font-semibold text-foreground/90 tracking-wide uppercase"
         >
           Spatial response
         </h3>
 
         <div
-          className="flex h-7 w-full overflow-hidden rounded-md border border-white/15"
+          className="flex h-7 w-full overflow-hidden rounded-md border border-foreground/15"
           role="img"
           aria-label={
             `${distribution.cells_drier} of ${distribution.cells_total} cells drier, ` +
@@ -208,18 +208,18 @@ export default function WhatIfBeforeAfter({ result }: WhatIfBeforeAfterProps) {
             </div>
           )}
           {shares.neutralPct > 0 && (
-            <div className="bg-white/10" style={{ width: `${shares.neutralPct}%` }} />
+            <div className="bg-foreground/10" style={{ width: `${shares.neutralPct}%` }} />
           )}
         </div>
 
-        <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-white/65">
+        <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-foreground/65">
           <span>
             Grid cells analysed:{' '}
-            <span className="font-mono text-white/85">{distribution.cells_total}</span>
+            <span className="font-mono text-foreground/85">{distribution.cells_total}</span>
           </span>
           <span>
             Locally significant (p &lt; 0.05):{' '}
-            <span className="font-mono text-white/85">{distribution.cells_significant}</span>
+            <span className="font-mono text-foreground/85">{distribution.cells_significant}</span>
           </span>
           <span>
             Drier: <span className="font-mono text-amber-300">{distribution.cells_drier}</span>
@@ -260,23 +260,23 @@ function BeforeAfterCard({
 }) {
   return (
     <div
-      className={`flex flex-col gap-2 rounded-lg p-3 bg-white/[0.04] border ${
-        projected ? 'border-dashed border-white/30' : 'border-white/12'
+      className={`flex flex-col gap-2 rounded-lg p-3 bg-foreground/[0.04] border ${
+        projected ? 'border-dashed border-foreground/30' : 'border-foreground/12'
       }`}
     >
       <div className="flex items-baseline justify-between gap-2">
-        <span className="text-xs font-semibold uppercase tracking-wider text-white/60">
+        <span className="text-xs font-semibold uppercase tracking-wider text-foreground/60">
           {caption}
         </span>
-        <span className="text-[10px] text-white/40">{sublabel}</span>
+        <span className="text-[10px] text-foreground/40">{sublabel}</span>
       </div>
       <div className="flex items-baseline gap-1.5">
-        <span className="text-3xl font-bold font-mono text-white leading-none">
+        <span className="text-3xl font-bold font-mono text-foreground leading-none">
           {fmt(value, 2)}
         </span>
-        <span className="text-xs text-white/50">{unit}</span>
+        <span className="text-xs text-foreground/50">{unit}</span>
       </div>
-      <div className="h-2 w-full rounded-full bg-white/[0.07] overflow-hidden">
+      <div className="h-2 w-full rounded-full bg-foreground/[0.07] overflow-hidden">
         <div className={`h-full rounded-full ${barClass}`} style={{ width: `${barPct}%` }} />
       </div>
     </div>
@@ -298,7 +298,7 @@ function EpochBar({
     ? drying
       ? 'bg-amber-500/45 border border-dashed border-amber-300/70'
       : 'bg-sky-500/45 border border-dashed border-sky-300/70'
-    : 'bg-white/25 border border-white/20';
+    : 'bg-foreground/25 border border-foreground/20';
 
   // Whisker length is expressed relative to the bar so it scales with the bar.
   const whiskerPct =
@@ -307,11 +307,11 @@ function EpochBar({
   return (
     <div className="flex flex-col items-center gap-2 h-full justify-end">
       <div className="flex flex-col items-center gap-0.5">
-        <span className="text-base font-bold font-mono text-white leading-none">
+        <span className="text-base font-bold font-mono text-foreground leading-none">
           {fmt(epoch.value, 2)}
         </span>
         {epoch.uncertainty !== null && Number.isFinite(epoch.uncertainty) && (
-          <span className="text-[10px] text-white/45 font-mono">
+          <span className="text-[10px] text-foreground/45 font-mono">
             ± {fmt(epoch.uncertainty, 2)}
           </span>
         )}
@@ -324,29 +324,29 @@ function EpochBar({
         />
         {whiskerPct > 0 && (
           <div
-            className="absolute left-1/2 -translate-x-1/2 border-l border-white/55"
+            className="absolute left-1/2 -translate-x-1/2 border-l border-foreground/55"
             style={{
               bottom: `${Math.min(100, heightPct)}%`,
               height: `${Math.min(28, whiskerPct * 0.9)}%`,
             }}
             aria-hidden="true"
           >
-            <div className="absolute -left-1.5 top-0 w-3 border-t border-white/55" />
+            <div className="absolute -left-1.5 top-0 w-3 border-t border-foreground/55" />
           </div>
         )}
       </div>
 
       <div className="flex flex-col items-center gap-0.5 text-center">
-        <span className="text-xs text-white/75 leading-tight">{epoch.label}</span>
+        <span className="text-xs text-foreground/75 leading-tight">{epoch.label}</span>
         <span
           className={`text-[10px] uppercase tracking-wider ${
-            projected ? 'text-amber-300/80' : 'text-white/40'
+            projected ? 'text-amber-300/80' : 'text-foreground/40'
           }`}
         >
           {projected ? 'Projected' : 'Observed'}
         </span>
         {epoch.id !== 'current' && epoch.delta_vs_current !== null && (
-          <span className="text-[10px] font-mono text-white/55">
+          <span className="text-[10px] font-mono text-foreground/55">
             {fmtSigned(epoch.delta_vs_current, 2)} {unit}
           </span>
         )}
@@ -369,17 +369,17 @@ function Metric({
   emphasis?: 'warm' | 'cool';
 }) {
   const color =
-    emphasis === 'warm' ? 'text-amber-400' : emphasis === 'cool' ? 'text-sky-400' : 'text-white';
+    emphasis === 'warm' ? 'text-amber-400' : emphasis === 'cool' ? 'text-sky-400' : 'text-foreground';
   return (
-    <div className="rounded-lg bg-white/[0.04] border border-white/10 p-2.5 flex flex-col gap-1">
-      <span className="text-[10px] uppercase tracking-wider text-white/50 leading-tight">
+    <div className="rounded-lg bg-foreground/[0.04] border border-foreground/10 p-2.5 flex flex-col gap-1">
+      <span className="text-[10px] uppercase tracking-wider text-foreground/50 leading-tight">
         {label}
       </span>
       <span className={`text-lg font-bold font-mono leading-none ${color}`}>
         {value}
-        {unit && <span className="text-xs text-white/45 font-normal ml-1">{unit}</span>}
+        {unit && <span className="text-xs text-foreground/45 font-normal ml-1">{unit}</span>}
       </span>
-      <span className="text-[10px] text-white/35 leading-tight">{note}</span>
+      <span className="text-[10px] text-foreground/35 leading-tight">{note}</span>
     </div>
   );
 }

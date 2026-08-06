@@ -226,7 +226,7 @@ const ProgressBar: React.FC<ProgressBarProps> = ({
                   ? 'rgba(96,165,250,0.9)'
                   : isActive
                   ? 'rgba(96,165,250,0.5)'
-                  : 'rgba(255,255,255,0.12)',
+                  : 'rgba(var(--fg-rgb),var(--fg-a12))',
                 transition: 'background 0.3s',
                 position: 'relative',
                 overflow: 'hidden',
@@ -252,15 +252,15 @@ const ProgressBar: React.FC<ProgressBarProps> = ({
       </div>
       {/* Overall progress text */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.45)' }}>
+        <span style={{ fontSize: '11px', color: 'rgba(var(--fg-rgb),var(--fg-a4))' }}>
           Step {currentStep + 1} / {steps.length} — {steps[currentStep]?.title}
         </span>
-        <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.3)', fontFamily: 'monospace' }}>
+        <span style={{ fontSize: '11px', color: 'rgba(var(--fg-rgb),var(--fg-a3))', fontFamily: 'monospace' }}>
           {Math.floor(totalElapsed / 60)}:{String(Math.floor(totalElapsed % 60)).padStart(2, '0')} / {Math.floor(totalDuration / 60)}:{String(totalDuration % 60).padStart(2, '0')}
         </span>
       </div>
       {/* Thin overall bar */}
-      <div style={{ height: '2px', background: 'rgba(255,255,255,0.08)', borderRadius: '1px', overflow: 'hidden' }}>
+      <div style={{ height: '2px', background: 'rgba(var(--fg-rgb),var(--fg-a08))', borderRadius: '1px', overflow: 'hidden' }}>
         <div
           style={{
             height: '100%',
@@ -309,7 +309,7 @@ const PresenterNotes: React.FC<PresenterNotesProps> = ({ step, isPaused }) => (
       >
         {isPaused ? '⏸ Paused' : '▶ Live'}
       </span>
-      <span style={{ fontSize: '14px', fontWeight: 600, color: 'rgba(255,255,255,0.85)' }}>
+      <span style={{ fontSize: '14px', fontWeight: 600, color: 'rgba(var(--fg-rgb),var(--fg-a75))' }}>
         {step.title}
       </span>
     </div>
@@ -320,7 +320,7 @@ const PresenterNotes: React.FC<PresenterNotesProps> = ({ step, isPaused }) => (
         margin: 0,
         fontSize: '13px',
         lineHeight: 1.7,
-        color: 'rgba(255,255,255,0.75)',
+        color: 'rgba(var(--fg-rgb),var(--fg-a75))',
       }}
     >
       {step.notes}
@@ -351,10 +351,10 @@ const KeyboardHints: React.FC = () => {
         <span key={key} style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
           <kbd
             style={{
-              background: 'rgba(255,255,255,0.07)',
-              border: '1px solid rgba(255,255,255,0.18)',
+              background: 'rgba(var(--fg-rgb),var(--fg-a08))',
+              border: '1px solid rgba(var(--fg-rgb),var(--fg-a2))',
               borderRadius: '4px',
-              color: 'rgba(255,255,255,0.6)',
+              color: 'rgba(var(--fg-rgb),var(--fg-a6))',
               fontFamily: 'monospace',
               fontSize: '11px',
               padding: '2px 7px',
@@ -362,7 +362,7 @@ const KeyboardHints: React.FC = () => {
           >
             {key}
           </kbd>
-          <span style={{ color: 'rgba(255,255,255,0.35)', fontSize: '11px' }}>{label}</span>
+          <span style={{ color: 'rgba(var(--fg-rgb),var(--fg-a3))', fontSize: '11px' }}>{label}</span>
         </span>
       ))}
     </div>
@@ -559,7 +559,7 @@ export const DemoMode: React.FC<DemoModeProps> = ({
               >
                 🎬 Demo Mode
               </span>
-              <span style={{ fontSize: '12px', color: 'rgba(255,255,255,0.35)' }}>
+              <span style={{ fontSize: '12px', color: 'rgba(var(--fg-rgb),var(--fg-a3))' }}>
                 ~8 min walkthrough
               </span>
             </div>
@@ -572,10 +572,10 @@ export const DemoMode: React.FC<DemoModeProps> = ({
                 disabled={currentStep === 0}
                 title="Back (B)"
                 style={{
-                  background: 'rgba(255,255,255,0.07)',
-                  border: '1px solid rgba(255,255,255,0.13)',
+                  background: 'rgba(var(--fg-rgb),var(--fg-a08))',
+                  border: '1px solid rgba(var(--fg-rgb),var(--fg-a12))',
                   borderRadius: '6px',
-                  color: currentStep === 0 ? 'rgba(255,255,255,0.2)' : 'rgba(255,255,255,0.7)',
+                  color: currentStep === 0 ? 'rgba(var(--fg-rgb),var(--fg-a2))' : 'rgba(var(--fg-rgb),var(--fg-a7))',
                   cursor: currentStep === 0 ? 'not-allowed' : 'pointer',
                   fontSize: '13px',
                   padding: '4px 10px',
@@ -591,10 +591,10 @@ export const DemoMode: React.FC<DemoModeProps> = ({
                 style={{
                   background: isPaused
                     ? 'rgba(96,165,250,0.2)'
-                    : 'rgba(255,255,255,0.07)',
-                  border: `1px solid ${isPaused ? 'rgba(96,165,250,0.5)' : 'rgba(255,255,255,0.13)'}`,
+                    : 'rgba(var(--fg-rgb),var(--fg-a08))',
+                  border: `1px solid ${isPaused ? 'rgba(96,165,250,0.5)' : 'rgba(var(--fg-rgb),var(--fg-a12))'}`,
                   borderRadius: '6px',
-                  color: isPaused ? 'rgba(96,165,250,0.9)' : 'rgba(255,255,255,0.7)',
+                  color: isPaused ? 'rgba(96,165,250,0.9)' : 'rgba(var(--fg-rgb),var(--fg-a7))',
                   cursor: 'pointer',
                   fontSize: '13px',
                   padding: '4px 12px',
@@ -610,10 +610,10 @@ export const DemoMode: React.FC<DemoModeProps> = ({
                 onClick={goNext}
                 title="Next (N)"
                 style={{
-                  background: 'rgba(255,255,255,0.07)',
-                  border: '1px solid rgba(255,255,255,0.13)',
+                  background: 'rgba(var(--fg-rgb),var(--fg-a08))',
+                  border: '1px solid rgba(var(--fg-rgb),var(--fg-a12))',
                   borderRadius: '6px',
-                  color: 'rgba(255,255,255,0.7)',
+                  color: 'rgba(var(--fg-rgb),var(--fg-a7))',
                   cursor: 'pointer',
                   fontSize: '13px',
                   padding: '4px 10px',

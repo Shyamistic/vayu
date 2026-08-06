@@ -24,14 +24,21 @@ export interface WhatIfRegressionChartProps {
   height?: number;
 }
 
-const AXIS_COLOR = 'rgba(255,255,255,0.45)';
-const GRID_COLOR = 'rgba(255,255,255,0.08)';
+// Theme-aware chart colours. Hardcoded white axes vanish against the light
+// theme's white panels, so these follow the same CSS-variable convention the
+// rest of the app's Plotly charts use (see MetricsDashboard).
+const AXIS_COLOR = 'rgba(var(--fg-rgb),var(--fg-a6))';
+const GRID_COLOR = 'rgba(var(--fg-rgb),var(--fg-a08))';
+const ZERO_COLOR = 'rgba(var(--fg-rgb),var(--fg-a2))';
+// Accents stay fixed: both hues clear WCAG AA against light and dark panels.
 const FIT_COLOR = '#f59e0b';
-const BAND_COLOR = 'rgba(245,158,11,0.16)';
+const BAND_COLOR = 'rgba(245,158,11,0.18)';
+const POSITIVE_COLOR = 'rgba(2,132,199,0.75)';
+const NEGATIVE_COLOR = 'rgba(220,38,38,0.75)';
 
 const BASE_LAYOUT: Partial<Layout> = {
-  paper_bgcolor: 'rgba(0,0,0,0)',
-  plot_bgcolor: 'rgba(0,0,0,0)',
+  paper_bgcolor: 'transparent',
+  plot_bgcolor: 'transparent',
   font: { color: AXIS_COLOR, size: 11, family: 'Inter, system-ui, sans-serif' },
   showlegend: false,
   hovermode: 'closest',
@@ -104,7 +111,7 @@ export default function WhatIfRegressionChart({
         // cloud shape.
         color: usable.map((p) => p.year),
         colorscale: 'Viridis',
-        line: { color: 'rgba(255,255,255,0.5)', width: 1 },
+        line: { color: AXIS_COLOR, width: 1 },
         showscale: false,
       },
       hovertemplate:
@@ -125,7 +132,7 @@ export default function WhatIfRegressionChart({
           font: { size: 11 },
         },
         zeroline: true,
-        zerolinecolor: 'rgba(255,255,255,0.22)',
+        zerolinecolor: ZERO_COLOR,
         gridcolor: GRID_COLOR,
         tickfont: { size: 10 },
       },
@@ -179,7 +186,7 @@ export default function WhatIfRegressionChart({
         type: 'bar',
         marker: {
           color: usable.map((p) =>
-            (p.residual ?? 0) >= 0 ? 'rgba(56,189,248,0.75)' : 'rgba(248,113,113,0.75)',
+            (p.residual ?? 0) >= 0 ? POSITIVE_COLOR : NEGATIVE_COLOR,
           ),
         },
         hovertemplate: `%{x}: %{y:+.2f} ${fit.response_unit}<extra>residual</extra>`,
@@ -195,7 +202,7 @@ export default function WhatIfRegressionChart({
         title: { text: 'residual', font: { size: 10 } },
         gridcolor: GRID_COLOR,
         zeroline: true,
-        zerolinecolor: 'rgba(255,255,255,0.28)',
+        zerolinecolor: ZERO_COLOR,
         tickfont: { size: 9 },
       },
       bargap: 0.25,
@@ -205,7 +212,7 @@ export default function WhatIfRegressionChart({
 
   if (usable.length < 2) {
     return (
-      <p className="text-sm text-white/50 py-6 text-center">
+      <p className="text-sm text-foreground/50 py-6 text-center">
         Not enough complete seasons to plot a regression.
       </p>
     );
@@ -229,7 +236,7 @@ export default function WhatIfRegressionChart({
         style={{ width: '100%' }}
         useResizeHandler
       />
-      <p className="text-xs text-white/40 px-1">
+      <p className="text-xs text-foreground/40 px-1">
         Each dot is one {fit.response === 'rainfall' ? 'season' : 'period'}, coloured by year.
         The band is the 95 % confidence interval of the fitted mean — it widens away from
         average conditions. Bars below show how far each year sat from the line.

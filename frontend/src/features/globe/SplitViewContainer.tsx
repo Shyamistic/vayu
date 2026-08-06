@@ -224,10 +224,10 @@ export default function SplitViewContainer({
             left: 12,
             padding: '6px 12px',
             borderRadius: 6,
-            background: 'rgba(6, 10, 22, 0.85)',
+            background: 'rgba(var(--panel-bg-rgb),0.85)',
             backdropFilter: 'blur(8px)',
             WebkitBackdropFilter: 'blur(8px)',
-            border: '1px solid rgba(255, 255, 255, 0.12)',
+            border: '1px solid rgba(var(--fg-rgb),var(--fg-a12))',
             color: '#ffffff',
             fontSize: 12,
             fontWeight: 600,
@@ -273,7 +273,7 @@ export default function SplitViewContainer({
             height: '100%',
             background: isDragging
               ? 'rgba(14, 165, 233, 0.9)'
-              : 'rgba(255, 255, 255, 0.3)',
+              : 'rgba(var(--fg-rgb),var(--fg-a3))',
             transition: isDragging ? 'none' : 'background 200ms ease',
           }}
         />
@@ -290,10 +290,10 @@ export default function SplitViewContainer({
             borderRadius: 10,
             background: isDragging
               ? 'rgba(14, 165, 233, 0.3)'
-              : 'rgba(255, 255, 255, 0.1)',
+              : 'rgba(var(--fg-rgb),var(--fg-a1))',
             border: isDragging
               ? '1px solid rgba(14, 165, 233, 0.6)'
-              : '1px solid rgba(255, 255, 255, 0.2)',
+              : '1px solid rgba(var(--fg-rgb),var(--fg-a2))',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
@@ -302,9 +302,9 @@ export default function SplitViewContainer({
         >
           {/* Grip dots */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-            <div style={{ width: 3, height: 3, borderRadius: '50%', background: 'rgba(255,255,255,0.5)' }} />
-            <div style={{ width: 3, height: 3, borderRadius: '50%', background: 'rgba(255,255,255,0.5)' }} />
-            <div style={{ width: 3, height: 3, borderRadius: '50%', background: 'rgba(255,255,255,0.5)' }} />
+            <div style={{ width: 3, height: 3, borderRadius: '50%', background: 'rgba(var(--fg-rgb),var(--fg-a4))' }} />
+            <div style={{ width: 3, height: 3, borderRadius: '50%', background: 'rgba(var(--fg-rgb),var(--fg-a4))' }} />
+            <div style={{ width: 3, height: 3, borderRadius: '50%', background: 'rgba(var(--fg-rgb),var(--fg-a4))' }} />
           </div>
         </div>
       </div>
@@ -329,7 +329,7 @@ export default function SplitViewContainer({
             right: 12,
             padding: '6px 12px',
             borderRadius: 6,
-            background: 'rgba(6, 10, 22, 0.85)',
+            background: 'rgba(var(--panel-bg-rgb),0.85)',
             backdropFilter: 'blur(8px)',
             WebkitBackdropFilter: 'blur(8px)',
             border: '1px solid rgba(34, 211, 238, 0.3)',

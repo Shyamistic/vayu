@@ -384,7 +384,7 @@ const StatBox: React.FC<{ label: string; value: string; color: string; sub?: str
   >
     <div style={{ fontSize: '18px', fontWeight: 700, color }}>{value}</div>
     {sub && <div style={{ fontSize: '10px', color, opacity: 0.7, marginBottom: '2px' }}>{sub}</div>}
-    <div style={{ fontSize: '10px', color: 'rgba(255,255,255,0.45)', marginTop: '2px' }}>{label}</div>
+    <div style={{ fontSize: '10px', color: 'rgba(var(--fg-rgb),var(--fg-a4))', marginTop: '2px' }}>{label}</div>
   </div>
 );
 
@@ -394,14 +394,14 @@ const CapacityBar: React.FC<{ label: string; value: number; color: string }> = (
 }) => (
   <div style={{ marginBottom: '6px' }}>
     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '3px', fontSize: '11px' }}>
-      <span style={{ color: 'rgba(255,255,255,0.6)' }}>{label}</span>
+      <span style={{ color: 'rgba(var(--fg-rgb),var(--fg-a6))' }}>{label}</span>
       <span style={{ color, fontWeight: 600 }}>{(value * 100).toFixed(1)}%</span>
     </div>
     <div
       style={{
         height: '6px',
         borderRadius: '3px',
-        background: 'rgba(255,255,255,0.08)',
+        background: 'rgba(var(--fg-rgb),var(--fg-a08))',
         overflow: 'hidden',
       }}
     >
@@ -462,7 +462,7 @@ const GenerationChart: React.FC<{ curve: DailyGenerationPoint[]; selectedDay: nu
           <line
             key={t}
             x1={PAD.left} y1={y} x2={PAD.left + innerW} y2={y}
-            stroke="rgba(255,255,255,0.07)" strokeWidth="1"
+            stroke="rgba(var(--fg-rgb),var(--fg-a08))" strokeWidth="1"
           />
         );
       })}
@@ -474,7 +474,7 @@ const GenerationChart: React.FC<{ curve: DailyGenerationPoint[]; selectedDay: nu
           x={toX(p.day)} y={H - 4}
           textAnchor="middle"
           fontSize="9"
-          fill="rgba(255,255,255,0.35)"
+          fill="rgba(var(--fg-rgb),var(--fg-a3))"
         >
           D{p.day}
         </text>
@@ -485,7 +485,7 @@ const GenerationChart: React.FC<{ curve: DailyGenerationPoint[]; selectedDay: nu
         x={PAD.left - 2} y={PAD.top + innerH / 2}
         textAnchor="middle"
         fontSize="8"
-        fill="rgba(255,255,255,0.3)"
+        fill="rgba(var(--fg-rgb),var(--fg-a3))"
         transform={`rotate(-90, ${PAD.left - 14}, ${PAD.top + innerH / 2})`}
       >
         GWh/GW
@@ -514,7 +514,7 @@ const GenerationChart: React.FC<{ curve: DailyGenerationPoint[]; selectedDay: nu
       {/* Selected day marker */}
       <line
         x1={selX} y1={PAD.top} x2={selX} y2={PAD.top + innerH}
-        stroke="rgba(255,255,255,0.3)" strokeWidth="1" strokeDasharray="3 2"
+        stroke="rgba(var(--fg-rgb),var(--fg-a3))" strokeWidth="1" strokeDasharray="3 2"
       />
 
       {/* Data point dots */}
@@ -532,7 +532,7 @@ const GenerationChart: React.FC<{ curve: DailyGenerationPoint[]; selectedDay: nu
 
 /** Legend row with color swatch */
 const LegendRow: React.FC<{ color: string; label: string }> = ({ color, label }) => (
-  <div style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '10px', color: 'rgba(255,255,255,0.5)' }}>
+  <div style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '10px', color: 'rgba(var(--fg-rgb),var(--fg-a4))' }}>
     <span style={{ width: '16px', height: '3px', background: color, borderRadius: '2px', display: 'inline-block' }} />
     {label}
   </div>
@@ -607,8 +607,8 @@ export const EnergyPanel: React.FC<EnergyPanelProps> = ({
     padding: '4px 10px',
     fontSize: '11px',
     fontWeight: active ? 600 : 400,
-    color: active ? '#fff' : 'rgba(255,255,255,0.4)',
-    background: active ? 'rgba(255,255,255,0.1)' : 'transparent',
+    color: active ? '#fff' : 'rgba(var(--fg-rgb),var(--fg-a4))',
+    background: active ? 'rgba(var(--fg-rgb),var(--fg-a1))' : 'transparent',
     border: 'none',
     borderRadius: '5px',
     cursor: 'pointer',
@@ -628,7 +628,7 @@ export const EnergyPanel: React.FC<EnergyPanelProps> = ({
           <h3 style={{
             fontSize: '15px',
             fontWeight: 600,
-            color: 'rgba(255,255,255,0.95)',
+            color: 'rgba(var(--fg-rgb),var(--fg-a75))',
             margin: 0,
             display: 'flex',
             alignItems: 'center',
@@ -636,7 +636,7 @@ export const EnergyPanel: React.FC<EnergyPanelProps> = ({
           }}>
             ⚡ Renewable Energy Forecast
           </h3>
-          <span style={{ marginLeft: 'auto', fontSize: '10px', color: 'rgba(255,255,255,0.35)' }}>
+          <span style={{ marginLeft: 'auto', fontSize: '10px', color: 'rgba(var(--fg-rgb),var(--fg-a3))' }}>
             Day {selectedDay} of {FORECAST_DAYS}
           </span>
         </div>
@@ -695,14 +695,14 @@ export const EnergyPanel: React.FC<EnergyPanelProps> = ({
             {selectedPoint && (
               <div style={{
                 marginTop: '8px',
-                background: 'rgba(255,255,255,0.04)',
+                background: 'rgba(var(--fg-rgb),var(--fg-a05))',
                 borderRadius: '6px',
                 padding: '6px 10px',
                 fontSize: '11px',
                 display: 'flex',
                 justifyContent: 'space-between',
               }}>
-                <span style={{ color: 'rgba(255,255,255,0.5)' }}>Day {selectedPoint.day}</span>
+                <span style={{ color: 'rgba(var(--fg-rgb),var(--fg-a4))' }}>Day {selectedPoint.day}</span>
                 <span style={{ color: '#fbbf24' }}>☀️ {selectedPoint.solarGWh.toFixed(2)} GWh/GW</span>
                 <span style={{ color: '#22d3ee' }}>💨 {selectedPoint.windGWh.toFixed(2)} GWh/GW</span>
               </div>
@@ -713,7 +713,7 @@ export const EnergyPanel: React.FC<EnergyPanelProps> = ({
         {activeTab === 'solar' && (
           <div>
             <CapacityBar label="Solar Capacity Factor" value={displayStats.avgSolarCF} color="#fbbf24" />
-            <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.5)', marginBottom: '8px' }}>
+            <div style={{ fontSize: '11px', color: 'rgba(var(--fg-rgb),var(--fg-a4))', marginBottom: '8px' }}>
               Mean GHI: <span style={{ color: '#fbbf24', fontWeight: 600 }}>
                 {displayStats.avgGHI.toFixed(0)} W/m²
               </span>
@@ -724,7 +724,7 @@ export const EnergyPanel: React.FC<EnergyPanelProps> = ({
             </div>
 
             {/* GHI color scale legend */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '10px', color: 'rgba(255,255,255,0.35)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '10px', color: 'rgba(var(--fg-rgb),var(--fg-a3))' }}>
               <span>0</span>
               <div style={{
                 flex: 1, height: '8px', borderRadius: '4px',
@@ -732,7 +732,7 @@ export const EnergyPanel: React.FC<EnergyPanelProps> = ({
               }} />
               <span>1200 W/m²</span>
             </div>
-            <div style={{ fontSize: '10px', color: 'rgba(255,255,255,0.3)', marginTop: '4px' }}>
+            <div style={{ fontSize: '10px', color: 'rgba(var(--fg-rgb),var(--fg-a3))', marginTop: '4px' }}>
               GHI = (1 − 0.75n³) × I₀ × cos(θz) · n = cloud fraction
             </div>
           </div>
@@ -741,7 +741,7 @@ export const EnergyPanel: React.FC<EnergyPanelProps> = ({
         {activeTab === 'wind' && (
           <div>
             <CapacityBar label="Wind Capacity Factor" value={displayStats.avgWindCF} color="#22d3ee" />
-            <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.5)', marginBottom: '8px' }}>
+            <div style={{ fontSize: '11px', color: 'rgba(var(--fg-rgb),var(--fg-a4))', marginBottom: '8px' }}>
               Mean power density: <span style={{ color: '#22d3ee', fontWeight: 600 }}>
                 {displayStats.avgWindPD.toFixed(0)} W/m²
               </span>
@@ -752,7 +752,7 @@ export const EnergyPanel: React.FC<EnergyPanelProps> = ({
             </div>
 
             {/* Wind power density color scale legend */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '10px', color: 'rgba(255,255,255,0.35)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '10px', color: 'rgba(var(--fg-rgb),var(--fg-a3))' }}>
               <span>0</span>
               <div style={{
                 flex: 1, height: '8px', borderRadius: '4px',
@@ -760,7 +760,7 @@ export const EnergyPanel: React.FC<EnergyPanelProps> = ({
               }} />
               <span>700+ W/m²</span>
             </div>
-            <div style={{ fontSize: '10px', color: 'rgba(255,255,255,0.3)', marginTop: '4px' }}>
+            <div style={{ fontSize: '10px', color: 'rgba(var(--fg-rgb),var(--fg-a3))', marginTop: '4px' }}>
               P = ½ρV³ at 80 m hub height · cut-in 3 m/s · rated 12 m/s
             </div>
           </div>

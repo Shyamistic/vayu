@@ -319,13 +319,13 @@ const RCPBadge: React.FC<{ rcp: RCPScenario; active: boolean; onClick: () => voi
       borderRadius: 'var(--radius-full, 9999px)',
       border: `1px solid ${active
         ? (rcp === 'rcp45' ? '#22d3ee' : '#f97316')
-        : 'rgba(255,255,255,0.2)'}`,
+        : 'rgba(var(--fg-rgb),var(--fg-a2))'}`,
       background: active
         ? (rcp === 'rcp45' ? 'rgba(34,211,238,0.15)' : 'rgba(249,115,22,0.15)')
         : 'transparent',
       color: active
         ? (rcp === 'rcp45' ? '#22d3ee' : '#f97316')
-        : 'rgba(255,255,255,0.55)',
+        : 'rgba(var(--fg-rgb),var(--fg-a6))',
       fontSize: 'var(--font-small, 12px)',
       fontWeight: 600,
       cursor: 'pointer',
@@ -355,9 +355,9 @@ const YearSelector: React.FC<{
             flex: 1,
             padding: '5px 0',
             borderRadius: 'var(--radius-sm, 6px)',
-            border: `1px solid ${selected === y ? accentColor : 'rgba(255,255,255,0.15)'}`,
+            border: `1px solid ${selected === y ? accentColor : 'rgba(var(--fg-rgb),var(--fg-a15))'}`,
             background: selected === y ? `${accentColor}20` : 'transparent',
-            color: selected === y ? accentColor : 'rgba(255,255,255,0.55)',
+            color: selected === y ? accentColor : 'rgba(var(--fg-rgb),var(--fg-a6))',
             fontSize: 'var(--font-small, 12px)',
             fontWeight: 600,
             cursor: 'pointer',
@@ -384,12 +384,12 @@ const DeltaStat: React.FC<{ label: string; delta: number; unit: string; color: s
       textAlign: 'center',
     }}
   >
-    <div style={{ fontSize: '10px', color: 'rgba(255,255,255,0.45)', marginBottom: '3px' }}>
+    <div style={{ fontSize: '10px', color: 'rgba(var(--fg-rgb),var(--fg-a4))', marginBottom: '3px' }}>
       {label}
     </div>
     <div style={{ fontSize: 'var(--font-heading-sm, 18px)', fontWeight: 700, color }}>
       {delta >= 0 ? '+' : ''}{delta.toFixed(1)}
-      <span style={{ fontSize: '11px', marginLeft: '2px', color: 'rgba(255,255,255,0.5)' }}>
+      <span style={{ fontSize: '11px', marginLeft: '2px', color: 'rgba(var(--fg-rgb),var(--fg-a4))' }}>
         {unit}
       </span>
     </div>
@@ -402,7 +402,7 @@ const DivergingLegend: React.FC<{ variable: VariableId; maxDelta: number }> = ({
   const neg = (-maxDelta).toFixed(1);
   const pos = `+${maxDelta.toFixed(1)}`;
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '10px', color: 'rgba(255,255,255,0.5)' }}>
+    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '10px', color: 'rgba(var(--fg-rgb),var(--fg-a4))' }}>
       <span>{neg}{unit}</span>
       <div
         aria-hidden="true"
@@ -420,11 +420,11 @@ const DivergingLegend: React.FC<{ variable: VariableId; maxDelta: number }> = ({
 const VulnerabilityList: React.FC<{ zones: VulnerabilityZone[]; year: ProjectionYear }> = ({ zones, year }) => (
   <div style={{ marginTop: 'var(--space-md, 12px)' }}>
     <div style={{
-      fontSize: '11px', fontWeight: 600, color: 'rgba(255,255,255,0.5)',
+      fontSize: '11px', fontWeight: 600, color: 'rgba(var(--fg-rgb),var(--fg-a4))',
       textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: '6px',
     }}>
       Vulnerability Zones — {year}
-      <span style={{ marginLeft: '6px', color: 'rgba(255,255,255,0.3)', fontWeight: 400 }}>
+      <span style={{ marginLeft: '6px', color: 'rgba(var(--fg-rgb),var(--fg-a3))', fontWeight: 400 }}>
         ({zones.length} active)
       </span>
     </div>
@@ -449,13 +449,13 @@ const VulnerabilityList: React.FC<{ zones: VulnerabilityZone[]; year: Projection
           >
             <span aria-hidden="true">{icon}</span>
             <div style={{ flex: 1 }}>
-              <div style={{ fontSize: '12px', color: 'rgba(255,255,255,0.85)', fontWeight: 500 }}>
+              <div style={{ fontSize: '12px', color: 'rgba(var(--fg-rgb),var(--fg-a75))', fontWeight: 500 }}>
                 {z.label}
               </div>
               <div style={{ fontSize: '10px', color: color, marginTop: '1px', textTransform: 'capitalize' }}>
                 {z.type.replace(/_/g, ' ')}
                 {z.activeFromYear < year && (
-                  <span style={{ color: 'rgba(255,255,255,0.35)', marginLeft: '6px' }}>
+                  <span style={{ color: 'rgba(var(--fg-rgb),var(--fg-a3))', marginLeft: '6px' }}>
                     Active since {z.activeFromYear}
                   </span>
                 )}
@@ -465,7 +465,7 @@ const VulnerabilityList: React.FC<{ zones: VulnerabilityZone[]; year: Projection
         );
       })}
       {zones.length === 0 && (
-        <div style={{ fontSize: '12px', color: 'rgba(255,255,255,0.3)', fontStyle: 'italic' }}>
+        <div style={{ fontSize: '12px', color: 'rgba(var(--fg-rgb),var(--fg-a3))', fontStyle: 'italic' }}>
           No vulnerability zones for this selection
         </div>
       )}
@@ -579,34 +579,34 @@ export const ClimateChangeProjection: React.FC<ClimateChangeProjectionProps> = (
           margin: '0 0 var(--space-md, 12px) 0',
           fontSize: 'var(--font-heading-sm, 18px)',
           fontWeight: 600,
-          color: 'rgba(255,255,255,0.95)',
+          color: 'rgba(var(--fg-rgb),var(--fg-a75))',
           display: 'flex',
           alignItems: 'center',
           gap: '8px',
         }}>
           🔭 Climate Change Projections
-          <span style={{ marginLeft: 'auto', fontSize: '11px', fontWeight: 400, color: 'rgba(255,255,255,0.35)' }}>
+          <span style={{ marginLeft: 'auto', fontSize: '11px', fontWeight: 400, color: 'rgba(var(--fg-rgb),var(--fg-a3))' }}>
             IPCC AR6
           </span>
         </h3>
 
         {/* ── RCP Scenario Selector (Req 42.1) ── */}
         <div style={{ marginBottom: 'var(--space-md, 12px)' }}>
-          <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.45)', marginBottom: '6px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.07em' }}>
+          <div style={{ fontSize: '11px', color: 'rgba(var(--fg-rgb),var(--fg-a4))', marginBottom: '6px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.07em' }}>
             Emission Scenario
           </div>
           <div style={{ display: 'flex', gap: '8px' }}>
             <RCPBadge rcp="rcp45" active={selectedRcp === 'rcp45'} onClick={() => handleRcpChange('rcp45')} />
             <RCPBadge rcp="rcp85" active={selectedRcp === 'rcp85'} onClick={() => handleRcpChange('rcp85')} />
           </div>
-          <div style={{ marginTop: '5px', fontSize: '10px', color: 'rgba(255,255,255,0.35)' }}>
+          <div style={{ marginTop: '5px', fontSize: '10px', color: 'rgba(var(--fg-rgb),var(--fg-a3))' }}>
             {RCP_LABELS[selectedRcp]}
           </div>
         </div>
 
         {/* ── Projection Year Selector (Req 42.1) ── */}
         <div style={{ marginBottom: 'var(--space-md, 12px)' }}>
-          <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.45)', marginBottom: '6px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.07em' }}>
+          <div style={{ fontSize: '11px', color: 'rgba(var(--fg-rgb),var(--fg-a4))', marginBottom: '6px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.07em' }}>
             Projection Horizon
           </div>
           <YearSelector
@@ -620,7 +620,7 @@ export const ClimateChangeProjection: React.FC<ClimateChangeProjectionProps> = (
         {/* ── Projected Deltas summary (Req 42.2) ── */}
         {scenarioData && (
           <div style={{ marginBottom: 'var(--space-md, 12px)' }}>
-            <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.45)', marginBottom: '6px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.07em' }}>
+            <div style={{ fontSize: '11px', color: 'rgba(var(--fg-rgb),var(--fg-a4))', marginBottom: '6px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.07em' }}>
               Projected Changes vs 2010–2020 Baseline
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '6px', marginBottom: '8px' }}>
@@ -659,7 +659,7 @@ export const ClimateChangeProjection: React.FC<ClimateChangeProjectionProps> = (
             alignItems: 'center',
             marginBottom: '6px',
           }}>
-            <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.45)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.07em' }}>
+            <div style={{ fontSize: '11px', color: 'rgba(var(--fg-rgb),var(--fg-a4))', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.07em' }}>
               ⏳ Time Machine
             </div>
             <div style={{
@@ -692,7 +692,7 @@ export const ClimateChangeProjection: React.FC<ClimateChangeProjectionProps> = (
               cursor: 'pointer',
             }}
           />
-          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: 'rgba(255,255,255,0.3)', marginTop: '2px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: 'rgba(var(--fg-rgb),var(--fg-a3))', marginTop: '2px' }}>
             <span>Present ({CURRENT_YEAR})</span>
             <span>{selectedYear}</span>
           </div>
@@ -712,8 +712,8 @@ export const ClimateChangeProjection: React.FC<ClimateChangeProjectionProps> = (
             to right,
             ${accentColor} 0%,
             ${accentColor} ${timeFraction * 100}%,
-            rgba(255,255,255,0.15) ${timeFraction * 100}%,
-            rgba(255,255,255,0.15) 100%
+            rgba(var(--fg-rgb),var(--fg-a15)) ${timeFraction * 100}%,
+            rgba(var(--fg-rgb),var(--fg-a15)) 100%
           );
         }
         .climate-change-projection input[type="range"]::-webkit-slider-thumb {

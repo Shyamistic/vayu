@@ -164,7 +164,7 @@ export default function AgriculturePanel({ gridCells }: AgriculturePanelProps) {
       {/* Header */}
       <div className="flex items-center gap-2">
         <Leaf size={14} className="text-green-400" />
-        <span className="text-sm font-semibold text-white/85">Crop Advisory</span>
+        <span className="text-sm font-semibold text-foreground/85">Crop Advisory</span>
         <span
           className="text-[9px] px-1.5 py-0.5 rounded font-mono ml-auto"
           style={{ background: 'rgba(34,197,94,0.12)', color: '#86efac', border: '1px solid rgba(34,197,94,0.2)' }}
@@ -174,7 +174,7 @@ export default function AgriculturePanel({ gridCells }: AgriculturePanelProps) {
       </div>
 
       {crops.length === 0 ? (
-        <div className="text-xs text-white/30 text-center py-4">
+        <div className="text-xs text-foreground/30 text-center py-4">
           Run a prediction to see crop advisories
         </div>
       ) : (
@@ -190,7 +190,7 @@ export default function AgriculturePanel({ gridCells }: AgriculturePanelProps) {
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-1.5">
                     <span className="text-sm">{crop.emoji}</span>
-                    <span className="text-xs font-semibold text-white/85">{crop.name}</span>
+                    <span className="text-xs font-semibold text-foreground/85">{crop.name}</span>
                   </div>
                   <div className="flex items-center gap-1" style={{ color: s.dot }}>
                     <StatusIcon status={crop.status} />
@@ -199,7 +199,7 @@ export default function AgriculturePanel({ gridCells }: AgriculturePanelProps) {
                     </span>
                   </div>
                 </div>
-                <p className="text-[10px] leading-relaxed" style={{ color: 'rgba(255,255,255,0.38)' }}>
+                <p className="text-[10px] leading-relaxed" style={{ color: 'rgba(var(--fg-rgb),var(--fg-a4))' }}>
                   {crop.detail}
                 </p>
               </div>
@@ -208,7 +208,7 @@ export default function AgriculturePanel({ gridCells }: AgriculturePanelProps) {
         </div>
       )}
 
-      <p className="text-[9px] text-white/20 text-center">
+      <p className="text-[9px] text-foreground/20 text-center">
         Based on T+1 forecast · IMD crop thresholds
       </p>
     </div>

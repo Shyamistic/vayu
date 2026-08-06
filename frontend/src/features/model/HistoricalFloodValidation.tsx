@@ -183,8 +183,8 @@ export const HistoricalFloodValidation: React.FC<HistoricalFloodValidationProps>
     <section aria-label="Historical Flood Validation" data-testid="historical-flood-validation" className="panel-tight p-3 space-y-3">
       <header>
         <div className="text-[10px] font-semibold uppercase tracking-wide text-cyan-300">Historical flood validation</div>
-        <h2 className="mt-1 text-sm font-semibold text-white">Flood prediction skill hindcast</h2>
-        <p className="mt-1 text-[11px] leading-4 text-white/55">
+        <h2 className="mt-1 text-sm font-semibold text-foreground">Flood prediction skill hindcast</h2>
+        <p className="mt-1 text-[11px] leading-4 text-foreground/55">
           Five major Indian floods evaluated at each event&apos;s rainfall threshold. Counts are spatial forecast instances, not people affected.
         </p>
       </header>
@@ -195,8 +195,8 @@ export const HistoricalFloodValidation: React.FC<HistoricalFloodValidationProps>
           ['POD', aggregateScores.pod, 'Probability of Detection'],
           ['FAR', aggregateScores.far, 'False Alarm Ratio (lower is better)'],
         ].map(([label, value, title]) => (
-          <div key={label as string} title={title as string} className="rounded border border-white/10 bg-white/[0.03] p-2">
-            <div className="text-[9px] font-semibold tracking-wide text-white/45">{label}</div>
+          <div key={label as string} title={title as string} className="rounded border border-foreground/10 bg-white/[0.03] p-2">
+            <div className="text-[9px] font-semibold tracking-wide text-foreground/45">{label}</div>
             <div className="mt-1 text-sm font-semibold text-cyan-200">{formatPercent(value as number)}</div>
           </div>
         ))}
@@ -204,13 +204,13 @@ export const HistoricalFloodValidation: React.FC<HistoricalFloodValidationProps>
 
       <div className="overflow-x-auto">
         <table className="w-full min-w-[555px] text-left text-[10px]" aria-label="Historical flood event validation statistics">
-          <thead className="border-b border-white/10 text-white/45">
+          <thead className="border-b border-foreground/10 text-foreground/45">
             <tr><th className="pb-2 font-medium">Event</th><th className="pb-2 font-medium">Threshold</th><th className="pb-2 font-medium">Model lead</th><th className="pb-2 font-medium">Hits</th><th className="pb-2 font-medium">Misses</th><th className="pb-2 font-medium">False alarms</th></tr>
           </thead>
           <tbody>
             {events.map((event) => (
-              <tr key={event.id} className={`border-b border-white/5 ${event.id === selectedEvent.id ? 'bg-cyan-400/10' : ''}`}>
-                <td className="py-2 pr-2"><button type="button" onClick={() => setSelectedEventId(event.id)} className="text-left font-medium text-white hover:text-cyan-200 focus:outline-none focus-visible:ring-1 focus-visible:ring-cyan-300">{event.name}</button></td>
+              <tr key={event.id} className={`border-b border-foreground/5 ${event.id === selectedEvent.id ? 'bg-cyan-400/10' : ''}`}>
+                <td className="py-2 pr-2"><button type="button" onClick={() => setSelectedEventId(event.id)} className="text-left font-medium text-foreground hover:text-cyan-200 focus:outline-none focus-visible:ring-1 focus-visible:ring-cyan-300">{event.name}</button></td>
                 <td className="py-2">{event.floodThresholdMm} mm</td><td className="py-2">{event.modelWarningHours}h ({(event.modelWarningHours / 24).toFixed(1)}d)</td>
                 <td className="py-2 text-emerald-300">{event.contingency.hits}</td><td className="py-2 text-amber-200">{event.contingency.misses}</td><td className="py-2 text-rose-200">{event.contingency.falseAlarms}</td>
               </tr>
@@ -220,13 +220,13 @@ export const HistoricalFloodValidation: React.FC<HistoricalFloodValidationProps>
       </div>
 
       <article className="rounded border border-cyan-400/20 bg-cyan-400/[0.06] p-3" aria-live="polite">
-        <div className="flex items-start justify-between gap-3"><div><h3 className="text-xs font-semibold text-white">{selectedEvent.name}</h3><p className="mt-1 text-[10px] text-white/50">{selectedEvent.region} · {selectedEvent.startDate} to {selectedEvent.endDate} · peak {selectedEvent.maxRainfallMm} mm · {formatPopulation(selectedEvent.affectedPopulation)} affected</p></div><span className="rounded border border-cyan-300/30 px-2 py-1 text-[10px] font-semibold text-cyan-200">{selectedEvent.modelWarningHours}h model lead</span></div>
-        <p className="mt-2 text-[11px] leading-4 text-white/65">{selectedEvent.description}</p>
-        <div className="mt-3 grid grid-cols-3 gap-2 text-center"><div><div className="text-[9px] text-white/45">CSI</div><div className="font-semibold text-white">{formatPercent(selectedScores!.csi)}</div></div><div><div className="text-[9px] text-white/45">POD</div><div className="font-semibold text-white">{formatPercent(selectedScores!.pod)}</div></div><div><div className="text-[9px] text-white/45">FAR</div><div className="font-semibold text-white">{formatPercent(selectedScores!.far)}</div></div></div>
+        <div className="flex items-start justify-between gap-3"><div><h3 className="text-xs font-semibold text-foreground">{selectedEvent.name}</h3><p className="mt-1 text-[10px] text-foreground/50">{selectedEvent.region} · {selectedEvent.startDate} to {selectedEvent.endDate} · peak {selectedEvent.maxRainfallMm} mm · {formatPopulation(selectedEvent.affectedPopulation)} affected</p></div><span className="rounded border border-cyan-300/30 px-2 py-1 text-[10px] font-semibold text-cyan-200">{selectedEvent.modelWarningHours}h model lead</span></div>
+        <p className="mt-2 text-[11px] leading-4 text-foreground/65">{selectedEvent.description}</p>
+        <div className="mt-3 grid grid-cols-3 gap-2 text-center"><div><div className="text-[9px] text-foreground/45">CSI</div><div className="font-semibold text-foreground">{formatPercent(selectedScores!.csi)}</div></div><div><div className="text-[9px] text-foreground/45">POD</div><div className="font-semibold text-foreground">{formatPercent(selectedScores!.pod)}</div></div><div><div className="text-[9px] text-foreground/45">FAR</div><div className="font-semibold text-foreground">{formatPercent(selectedScores!.far)}</div></div></div>
         <div className="mt-3 rounded border border-amber-300/25 bg-amber-300/[0.08] p-2 text-[11px] leading-4 text-amber-100"><span className="font-semibold">Counterfactual:</span> If MAUSAM had been operational, <strong>{selectedGain} hours of additional warning</strong> would have been available ({selectedEvent.modelWarningHours}h model lead versus {selectedEvent.historicalWarningHours}h historical lead).</div>
       </article>
 
-      <p className="text-[9px] text-white/35">Aggregate: {aggregateTable.hits} hits, {aggregateTable.misses} misses, {aggregateTable.falseAlarms} false alarms across {events.length} historical flood events.</p>
+      <p className="text-[9px] text-foreground/35">Aggregate: {aggregateTable.hits} hits, {aggregateTable.misses} misses, {aggregateTable.falseAlarms} false alarms across {events.length} historical flood events.</p>
     </section>
   );
 };

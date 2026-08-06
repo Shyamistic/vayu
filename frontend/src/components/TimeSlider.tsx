@@ -98,12 +98,17 @@ export default function TimeSlider({ timeState, onChange }: TimeSliderProps) {
 
   return (
     <div
-      className="px-3 py-1.5 flex flex-col gap-1 select-none animate-slide-in-up"
-      style={{ textShadow: '0 1px 3px rgba(0,0,0,0.9), 0 0 6px rgba(0,0,0,0.6)' }}
+      className="px-3 py-2 flex flex-col gap-1 select-none animate-slide-in-up rounded-xl"
+      style={{
+        background: 'rgba(var(--panel-bg-rgb),0.92)',
+        border: '1px solid rgba(var(--fg-rgb),var(--fg-a08))',
+        backdropFilter: 'blur(12px)',
+        WebkitBackdropFilter: 'blur(12px)',
+      }}
     >
       {/* Header */}
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2 text-white/80">
+        <div className="flex items-center gap-2 text-foreground/80">
           <Calendar size={12} />
           <span className="text-xs font-medium">Timeline</span>
           <button
@@ -122,8 +127,8 @@ export default function TimeSlider({ timeState, onChange }: TimeSliderProps) {
               onClick={() => onChange({ granularity: g })}
               className={`text-[10px] px-2 py-0.5 rounded transition-colors ${
                 granularity === g
-                  ? 'bg-vayu-blue text-white'
-                  : 'text-white/40 hover:text-white/70'
+                  ? 'bg-vayu-blue text-foreground'
+                  : 'text-foreground/40 hover:text-foreground/70'
               }`}
             >
               {g.charAt(0).toUpperCase() + g.slice(1)}
@@ -157,15 +162,15 @@ export default function TimeSlider({ timeState, onChange }: TimeSliderProps) {
                      [&::-webkit-slider-thumb]:bg-vayu-blue [&::-webkit-slider-thumb]:cursor-pointer
                      [&::-webkit-slider-thumb]:shadow-[0_0_8px_rgba(14,165,233,0.6)]
                      [&::-webkit-slider-runnable-track]:h-[5px] [&::-webkit-slider-runnable-track]:rounded-full
-                     [&::-webkit-slider-runnable-track]:bg-white/20
+                     [&::-webkit-slider-runnable-track]:bg-foreground/20
                      [&::-moz-range-thumb]:w-4 [&::-moz-range-thumb]:h-4
                      [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-vayu-blue
                      [&::-moz-range-thumb]:border-0
                      [&::-moz-range-track]:h-[5px] [&::-moz-range-track]:rounded-full
-                     [&::-moz-range-track]:bg-white/20"
+                     [&::-moz-range-track]:bg-foreground/20"
         />
         {/* Range labels */}
-        <div className="flex justify-between text-[10px] text-white/30 mt-0.5">
+        <div className="flex justify-between text-[10px] text-foreground/30 mt-0.5">
           <span>2010</span>
           <span>2015</span>
           <span>2020</span>
@@ -199,8 +204,8 @@ export default function TimeSlider({ timeState, onChange }: TimeSliderProps) {
               onClick={() => onChange({ playbackSpeed: s })}
               className={`text-[10px] px-1.5 py-0.5 rounded transition-colors ${
                 playbackSpeed === s
-                  ? 'bg-white/20 text-white'
-                  : 'text-white/40 hover:text-white/60'
+                  ? 'bg-foreground/20 text-foreground'
+                  : 'text-foreground/40 hover:text-foreground/60'
               }`}
             >
               {s}×

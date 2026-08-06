@@ -294,7 +294,7 @@ const MonsoonGauge: React.FC<{ index: MonsoonIndex }> = ({ index }) => {
   return (
     <div style={{ marginBottom: '16px' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
-        <span style={{ fontSize: '13px', color: 'rgba(255,255,255,0.6)' }}>
+        <span style={{ fontSize: '13px', color: 'rgba(var(--fg-rgb),var(--fg-a6))' }}>
           ISMR Index
         </span>
         <span style={{ fontSize: '13px', fontWeight: 600, color }}>
@@ -313,7 +313,7 @@ const MonsoonGauge: React.FC<{ index: MonsoonIndex }> = ({ index }) => {
           position: 'relative',
           height: '12px',
           borderRadius: '6px',
-          background: 'rgba(255,255,255,0.08)',
+          background: 'rgba(var(--fg-rgb),var(--fg-a08))',
           overflow: 'hidden',
         }}
       >
@@ -339,14 +339,14 @@ const MonsoonGauge: React.FC<{ index: MonsoonIndex }> = ({ index }) => {
             top: 0,
             height: '100%',
             width: '2px',
-            background: 'rgba(255,255,255,0.7)',
+            background: 'rgba(var(--fg-rgb),var(--fg-a7))',
           }}
         />
       </div>
 
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '4px', fontSize: '11px', color: 'rgba(255,255,255,0.35)' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '4px', fontSize: '11px', color: 'rgba(var(--fg-rgb),var(--fg-a3))' }}>
         <span>0%</span>
-        <span style={{ color: 'rgba(255,255,255,0.55)' }}>Normal ({ISMR_NORMAL_MM_PER_DAY} mm/day)</span>
+        <span style={{ color: 'rgba(var(--fg-rgb),var(--fg-a6))' }}>Normal ({ISMR_NORMAL_MM_PER_DAY} mm/day)</span>
         <span>150%</span>
       </div>
 
@@ -356,8 +356,8 @@ const MonsoonGauge: React.FC<{ index: MonsoonIndex }> = ({ index }) => {
           { label: 'Climatological normal', value: `${index.normalMmPerDay.toFixed(1)} mm/day` },
         ].map(({ label, value }) => (
           <div key={label}>
-            <span style={{ color: 'rgba(255,255,255,0.4)' }}>{label}: </span>
-            <span style={{ color: 'rgba(255,255,255,0.85)', fontWeight: 600 }}>{value}</span>
+            <span style={{ color: 'rgba(var(--fg-rgb),var(--fg-a4))' }}>{label}: </span>
+            <span style={{ color: 'rgba(var(--fg-rgb),var(--fg-a75))', fontWeight: 600 }}>{value}</span>
           </div>
         ))}
       </div>
@@ -375,14 +375,14 @@ const IsochroneRow: React.FC<{
   const ahead = band.daysAheadOfNormal;
   const aheadLabel =
     ahead === 0 ? 'On time' : ahead > 0 ? `${ahead}d ahead` : `${Math.abs(ahead)}d behind`;
-  const aheadColor = ahead > 0 ? '#22c55e' : ahead < 0 ? '#f87171' : 'rgba(255,255,255,0.55)';
+  const aheadColor = ahead > 0 ? '#22c55e' : ahead < 0 ? '#f87171' : 'rgba(var(--fg-rgb),var(--fg-a6))';
 
   return (
     <tr
       onMouseEnter={() => onHover(band.lat)}
       onMouseLeave={() => onHover(null)}
       style={{
-        background: isHighlighted ? 'rgba(255,255,255,0.06)' : 'transparent',
+        background: isHighlighted ? 'rgba(var(--fg-rgb),var(--fg-a05))' : 'transparent',
         transition: 'background 120ms ease',
         cursor: 'default',
       }}
@@ -400,20 +400,20 @@ const IsochroneRow: React.FC<{
               flexShrink: 0,
             }}
           />
-          <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.7)', fontFamily: 'monospace' }}>
+          <span style={{ fontSize: '11px', color: 'rgba(var(--fg-rgb),var(--fg-a7))', fontFamily: 'monospace' }}>
             {band.lat.toFixed(1)}°N
           </span>
         </div>
       </td>
 
       {/* Predicted onset */}
-      <td style={{ padding: '5px 8px', fontSize: '11px', color: 'rgba(255,255,255,0.85)', fontFamily: 'monospace' }}>
+      <td style={{ padding: '5px 8px', fontSize: '11px', color: 'rgba(var(--fg-rgb),var(--fg-a75))', fontFamily: 'monospace' }}>
         {band.predictedOnsetDate.slice(5)}  {/* MM-DD */}
       </td>
 
       {/* IMD normal (conditionally shown) */}
       {showIMD && (
-        <td style={{ padding: '5px 8px', fontSize: '11px', color: 'rgba(255,255,255,0.4)', fontFamily: 'monospace' }}>
+        <td style={{ padding: '5px 8px', fontSize: '11px', color: 'rgba(var(--fg-rgb),var(--fg-a4))', fontFamily: 'monospace' }}>
           {band.normalOnsetDate.slice(5)}
         </td>
       )}
@@ -480,9 +480,9 @@ const IsochroneMap: React.FC<{
           <g key={lat}>
             <line
               x1="20" y1={latToY(lat)} x2="280" y2={latToY(lat)}
-              stroke="rgba(255,255,255,0.06)" strokeWidth="0.5"
+              stroke="rgba(var(--fg-rgb),var(--fg-a05))" strokeWidth="0.5"
             />
-            <text x="14" y={latToY(lat) + 3} fontSize="6" fill="rgba(255,255,255,0.25)" textAnchor="end">
+            <text x="14" y={latToY(lat) + 3} fontSize="6" fill="rgba(var(--fg-rgb),var(--fg-a2))" textAnchor="end">
               {lat}°
             </text>
           </g>
@@ -493,7 +493,7 @@ const IsochroneMap: React.FC<{
           <line
             key={ref.date}
             x1="20" y1={latToY(ref.lat)} x2="280" y2={latToY(ref.lat)}
-            stroke="rgba(255,255,255,0.35)"
+            stroke="rgba(var(--fg-rgb),var(--fg-a3))"
             strokeWidth="1"
             strokeDasharray="4 3"
           >
@@ -541,7 +541,7 @@ const IsochroneMap: React.FC<{
         ))}
 
         {/* "Arrow" indicating monsoon advance direction */}
-        <text x="148" y="195" fontSize="8" fill="rgba(255,255,255,0.3)" textAnchor="middle">
+        <text x="148" y="195" fontSize="8" fill="rgba(var(--fg-rgb),var(--fg-a3))" textAnchor="middle">
           ↑ SW Monsoon Advance →
         </text>
       </svg>
@@ -555,7 +555,7 @@ const IsochroneLegend: React.FC = () => (
     {ISOCHRONE_COLORS.map((color, i) => (
       <div key={color} style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
         <div style={{ width: '10px', height: '10px', borderRadius: '2px', background: color }} aria-hidden="true" />
-        <span style={{ fontSize: '10px', color: 'rgba(255,255,255,0.45)' }}>
+        <span style={{ fontSize: '10px', color: 'rgba(var(--fg-rgb),var(--fg-a4))' }}>
           {['Jun 1', 'Jun 10', 'Jun 20', 'Jul 1', 'Jul 10', 'Jul 20', 'Jul 25'][i]}
         </span>
       </div>
@@ -565,10 +565,10 @@ const IsochroneLegend: React.FC = () => (
 
 /** IMD reference line legend */
 const IMDLegend: React.FC = () => (
-  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px', fontSize: '11px', color: 'rgba(255,255,255,0.45)' }}>
+  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px', fontSize: '11px', color: 'rgba(var(--fg-rgb),var(--fg-a4))' }}>
     <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
       <svg width="20" height="4">
-        <line x1="0" y1="2" x2="20" y2="2" stroke="rgba(255,255,255,0.5)" strokeWidth="1.5" strokeDasharray="4 3" />
+        <line x1="0" y1="2" x2="20" y2="2" stroke="rgba(var(--fg-rgb),var(--fg-a4))" strokeWidth="1.5" strokeDasharray="4 3" />
       </svg>
       <span>IMD Normal Advance</span>
     </div>
@@ -667,7 +667,7 @@ export const MonsoonTracker: React.FC<MonsoonTrackerProps> = ({
           <span style={{ fontSize: '14px', fontWeight: 600, color: MONSOON_CATEGORY_COLOR[monsoonIndex.category] }}>
             Monsoon Active
           </span>
-          <span style={{ fontSize: '12px', color: 'rgba(255,255,255,0.6)', marginLeft: '4px' }}>
+          <span style={{ fontSize: '12px', color: 'rgba(var(--fg-rgb),var(--fg-a6))', marginLeft: '4px' }}>
             {meanOffset >= 0 ? '+' : ''}{meanOffset.toFixed(0)} days avg vs normal ·{' '}
             {aheadCount} zones ahead · {behindCount} zones behind
           </span>
@@ -677,10 +677,10 @@ export const MonsoonTracker: React.FC<MonsoonTrackerProps> = ({
             aria-label={animating ? 'Pause isochrone animation' : 'Play isochrone animation'}
             style={{
               marginLeft: 'auto',
-              background: animating ? 'rgba(34,197,94,0.2)' : 'rgba(255,255,255,0.1)',
-              border: '1px solid rgba(255,255,255,0.2)',
+              background: animating ? 'rgba(34,197,94,0.2)' : 'rgba(var(--fg-rgb),var(--fg-a1))',
+              border: '1px solid rgba(var(--fg-rgb),var(--fg-a2))',
               borderRadius: '6px',
-              color: 'rgba(255,255,255,0.8)',
+              color: 'rgba(var(--fg-rgb),var(--fg-a75))',
               fontSize: '12px',
               padding: '3px 10px',
               cursor: 'pointer',
@@ -693,9 +693,9 @@ export const MonsoonTracker: React.FC<MonsoonTrackerProps> = ({
       )}
 
       <GlassPanel padding="md" className="monsoon-panel">
-        <h3 style={{ fontSize: '18px', fontWeight: 600, color: 'rgba(255,255,255,0.95)', margin: '0 0 12px 0', display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <h3 style={{ fontSize: '18px', fontWeight: 600, color: 'rgba(var(--fg-rgb),var(--fg-a75))', margin: '0 0 12px 0', display: 'flex', alignItems: 'center', gap: '8px' }}>
           🌦 Monsoon Onset Tracker
-          <span style={{ marginLeft: 'auto', fontSize: '12px', fontWeight: 400, color: 'rgba(255,255,255,0.4)' }}>
+          <span style={{ marginLeft: 'auto', fontSize: '12px', fontWeight: 400, color: 'rgba(var(--fg-rgb),var(--fg-a4))' }}>
             {bands.length} zones
           </span>
         </h3>
@@ -732,8 +732,8 @@ export const MonsoonTracker: React.FC<MonsoonTrackerProps> = ({
                       textAlign: col === 'Status' ? 'right' : 'left',
                       fontSize: '11px',
                       fontWeight: 600,
-                      color: 'rgba(255,255,255,0.45)',
-                      borderBottom: '1px solid rgba(255,255,255,0.1)',
+                      color: 'rgba(var(--fg-rgb),var(--fg-a4))',
+                      borderBottom: '1px solid rgba(var(--fg-rgb),var(--fg-a1))',
                       whiteSpace: 'nowrap',
                     }}
                   >
@@ -758,8 +758,8 @@ export const MonsoonTracker: React.FC<MonsoonTrackerProps> = ({
 
         {/* IMD reference lines list (Req 18.2) */}
         {showIMDReference && (
-          <div style={{ marginTop: '14px', borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: '10px' }}>
-            <h4 style={{ fontSize: '12px', fontWeight: 600, color: 'rgba(255,255,255,0.5)', margin: '0 0 8px 0', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+          <div style={{ marginTop: '14px', borderTop: '1px solid rgba(var(--fg-rgb),var(--fg-a08))', paddingTop: '10px' }}>
+            <h4 style={{ fontSize: '12px', fontWeight: 600, color: 'rgba(var(--fg-rgb),var(--fg-a4))', margin: '0 0 8px 0', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
               IMD Reference Lines
             </h4>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
@@ -768,8 +768,8 @@ export const MonsoonTracker: React.FC<MonsoonTrackerProps> = ({
                   <span style={{ color: ref.type === 'advance' ? '#22d3ee' : '#f97316', fontFamily: 'monospace', minWidth: '32px' }}>
                     {ref.type === 'advance' ? '↑' : '↓'} {ref.lat}°N
                   </span>
-                  <span style={{ color: 'rgba(255,255,255,0.7)', flex: 1 }}>{ref.label}</span>
-                  <span style={{ color: 'rgba(255,255,255,0.3)', fontFamily: 'monospace' }}>
+                  <span style={{ color: 'rgba(var(--fg-rgb),var(--fg-a7))', flex: 1 }}>{ref.label}</span>
+                  <span style={{ color: 'rgba(var(--fg-rgb),var(--fg-a3))', fontFamily: 'monospace' }}>
                     {ref.date.slice(5)}
                   </span>
                 </div>

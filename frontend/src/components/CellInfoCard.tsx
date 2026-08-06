@@ -128,7 +128,7 @@ export default function CellInfoCard({
     <div
       className="fixed z-[1003] w-56 rounded-xl backdrop-blur-xl border animate-slide-in-up pointer-events-auto"
       style={{
-        background: 'rgba(6,10,22,0.96)',
+        background: 'rgba(var(--panel-bg-rgb),0.96)',
         border: '1px solid rgba(14,165,233,0.3)',
         boxShadow: '0 8px 32px rgba(0,0,0,0.6), 0 0 16px rgba(14,165,233,0.12)',
         ...style,
@@ -137,15 +137,15 @@ export default function CellInfoCard({
       {/* Header */}
       <div
         className="flex items-center justify-between px-3 py-2.5 border-b"
-        style={{ borderColor: 'rgba(255,255,255,0.08)' }}
+        style={{ borderColor: 'rgba(var(--fg-rgb),var(--fg-a08))' }}
       >
         <div className="flex items-center gap-1.5">
           <MapPin size={12} className="text-vayu-accent" />
-          <span className="text-xs font-mono text-white/80">
+          <span className="text-xs font-mono text-foreground/80">
             {cell.lat.toFixed(3)}°N {cell.lon.toFixed(3)}°E
           </span>
         </div>
-        <button onClick={onClose} className="text-white/40 hover:text-white/80 transition-colors">
+        <button onClick={onClose} className="text-foreground/40 hover:text-foreground/80 transition-colors">
           <X size={13} />
         </button>
       </div>
@@ -160,13 +160,13 @@ export default function CellInfoCard({
             ) : (
               <Thermometer size={13} className="text-orange-400" />
             )}
-            <span className="text-[11px] text-white/50">
+            <span className="text-[11px] text-foreground/50">
               {variable === 'rainfall' ? 'Rainfall' : variable === 'temp_max' ? 'Max Temp' : 'Min Temp'}
             </span>
           </div>
           <span className="text-base font-bold font-mono tabular-nums" style={{ color: variable === 'rainfall' ? '#60a5fa' : '#f97316' }}>
             {(cell[variable] as number).toFixed(1)}
-            <span className="text-xs font-normal text-white/40 ml-0.5">
+            <span className="text-xs font-normal text-foreground/40 ml-0.5">
               {variable === 'rainfall' ? 'mm' : '°C'}
             </span>
           </span>
@@ -176,9 +176,9 @@ export default function CellInfoCard({
         {uncertainty > 0 && (
           <div
             className="flex items-center justify-between px-2 py-1 rounded-md"
-            style={{ background: 'rgba(255,255,255,0.04)' }}
+            style={{ background: 'rgba(var(--fg-rgb),var(--fg-a05))' }}
           >
-            <span className="text-[10px] text-white/40">± Uncertainty</span>
+            <span className="text-[10px] text-foreground/40">± Uncertainty</span>
             <span className="text-[10px] font-mono text-yellow-300/70 tabular-nums">
               {uncertainty.toFixed(2)} {variable === 'rainfall' ? 'mm' : '°C'}
             </span>
@@ -197,15 +197,15 @@ export default function CellInfoCard({
               key={key}
               className="flex flex-col items-center py-1.5 rounded-lg"
               style={{
-                background: variable === key ? `${color}18` : 'rgba(255,255,255,0.03)',
-                border: variable === key ? `1px solid ${color}40` : '1px solid rgba(255,255,255,0.06)',
+                background: variable === key ? `${color}18` : 'rgba(var(--fg-rgb),var(--fg-a05))',
+                border: variable === key ? `1px solid ${color}40` : '1px solid rgba(var(--fg-rgb),var(--fg-a05))',
               }}
             >
-              <span className="text-[9px] text-white/40">{label}</span>
+              <span className="text-[9px] text-foreground/40">{label}</span>
               <span className="text-xs font-bold font-mono tabular-nums" style={{ color }}>
                 {(cell[key] as number).toFixed(1)}
               </span>
-              <span className="text-[9px] text-white/25">{unit}</span>
+              <span className="text-[9px] text-foreground/25">{unit}</span>
               {cell[uncertaintyKey] > 0 && (
                 <span className="text-[8px] font-mono text-yellow-300/60 mt-0.5">
                   ±{cell[uncertaintyKey].toFixed(1)}
@@ -218,8 +218,8 @@ export default function CellInfoCard({
         {/* Forecast trend — real per-lead model output only, never synthesised. */}
         <div>
           <div className="flex items-center gap-1 mb-1">
-            <TrendingUp size={10} className="text-white/30" />
-            <span className="text-[9px] text-white/30 uppercase tracking-wider">
+            <TrendingUp size={10} className="text-foreground/30" />
+            <span className="text-[9px] text-foreground/30 uppercase tracking-wider">
               {hasTrend ? `${sparkValues.length}-day forecast trend` : 'Forecast trend'}
             </span>
             {hasTrend && forecastIsMock && (
@@ -241,7 +241,7 @@ export default function CellInfoCard({
                 width={200}
                 height={36}
               />
-              <div className="flex justify-between text-[9px] text-white/25 mt-0.5 font-mono">
+              <div className="flex justify-between text-[9px] text-foreground/25 mt-0.5 font-mono">
                 {leadLabels.map((d) => (
                   <span key={d}>{d}</span>
                 ))}
@@ -250,7 +250,7 @@ export default function CellInfoCard({
           ) : (
             <div
               role="status"
-              className="text-[9px] text-white/25 font-mono py-2 text-center rounded-md"
+              className="text-[9px] text-foreground/25 font-mono py-2 text-center rounded-md"
               style={{ background: 'rgba(255,255,255,0.03)' }}
             >
               {forecastPending ? 'Loading T+1…T+7…' : 'Forecast trend unavailable'}
@@ -259,7 +259,7 @@ export default function CellInfoCard({
         </div>
 
         {/* Node index */}
-        <div className="text-[9px] text-white/20 text-center font-mono">
+        <div className="text-[9px] text-foreground/20 text-center font-mono">
           Node #{cell.node_idx} · 0.25° grid
         </div>
 
@@ -269,19 +269,19 @@ export default function CellInfoCard({
         {(modelVersion || inputDataTimestamp || cached !== undefined) && (
           <div
             className="flex items-center justify-between px-2 py-1 rounded-md text-[8px] font-mono"
-            style={{ background: 'rgba(255,255,255,0.03)' }}
+            style={{ background: 'rgba(var(--fg-rgb),var(--fg-a05))' }}
           >
-            <span className="text-white/25">
+            <span className="text-foreground/25">
               {modelVersion ? `VAYU v${modelVersion}` : ''}
             </span>
             <span className="flex items-center gap-1">
               {cached !== undefined && (
-                <span className={cached ? 'text-white/30' : 'text-emerald-400/70'}>
+                <span className={cached ? 'text-foreground/30' : 'text-emerald-400/70'}>
                   {cached ? 'cached' : 'live'}
                 </span>
               )}
               {inputDataTimestamp && (
-                <span className="text-white/25" title={inputDataTimestamp}>
+                <span className="text-foreground/25" title={inputDataTimestamp}>
                   {new Date(inputDataTimestamp).toLocaleString(undefined, {
                     month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit',
                   })}
