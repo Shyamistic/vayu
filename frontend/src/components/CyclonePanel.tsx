@@ -112,9 +112,9 @@ export default function CyclonePanel() {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <CloudLightning size={14} className="text-purple-400" />
-          <span className="text-sm font-semibold text-white/85">Cyclone Tracks</span>
+          <span className="text-sm font-semibold text-foreground/85">Cyclone Tracks</span>
         </div>
-        <span className="text-[9px] text-white/30 font-mono">IMD Historical</span>
+        <span className="text-[9px] text-foreground/30 font-mono">IMD Historical</span>
       </div>
 
       {/* Basin filter */}
@@ -125,9 +125,9 @@ export default function CyclonePanel() {
             onClick={() => setFilter(b)}
             className="flex-1 text-[10px] py-1 rounded-md transition-all"
             style={{
-              background: filter === b ? 'rgba(168,85,247,0.2)' : 'rgba(255,255,255,0.05)',
-              border: filter === b ? '1px solid rgba(168,85,247,0.4)' : '1px solid rgba(255,255,255,0.08)',
-              color: filter === b ? '#d8b4fe' : 'rgba(255,255,255,0.45)',
+              background: filter === b ? 'rgba(168,85,247,0.2)' : 'rgba(var(--fg-rgb),var(--fg-a05))',
+              border: filter === b ? '1px solid rgba(168,85,247,0.4)' : '1px solid rgba(var(--fg-rgb),var(--fg-a08))',
+              color: filter === b ? '#d8b4fe' : 'rgba(var(--fg-rgb),var(--fg-a4))',
             }}
           >
             {b === 'ALL' ? 'All' : b === 'BOB' ? 'Bay of Bengal' : 'Arabian Sea'}
@@ -152,29 +152,29 @@ export default function CyclonePanel() {
                 <div className="flex items-center gap-2">
                   <div className="w-2 h-2 rounded-full shrink-0" style={{ background: cy.color }} />
                   <div>
-                    <div className="text-[11px] font-semibold text-white/85">{cy.name}</div>
-                    <div className="text-[9px] text-white/35">{cy.category}</div>
+                    <div className="text-[11px] font-semibold text-foreground/85">{cy.name}</div>
+                    <div className="text-[9px] text-foreground/35">{cy.category}</div>
                   </div>
                 </div>
                 <div className="flex items-center gap-1.5">
                   <span className="text-[9px] font-mono" style={{ color: cy.color }}>
                     {cy.peakWindKnots} kt
                   </span>
-                  {isOpen ? <ChevronDown size={10} className="text-white/30" /> : <ChevronRight size={10} className="text-white/30" />}
+                  {isOpen ? <ChevronDown size={10} className="text-foreground/30" /> : <ChevronRight size={10} className="text-foreground/30" />}
                 </div>
               </div>
 
               {isOpen && (
-                <div className="mt-2 pt-2 border-t flex flex-col gap-1" style={{ borderColor: 'rgba(255,255,255,0.08)' }}>
+                <div className="mt-2 pt-2 border-t flex flex-col gap-1" style={{ borderColor: 'rgba(var(--fg-rgb),var(--fg-a08))' }}>
                   <div className="grid grid-cols-2 gap-x-3 gap-y-0.5 text-[10px]">
-                    <div className="text-white/40">Landfall:</div>
-                    <div className="text-white/70">{cy.landfallDate}</div>
-                    <div className="text-white/40">Location:</div>
-                    <div className="text-white/70">{cy.landfallLoc}</div>
-                    <div className="text-white/40">Intensity:</div>
+                    <div className="text-foreground/40">Landfall:</div>
+                    <div className="text-foreground/70">{cy.landfallDate}</div>
+                    <div className="text-foreground/40">Location:</div>
+                    <div className="text-foreground/70">{cy.landfallLoc}</div>
+                    <div className="text-foreground/40">Intensity:</div>
                     <div style={{ color: cy.color }}>{INTENSITY_LABELS[cy.category] ?? cy.category}</div>
-                    <div className="text-white/40">Deaths:</div>
-                    <div className="text-white/70 tabular-nums">{cy.deaths.toLocaleString()}</div>
+                    <div className="text-foreground/40">Deaths:</div>
+                    <div className="text-foreground/70 tabular-nums">{cy.deaths.toLocaleString()}</div>
                   </div>
                   <div className="flex flex-wrap gap-1 mt-1">
                     {cy.affectedStates.map((s) => (
@@ -194,7 +194,7 @@ export default function CyclonePanel() {
         })}
       </div>
 
-      <p className="text-[9px] text-white/20 text-center">
+      <p className="text-[9px] text-foreground/20 text-center">
         IMD post-season cyclone reports · 2017–2023
       </p>
     </div>

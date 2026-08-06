@@ -558,7 +558,7 @@ export const MultiHazardView: React.FC<MultiHazardViewProps> = ({
             style={{
               fontSize: 'var(--font-heading-sm, 18px)',
               fontWeight: 'var(--font-weight-semibold, 600)',
-              color: 'rgba(255,255,255,0.95)',
+              color: 'rgba(var(--fg-rgb),var(--fg-a75))',
               margin: 0,
             }}
           >
@@ -616,20 +616,20 @@ export const MultiHazardView: React.FC<MultiHazardViewProps> = ({
         }
         .mhv-tab-btn {
           background: transparent;
-          border: 1px solid rgba(255,255,255,0.1);
+          border: 1px solid rgba(var(--fg-rgb),var(--fg-a1));
           border-radius: var(--radius-sm, 6px);
-          color: rgba(255,255,255,0.55);
+          color: rgba(var(--fg-rgb),var(--fg-a6));
           cursor: pointer;
           font-size: var(--font-small, 12px);
           font-weight: var(--font-weight-medium, 500);
           padding: 4px 12px;
           transition: all 200ms ease;
         }
-        .mhv-tab-btn:hover { color: rgba(255,255,255,0.85); border-color: rgba(255,255,255,0.25); }
+        .mhv-tab-btn:hover { color: rgba(var(--fg-rgb),var(--fg-a75)); border-color: rgba(var(--fg-rgb),var(--fg-a2)); }
         .mhv-tab-btn.active {
-          background: rgba(255,255,255,0.08);
-          border-color: rgba(255,255,255,0.3);
-          color: rgba(255,255,255,0.95);
+          background: rgba(var(--fg-rgb),var(--fg-a08));
+          border-color: rgba(var(--fg-rgb),var(--fg-a3));
+          color: rgba(var(--fg-rgb),var(--fg-a75));
         }
       `}</style>
     </div>
@@ -756,7 +756,7 @@ const HazardTypeCard: React.FC<HazardTypeCardProps> = ({ hazardType, warnings })
           style={{
             fontSize: 'var(--font-body, 14px)',
             fontWeight: 'var(--font-weight-semibold, 600)',
-            color: 'rgba(255,255,255,0.9)',
+            color: 'rgba(var(--fg-rgb),var(--fg-a75))',
             flex: 1,
           }}
         >
@@ -766,7 +766,7 @@ const HazardTypeCard: React.FC<HazardTypeCardProps> = ({ hazardType, warnings })
         <span
           style={{
             fontSize: 'var(--font-small, 12px)',
-            color: 'rgba(255,255,255,0.5)',
+            color: 'rgba(var(--fg-rgb),var(--fg-a4))',
           }}
         >
           {warnings.length} location{warnings.length !== 1 ? 's' : ''}
@@ -783,7 +783,7 @@ const HazardTypeCard: React.FC<HazardTypeCardProps> = ({ hazardType, warnings })
               key={i}
               style={{
                 fontSize: 'var(--font-small, 12px)',
-                color: 'rgba(255,255,255,0.6)',
+                color: 'rgba(var(--fg-rgb),var(--fg-a6))',
                 paddingLeft: '26px',
               }}
             >
@@ -795,7 +795,7 @@ const HazardTypeCard: React.FC<HazardTypeCardProps> = ({ hazardType, warnings })
           <div
             style={{
               fontSize: 'var(--font-small, 12px)',
-              color: 'rgba(255,255,255,0.35)',
+              color: 'rgba(var(--fg-rgb),var(--fg-a3))',
               paddingLeft: '26px',
             }}
           >
@@ -811,7 +811,7 @@ const HazardTypeCard: React.FC<HazardTypeCardProps> = ({ hazardType, warnings })
 const CompoundRiskView: React.FC<{ cells: CompoundRiskCell[] }> = ({ cells }) => {
   if (cells.length === 0) {
     return (
-      <p style={{ color: 'rgba(255,255,255,0.45)', fontSize: 'var(--font-body, 14px)', textAlign: 'center', padding: '16px 0' }}>
+      <p style={{ color: 'rgba(var(--fg-rgb),var(--fg-a4))', fontSize: 'var(--font-body, 14px)', textAlign: 'center', padding: '16px 0' }}>
         No spatially-overlapping hazards detected at current thresholds.
       </p>
     );
@@ -845,16 +845,16 @@ const CompoundRiskView: React.FC<{ cells: CompoundRiskCell[] }> = ({ cells }) =>
           >
             <span style={{ fontSize: '18px' }}>⛔</span>
             <div>
-              <div style={{ fontSize: 'var(--font-body, 14px)', color: 'rgba(255,255,255,0.9)', fontWeight: 'var(--font-weight-medium, 500)' }}>
+              <div style={{ fontSize: 'var(--font-body, 14px)', color: 'rgba(var(--fg-rgb),var(--fg-a75))', fontWeight: 'var(--font-weight-medium, 500)' }}>
                 ({cell.lat.toFixed(2)}°, {cell.lon.toFixed(2)}°)
               </div>
-              <div style={{ fontSize: 'var(--font-small, 12px)', color: 'rgba(255,255,255,0.6)' }}>
+              <div style={{ fontSize: 'var(--font-small, 12px)', color: 'rgba(var(--fg-rgb),var(--fg-a6))' }}>
                 {cell.hazards.map((h) => `${HAZARD_ICONS[h.hazardType]} ${HAZARD_LABELS[h.hazardType]}`).join(' + ')}
               </div>
             </div>
             <div style={{ textAlign: 'right' }}>
               <AlertLevelBadge level={cell.compoundAlertLevel} />
-              <div style={{ fontSize: 'var(--font-small, 12px)', color: 'rgba(255,255,255,0.5)', marginTop: '3px' }}>
+              <div style={{ fontSize: 'var(--font-small, 12px)', color: 'rgba(var(--fg-rgb),var(--fg-a4))', marginTop: '3px' }}>
                 Score: {cell.compoundScore}/100
               </div>
             </div>
@@ -880,8 +880,8 @@ const BulletinView: React.FC<{ entries: BulletinEntry[] }> = ({ entries }) => (
         <div
           key={entry.hourOffset}
           style={{
-            background: entry.hourOffset === 0 ? `${color}15` : 'rgba(255,255,255,0.03)',
-            border: `1px solid ${entry.hourOffset === 0 ? color : 'rgba(255,255,255,0.08)'}`,
+            background: entry.hourOffset === 0 ? `${color}15` : 'rgba(var(--fg-rgb),var(--fg-a05))',
+            border: `1px solid ${entry.hourOffset === 0 ? color : 'rgba(var(--fg-rgb),var(--fg-a08))'}`,
             borderRadius: 'var(--radius-sm, 6px)',
             padding: 'var(--space-sm, 8px) var(--space-md, 12px)',
             display: 'grid',
@@ -894,7 +894,7 @@ const BulletinView: React.FC<{ entries: BulletinEntry[] }> = ({ entries }) => (
           <span
             style={{
               fontSize: 'var(--font-small, 12px)',
-              color: entry.hourOffset === 0 ? 'rgba(255,255,255,0.9)' : 'rgba(255,255,255,0.6)',
+              color: entry.hourOffset === 0 ? 'rgba(var(--fg-rgb),var(--fg-a75))' : 'rgba(var(--fg-rgb),var(--fg-a6))',
               fontWeight: entry.hourOffset === 0 ? 'var(--font-weight-semibold, 600)' : 'var(--font-weight-regular, 400)',
               whiteSpace: 'nowrap',
             }}
@@ -913,7 +913,7 @@ const BulletinView: React.FC<{ entries: BulletinEntry[] }> = ({ entries }) => (
                   alignItems: 'center',
                   gap: '3px',
                   fontSize: 'var(--font-small, 12px)',
-                  color: 'rgba(255,255,255,0.7)',
+                  color: 'rgba(var(--fg-rgb),var(--fg-a7))',
                 }}
               >
                 <span style={{ fontSize: '14px' }}>{HAZARD_ICONS[h.type]}</span>

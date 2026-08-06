@@ -244,7 +244,7 @@ const HydrographChart: React.FC<HydrographChartProps> = ({ points, basinName }) 
 
   return (
     <div style={{ marginTop: '8px' }}>
-      <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.5)', marginBottom: '4px' }}>
+      <div style={{ fontSize: '11px', color: 'rgba(var(--fg-rgb),var(--fg-a4))', marginBottom: '4px' }}>
         Hydrograph — {basinName}
       </div>
       <svg
@@ -262,7 +262,7 @@ const HydrographChart: React.FC<HydrographChartProps> = ({ points, basinName }) 
             y1={y}
             x2={padLeft + plotW}
             y2={y}
-            stroke="rgba(255,255,255,0.08)"
+            stroke="rgba(var(--fg-rgb),var(--fg-a08))"
             strokeWidth="1"
           />
         ))}
@@ -287,7 +287,7 @@ const HydrographChart: React.FC<HydrographChartProps> = ({ points, basinName }) 
             y={y + 4}
             textAnchor="end"
             fontSize="9"
-            fill="rgba(255,255,255,0.45)"
+            fill="rgba(var(--fg-rgb),var(--fg-a4))"
           >
             {val >= 1000 ? `${(val / 1000).toFixed(1)}k` : val.toFixed(0)}
           </text>
@@ -301,7 +301,7 @@ const HydrographChart: React.FC<HydrographChartProps> = ({ points, basinName }) 
             y={chartH - 4}
             textAnchor="middle"
             fontSize="9"
-            fill="rgba(255,255,255,0.45)"
+            fill="rgba(var(--fg-rgb),var(--fg-a4))"
           >
             D{day}
           </text>
@@ -313,7 +313,7 @@ const HydrographChart: React.FC<HydrographChartProps> = ({ points, basinName }) 
           y1={8}
           x2={padLeft}
           y2={8 + plotH}
-          stroke="rgba(255,255,255,0.2)"
+          stroke="rgba(var(--fg-rgb),var(--fg-a2))"
           strokeWidth="1"
         />
         <line
@@ -321,7 +321,7 @@ const HydrographChart: React.FC<HydrographChartProps> = ({ points, basinName }) 
           y1={8 + plotH}
           x2={padLeft + plotW}
           y2={8 + plotH}
-          stroke="rgba(255,255,255,0.2)"
+          stroke="rgba(var(--fg-rgb),var(--fg-a2))"
           strokeWidth="1"
         />
 
@@ -331,7 +331,7 @@ const HydrographChart: React.FC<HydrographChartProps> = ({ points, basinName }) 
           y={8 + plotH / 2}
           textAnchor="middle"
           fontSize="8"
-          fill="rgba(255,255,255,0.35)"
+          fill="rgba(var(--fg-rgb),var(--fg-a3))"
           transform={`rotate(-90, 8, ${8 + plotH / 2})`}
         >
           m³/s
@@ -354,7 +354,7 @@ const BasinCard: React.FC<BasinCardProps> = ({ basinVolume, isSelected, onSelect
     ? '#f97316' // orange — above 90th percentile warning
     : isSelected
       ? '#60a5fa' // blue — selected
-      : 'rgba(255,255,255,0.08)';
+      : 'rgba(var(--fg-rgb),var(--fg-a08))';
 
   const animationStyle: React.CSSProperties = isAbove90thPercentile
     ? { animation: 'watershedPulse 2s ease-in-out infinite' }
@@ -365,7 +365,7 @@ const BasinCard: React.FC<BasinCardProps> = ({ basinVolume, isSelected, onSelect
       onClick={() => onSelect(basin.id)}
       style={{
         width: '100%',
-        background: isSelected ? 'rgba(59,130,246,0.12)' : 'rgba(255,255,255,0.04)',
+        background: isSelected ? 'rgba(59,130,246,0.12)' : 'rgba(var(--fg-rgb),var(--fg-a05))',
         border: `1px solid ${borderColor}`,
         borderRadius: '8px',
         padding: '10px 12px',
@@ -399,7 +399,7 @@ const BasinCard: React.FC<BasinCardProps> = ({ basinVolume, isSelected, onSelect
             </span>
           )}
           {cells.length === 0 && (
-            <span style={{ fontSize: '10px', color: 'rgba(255,255,255,0.3)' }}>
+            <span style={{ fontSize: '10px', color: 'rgba(var(--fg-rgb),var(--fg-a3))' }}>
               No data
             </span>
           )}
@@ -415,13 +415,13 @@ const BasinCard: React.FC<BasinCardProps> = ({ basinVolume, isSelected, onSelect
         }}
       >
         <div>
-          <div style={{ fontSize: '10px', color: 'rgba(255,255,255,0.45)' }}>Volume</div>
+          <div style={{ fontSize: '10px', color: 'rgba(var(--fg-rgb),var(--fg-a4))' }}>Volume</div>
           <div style={{ fontSize: '12px', color: '#93c5fd', fontWeight: 600 }}>
             {volumeMillionM3.toFixed(2)} Mm³
           </div>
         </div>
         <div>
-          <div style={{ fontSize: '10px', color: 'rgba(255,255,255,0.45)' }}>Mean Rain</div>
+          <div style={{ fontSize: '10px', color: 'rgba(var(--fg-rgb),var(--fg-a4))' }}>Mean Rain</div>
           <div style={{ fontSize: '12px', color: '#bfdbfe' }}>
             {meanRainfallMm.toFixed(1)} mm
           </div>
@@ -545,7 +545,7 @@ export const WatershedAnalysis: React.FC<WatershedAnalysisProps> = ({
             >
               🌊 Watershed &amp; River Basin Analysis
             </h3>
-            <p style={{ margin: '2px 0 0', fontSize: '11px', color: 'rgba(255,255,255,0.45)' }}>
+            <p style={{ margin: '2px 0 0', fontSize: '11px', color: 'rgba(var(--fg-rgb),var(--fg-a4))' }}>
               {basinVolumes.length} basins monitored · Req 40.1–40.4
             </p>
           </div>
@@ -574,7 +574,7 @@ export const WatershedAnalysis: React.FC<WatershedAnalysisProps> = ({
             style={{
               textAlign: 'center',
               padding: '20px',
-              color: 'rgba(255,255,255,0.35)',
+              color: 'rgba(var(--fg-rgb),var(--fg-a3))',
               fontSize: '13px',
             }}
           >
@@ -600,7 +600,7 @@ export const WatershedAnalysis: React.FC<WatershedAnalysisProps> = ({
         {selectedBasinVolume && hydrographPoints.length > 0 && (
           <div
             style={{
-              borderTop: '1px solid rgba(255,255,255,0.08)',
+              borderTop: '1px solid rgba(var(--fg-rgb),var(--fg-a08))',
               paddingTop: '10px',
             }}
           >
@@ -619,7 +619,7 @@ export const WatershedAnalysis: React.FC<WatershedAnalysisProps> = ({
               gridTemplateColumns: 'repeat(3, 1fr)',
               gap: '8px',
               marginTop: '12px',
-              borderTop: '1px solid rgba(255,255,255,0.08)',
+              borderTop: '1px solid rgba(var(--fg-rgb),var(--fg-a08))',
               paddingTop: '10px',
             }}
           >
@@ -645,13 +645,13 @@ export const WatershedAnalysis: React.FC<WatershedAnalysisProps> = ({
               <div
                 key={label}
                 style={{
-                  background: 'rgba(255,255,255,0.04)',
+                  background: 'rgba(var(--fg-rgb),var(--fg-a05))',
                   borderRadius: '6px',
                   padding: '6px 8px',
                   textAlign: 'center',
                 }}
               >
-                <div style={{ fontSize: '10px', color: 'rgba(255,255,255,0.45)' }}>{label}</div>
+                <div style={{ fontSize: '10px', color: 'rgba(var(--fg-rgb),var(--fg-a4))' }}>{label}</div>
                 <div style={{ fontSize: '13px', fontWeight: 700, color }}>{value}</div>
               </div>
             ))}
@@ -666,7 +666,7 @@ export const WatershedAnalysis: React.FC<WatershedAnalysisProps> = ({
             gap: '12px',
             flexWrap: 'wrap',
             fontSize: '10px',
-            color: 'rgba(255,255,255,0.45)',
+            color: 'rgba(var(--fg-rgb),var(--fg-a4))',
           }}
         >
           <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>

@@ -427,14 +427,14 @@ export const AgricultureAdvisory: React.FC<AgricultureAdvisoryProps> = ({
                 >
                   {adv.advisoryType} — Day {adv.triggerDay}
                 </span>
-                <span style={{ fontSize: '12px', color: 'rgba(255,255,255,0.75)' }}>
+                <span style={{ fontSize: '12px', color: 'rgba(var(--fg-rgb),var(--fg-a75))' }}>
                   {adv.message}
                 </span>
               </div>
             </div>
           ))}
           {advisories.length > 5 && (
-            <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.45)', textAlign: 'center', margin: 0 }}>
+            <p style={{ fontSize: '11px', color: 'rgba(var(--fg-rgb),var(--fg-a4))', textAlign: 'center', margin: 0 }}>
               +{advisories.length - 5} more advisories
             </p>
           )}
@@ -449,7 +449,7 @@ export const AgricultureAdvisory: React.FC<AgricultureAdvisoryProps> = ({
             borderRadius: '8px',
             padding: '8px 12px',
             fontSize: '12px',
-            color: 'rgba(255,255,255,0.8)',
+            color: 'rgba(var(--fg-rgb),var(--fg-a75))',
           }}
         >
           ✅ No rainfall advisories for the 7-day forecast period. Conditions are favourable.
@@ -462,7 +462,7 @@ export const AgricultureAdvisory: React.FC<AgricultureAdvisoryProps> = ({
           style={{
             fontSize: '14px',
             fontWeight: 600,
-            color: 'rgba(255,255,255,0.95)',
+            color: 'rgba(var(--fg-rgb),var(--fg-a75))',
             margin: '0 0 10px 0',
             display: 'flex',
             alignItems: 'center',
@@ -493,7 +493,7 @@ export const AgricultureAdvisory: React.FC<AgricultureAdvisoryProps> = ({
                   textAlign: 'center',
                   fontSize: '9px',
                   fontWeight: isCurrent ? 700 : 400,
-                  color: isCurrent ? '#60a5fa' : 'rgba(255,255,255,0.4)',
+                  color: isCurrent ? '#60a5fa' : 'rgba(var(--fg-rgb),var(--fg-a4))',
                   padding: '2px 0',
                   borderBottom: isCurrent ? '2px solid #60a5fa' : '2px solid transparent',
                 }}
@@ -512,7 +512,7 @@ export const AgricultureAdvisory: React.FC<AgricultureAdvisoryProps> = ({
               <span
                 style={{
                   fontSize: '11px',
-                  color: 'rgba(255,255,255,0.65)',
+                  color: 'rgba(var(--fg-rgb),var(--fg-a7))',
                   width: '72px',
                   flexShrink: 0,
                 }}
@@ -536,7 +536,7 @@ export const AgricultureAdvisory: React.FC<AgricultureAdvisoryProps> = ({
                     ? '#22c55e'   // green for sowing
                     : isHarv
                     ? '#f59e0b'   // amber for harvest
-                    : 'rgba(255,255,255,0.06)';
+                    : 'rgba(var(--fg-rgb),var(--fg-a05))';
                   return (
                     <div
                       key={m}
@@ -546,7 +546,7 @@ export const AgricultureAdvisory: React.FC<AgricultureAdvisoryProps> = ({
                         borderRadius: '2px',
                         background: bg,
                         opacity: m === month ? 1 : 0.7,
-                        outline: m === month ? `1px solid rgba(255,255,255,0.3)` : 'none',
+                        outline: m === month ? `1px solid rgba(var(--fg-rgb),var(--fg-a3))` : 'none',
                       }}
                     />
                   );
@@ -561,7 +561,7 @@ export const AgricultureAdvisory: React.FC<AgricultureAdvisoryProps> = ({
           {[{ color: '#22c55e', label: 'Sowing' }, { color: '#f59e0b', label: 'Harvest' }].map(({ color, label }) => (
             <div key={label} style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
               <div style={{ width: '10px', height: '10px', borderRadius: '2px', background: color }} />
-              <span style={{ fontSize: '10px', color: 'rgba(255,255,255,0.5)' }}>{label}</span>
+              <span style={{ fontSize: '10px', color: 'rgba(var(--fg-rgb),var(--fg-a4))' }}>{label}</span>
             </div>
           ))}
         </div>
@@ -569,7 +569,7 @@ export const AgricultureAdvisory: React.FC<AgricultureAdvisoryProps> = ({
         {/* Active windows this month */}
         {activeWindowCrops.length > 0 && (
           <div style={{ marginTop: '8px', padding: '6px 8px', background: 'rgba(96,165,250,0.1)', borderRadius: '6px' }}>
-            <p style={{ margin: 0, fontSize: '11px', color: 'rgba(255,255,255,0.7)' }}>
+            <p style={{ margin: 0, fontSize: '11px', color: 'rgba(var(--fg-rgb),var(--fg-a7))' }}>
               <strong style={{ color: '#60a5fa' }}>Active this month: </strong>
               {activeWindowCrops
                 .map((w) => `${CROP_CALENDAR[w.crop].icon} ${CROP_CALENDAR[w.crop].label} (${w.windowType})`)
@@ -585,7 +585,7 @@ export const AgricultureAdvisory: React.FC<AgricultureAdvisoryProps> = ({
           style={{
             fontSize: '14px',
             fontWeight: 600,
-            color: 'rgba(255,255,255,0.95)',
+            color: 'rgba(var(--fg-rgb),var(--fg-a75))',
             margin: '0 0 10px 0',
           }}
         >
@@ -607,9 +607,9 @@ export const AgricultureAdvisory: React.FC<AgricultureAdvisoryProps> = ({
               style={{
                 padding: '4px 8px',
                 borderRadius: '6px',
-                border: `1px solid ${selectedCrop === cropId ? '#60a5fa' : 'rgba(255,255,255,0.15)'}`,
+                border: `1px solid ${selectedCrop === cropId ? '#60a5fa' : 'rgba(var(--fg-rgb),var(--fg-a15))'}`,
                 background: selectedCrop === cropId ? 'rgba(96,165,250,0.15)' : 'transparent',
-                color: selectedCrop === cropId ? '#93c5fd' : 'rgba(255,255,255,0.6)',
+                color: selectedCrop === cropId ? '#93c5fd' : 'rgba(var(--fg-rgb),var(--fg-a6))',
                 fontSize: '11px',
                 cursor: 'pointer',
                 transition: 'all 0.2s',
@@ -632,11 +632,11 @@ export const AgricultureAdvisory: React.FC<AgricultureAdvisoryProps> = ({
               <span style={{ fontSize: '13px', width: '18px', textAlign: 'center' }}>
                 {CROP_CALENDAR[gdd.crop].icon}
               </span>
-              <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.6)', width: '72px', flexShrink: 0 }}>
+              <span style={{ fontSize: '11px', color: 'rgba(var(--fg-rgb),var(--fg-a6))', width: '72px', flexShrink: 0 }}>
                 {CROP_CALENDAR[gdd.crop].label}
               </span>
               <div
-                style={{ flex: 1, height: '6px', borderRadius: '3px', background: 'rgba(255,255,255,0.1)', overflow: 'hidden' }}
+                style={{ flex: 1, height: '6px', borderRadius: '3px', background: 'rgba(var(--fg-rgb),var(--fg-a1))', overflow: 'hidden' }}
                 role="progressbar"
                 aria-valuenow={Math.round(gdd.progress * 100)}
                 aria-valuemin={0}
@@ -653,7 +653,7 @@ export const AgricultureAdvisory: React.FC<AgricultureAdvisoryProps> = ({
                   }}
                 />
               </div>
-              <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.5)', width: '34px', textAlign: 'right', flexShrink: 0 }}>
+              <span style={{ fontSize: '11px', color: 'rgba(var(--fg-rgb),var(--fg-a4))', width: '34px', textAlign: 'right', flexShrink: 0 }}>
                 {Math.round(gdd.progress * 100)}%
               </span>
             </div>
@@ -686,14 +686,14 @@ const GDDProgressCard: React.FC<GDDProgressCardProps> = ({ gdd }) => {
   return (
     <div
       style={{
-        background: 'rgba(255,255,255,0.03)',
-        border: '1px solid rgba(255,255,255,0.08)',
+        background: 'rgba(var(--fg-rgb),var(--fg-a05))',
+        border: '1px solid rgba(var(--fg-rgb),var(--fg-a08))',
         borderRadius: '8px',
         padding: '10px 12px',
       }}
     >
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
-        <span style={{ fontSize: '13px', fontWeight: 600, color: 'rgba(255,255,255,0.9)' }}>
+        <span style={{ fontSize: '13px', fontWeight: 600, color: 'rgba(var(--fg-rgb),var(--fg-a75))' }}>
           {calendar.icon} {calendar.label}
         </span>
         <span style={{ fontSize: '12px', color: barColor, fontWeight: 600 }}>
@@ -706,7 +706,7 @@ const GDDProgressCard: React.FC<GDDProgressCardProps> = ({ gdd }) => {
         style={{
           height: '10px',
           borderRadius: '5px',
-          background: 'rgba(255,255,255,0.1)',
+          background: 'rgba(var(--fg-rgb),var(--fg-a1))',
           overflow: 'hidden',
           marginBottom: '8px',
         }}
@@ -727,7 +727,7 @@ const GDDProgressCard: React.FC<GDDProgressCardProps> = ({ gdd }) => {
         />
       </div>
 
-      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: 'rgba(255,255,255,0.55)' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: 'rgba(var(--fg-rgb),var(--fg-a6))' }}>
         <span>{pct}% to maturity</span>
         {gdd.estimatedDaysRemaining !== null ? (
           <span>~{gdd.estimatedDaysRemaining} days remaining</span>
@@ -736,7 +736,7 @@ const GDDProgressCard: React.FC<GDDProgressCardProps> = ({ gdd }) => {
         )}
       </div>
 
-      <div style={{ marginTop: '6px', fontSize: '11px', color: 'rgba(255,255,255,0.4)' }}>
+      <div style={{ marginTop: '6px', fontSize: '11px', color: 'rgba(var(--fg-rgb),var(--fg-a4))' }}>
         Base: {calendar.baseTemp}°C · Upper: {calendar.upperTemp}°C
       </div>
 

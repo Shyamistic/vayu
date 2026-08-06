@@ -118,9 +118,9 @@ export default function GuidedTour({ onTourStep, isActive, onToggle }: GuidedTou
         onClick={onToggle}
         className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all"
         style={{
-          background: 'rgba(255,255,255,0.06)',
-          border: '1px solid rgba(255,255,255,0.12)',
-          color: 'rgba(255,255,255,0.7)',
+          background: 'rgba(var(--fg-rgb),var(--fg-a05))',
+          border: '1px solid rgba(var(--fg-rgb),var(--fg-a12))',
+          color: 'rgba(var(--fg-rgb),var(--fg-a7))',
         }}
         title="Guided Demo Tour"
       >
@@ -136,7 +136,7 @@ export default function GuidedTour({ onTourStep, isActive, onToggle }: GuidedTou
     <div
       className="fixed bottom-[180px] right-4 z-[1004] w-[360px] max-w-[40vw] animate-slide-in-right"
       style={{
-        background: 'rgba(6,10,22,0.97)',
+        background: 'rgba(var(--panel-bg-rgb),0.97)',
         border: '1px solid rgba(14,165,233,0.35)',
         borderRadius: 14,
         boxShadow: '0 12px 48px rgba(0,0,0,0.7), 0 0 32px rgba(14,165,233,0.12)',
@@ -146,11 +146,11 @@ export default function GuidedTour({ onTourStep, isActive, onToggle }: GuidedTou
       {/* Header */}
       <div
         className="flex items-center justify-between px-4 py-3 border-b"
-        style={{ borderColor: 'rgba(255,255,255,0.08)' }}
+        style={{ borderColor: 'rgba(var(--fg-rgb),var(--fg-a08))' }}
       >
         <div className="flex items-center gap-2">
           <Globe size={14} className="text-vayu-accent" />
-          <span className="text-xs text-white/60 font-medium">Guided Tour</span>
+          <span className="text-xs text-foreground/60 font-medium">Guided Tour</span>
           <span
             className="text-[9px] px-1.5 py-0.5 rounded font-mono"
             style={{ background: 'rgba(14,165,233,0.15)', color: '#38bdf8' }}
@@ -158,7 +158,7 @@ export default function GuidedTour({ onTourStep, isActive, onToggle }: GuidedTou
             {currentStepIdx + 1} / {TOUR_STEPS.length}
           </span>
         </div>
-        <button onClick={onToggle} className="text-white/30 hover:text-white/70 transition-colors">
+        <button onClick={onToggle} className="text-foreground/30 hover:text-foreground/70 transition-colors">
           <X size={14} />
         </button>
       </div>
@@ -177,7 +177,7 @@ export default function GuidedTour({ onTourStep, isActive, onToggle }: GuidedTou
                 ? '#0ea5e9'
                 : i < currentStepIdx
                 ? 'rgba(14,165,233,0.4)'
-                : 'rgba(255,255,255,0.12)',
+                : 'rgba(var(--fg-rgb),var(--fg-a12))',
             }}
           />
         ))}
@@ -185,8 +185,8 @@ export default function GuidedTour({ onTourStep, isActive, onToggle }: GuidedTou
 
       {/* Content */}
       <div className="px-4 py-4">
-        <h3 className="text-sm font-semibold text-white/90 mb-2">{step.title}</h3>
-        <p className="text-xs text-white/50 leading-relaxed">{step.description}</p>
+        <h3 className="text-sm font-semibold text-foreground/90 mb-2">{step.title}</h3>
+        <p className="text-xs text-foreground/50 leading-relaxed">{step.description}</p>
       </div>
 
       {/* Controls */}
@@ -197,9 +197,9 @@ export default function GuidedTour({ onTourStep, isActive, onToggle }: GuidedTou
           onClick={() => setAutoAdvance((a) => !a)}
           className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] transition-all"
           style={{
-            background: autoAdvance ? 'rgba(14,165,233,0.2)' : 'rgba(255,255,255,0.05)',
-            border: autoAdvance ? '1px solid rgba(14,165,233,0.4)' : '1px solid rgba(255,255,255,0.1)',
-            color: autoAdvance ? '#38bdf8' : 'rgba(255,255,255,0.5)',
+            background: autoAdvance ? 'rgba(14,165,233,0.2)' : 'rgba(var(--fg-rgb),var(--fg-a05))',
+            border: autoAdvance ? '1px solid rgba(14,165,233,0.4)' : '1px solid rgba(var(--fg-rgb),var(--fg-a1))',
+            color: autoAdvance ? '#38bdf8' : 'rgba(var(--fg-rgb),var(--fg-a4))',
           }}
         >
           <Play size={10} />
@@ -212,9 +212,9 @@ export default function GuidedTour({ onTourStep, isActive, onToggle }: GuidedTou
             disabled={currentStepIdx === 0}
             className="px-3 py-1.5 rounded-lg text-xs transition-all disabled:opacity-30"
             style={{
-              background: 'rgba(255,255,255,0.05)',
-              border: '1px solid rgba(255,255,255,0.1)',
-              color: 'rgba(255,255,255,0.6)',
+              background: 'rgba(var(--fg-rgb),var(--fg-a05))',
+              border: '1px solid rgba(var(--fg-rgb),var(--fg-a1))',
+              color: 'rgba(var(--fg-rgb),var(--fg-a6))',
             }}
           >
             Back

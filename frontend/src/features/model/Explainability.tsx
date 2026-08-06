@@ -307,7 +307,7 @@ interface AttentionHeatmapProps {
 const AttentionHeatmap: React.FC<AttentionHeatmapProps> = ({ entries, targetLat, targetLon }) => {
   if (entries.length === 0) {
     return (
-      <div style={{ color: 'var(--color-text-muted, #6b7280)', fontSize: 12, textAlign: 'center', padding: '24px 0' }}>
+      <div style={{ color: 'var(--color-text-muted)', fontSize: 12, textAlign: 'center', padding: '24px 0' }}>
         Select a target cell on the globe to view the attention map.
       </div>
     );
@@ -333,7 +333,7 @@ const AttentionHeatmap: React.FC<AttentionHeatmapProps> = ({ entries, targetLat,
         aria-label="Attention heatmap"
       >
         {/* Background */}
-        <rect width={GRID_W} height={GRID_H} fill="rgba(6,10,22,0.6)" rx={8} />
+        <rect width={GRID_W} height={GRID_H} fill="rgba(var(--panel-bg-rgb),0.6)" rx={8} />
 
         {/* Source cells as colored rectangles */}
         {entries.map((entry, i) => {
@@ -371,7 +371,7 @@ const AttentionHeatmap: React.FC<AttentionHeatmapProps> = ({ entries, targetLat,
       </svg>
 
       {/* Legend */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 6, fontSize: 10, color: 'var(--color-text-muted, #9ca3af)' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 6, fontSize: 10, color: 'var(--color-text-muted)' }}>
         <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
           <span style={{ width: 8, height: 8, borderRadius: 2, background: 'rgba(59,130,246,0.3)', display: 'inline-block' }} />
           Low influence
@@ -402,7 +402,7 @@ const FeatureImportancePanel: React.FC<FeatureImportancePanelProps> = ({ importa
           <span style={{ color: FEATURE_COLORS[item.feature], fontWeight: 600 }}>
             #{item.rank} {item.label}
           </span>
-          <span style={{ color: 'var(--color-text-muted, #9ca3af)', fontWeight: 500 }}>
+          <span style={{ color: 'var(--color-text-muted)', fontWeight: 500 }}>
             {(item.importance * 100).toFixed(1)}%
           </span>
         </div>
@@ -410,7 +410,7 @@ const FeatureImportancePanel: React.FC<FeatureImportancePanelProps> = ({ importa
           style={{
             height: 8,
             borderRadius: 4,
-            background: 'rgba(255,255,255,0.08)',
+            background: 'rgba(var(--fg-rgb),var(--fg-a08))',
             overflow: 'hidden',
           }}
           role="progressbar"
@@ -452,7 +452,7 @@ const WaterfallChart: React.FC<WaterfallChartProps> = ({
 }) => {
   if (contributions.length === 0) {
     return (
-      <div style={{ color: 'var(--color-text-muted, #6b7280)', fontSize: 12, textAlign: 'center', padding: '16px 0' }}>
+      <div style={{ color: 'var(--color-text-muted)', fontSize: 12, textAlign: 'center', padding: '16px 0' }}>
         No contributions available.
       </div>
     );
@@ -482,11 +482,11 @@ const WaterfallChart: React.FC<WaterfallChartProps> = ({
         const y = PADDING;
         return (
           <g>
-            <text x={LABEL_W - 6} y={y + BAR_H / 2 + 4} textAnchor="end" fontSize={10} fill="#9ca3af">
+            <text x={LABEL_W - 6} y={y + BAR_H / 2 + 4} textAnchor="end" fontSize={10} fill="var(--color-text-muted)">
               Baseline
             </text>
             <rect x={LABEL_W + bx - 2} y={y} width={4} height={BAR_H} rx={2} fill="#6b7280" />
-            <text x={LABEL_W + bx + 8} y={y + BAR_H / 2 + 4} fontSize={10} fill="#9ca3af">
+            <text x={LABEL_W + bx + 8} y={y + BAR_H / 2 + 4} fontSize={10} fill="var(--color-text-muted)">
               {baselineValue.toFixed(1)}
             </text>
           </g>
@@ -504,7 +504,7 @@ const WaterfallChart: React.FC<WaterfallChartProps> = ({
 
         return (
           <g key={contrib.feature}>
-            <text x={LABEL_W - 6} y={y + BAR_H / 2 + 4} textAnchor="end" fontSize={10} fill="#d1d5db">
+            <text x={LABEL_W - 6} y={y + BAR_H / 2 + 4} textAnchor="end" fontSize={10} fill="var(--color-text-muted)">
               {contrib.feature}
             </text>
             {/* Connector line from previous running total */}
@@ -577,7 +577,7 @@ const ModelArchPanel: React.FC<ModelArchPanelProps> = ({ arch }) => {
         <div
           key={label}
           style={{
-            background: 'rgba(255,255,255,0.04)',
+            background: 'rgba(var(--fg-rgb),var(--fg-a05))',
             borderRadius: 8,
             padding: '6px 8px',
             display: 'flex',
@@ -585,10 +585,10 @@ const ModelArchPanel: React.FC<ModelArchPanelProps> = ({ arch }) => {
             gap: 2,
           }}
         >
-          <span style={{ fontSize: 10, color: 'var(--color-text-muted, #9ca3af)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+          <span style={{ fontSize: 10, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
             {label}
           </span>
-          <span style={{ fontSize: 12, color: '#e5e7eb', fontWeight: 600 }}>
+          <span style={{ fontSize: 12, color: 'rgba(var(--fg-rgb),var(--fg-a75))', fontWeight: 600 }}>
             {value}
           </span>
         </div>
@@ -683,11 +683,11 @@ export const Explainability: React.FC<ExplainabilityProps> = ({
     <GlassPanel className={`explainability-panel ${className}`.trim()} padding="lg">
       {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-        <h3 style={{ margin: 0, fontSize: 14, fontWeight: 600, color: '#e5e7eb' }}>
+        <h3 style={{ margin: 0, fontSize: 14, fontWeight: 600, color: 'rgba(var(--fg-rgb),var(--fg-a75))' }}>
           Model Explainability
         </h3>
         {selectedCell && (
-          <span style={{ fontSize: 11, color: '#9ca3af', background: 'rgba(255,255,255,0.06)', padding: '2px 8px', borderRadius: 4 }}>
+          <span style={{ fontSize: 11, color: 'var(--color-text-muted)', background: 'rgba(var(--fg-rgb),var(--fg-a05))', padding: '2px 8px', borderRadius: 4 }}>
             {selectedCell.lat.toFixed(2)}°N, {selectedCell.lon.toFixed(2)}°E
           </span>
         )}
@@ -713,7 +713,7 @@ export const Explainability: React.FC<ExplainabilityProps> = ({
       <div role="tabpanel" id={`tab-panel-${activeTab}`}>
         {activeTab === 'attention' && (
           <div>
-            <p style={{ margin: '0 0 10px', fontSize: 12, color: '#9ca3af' }}>
+            <p style={{ margin: '0 0 10px', fontSize: 12, color: 'var(--color-text-muted)' }}>
               Which input cells most influenced the prediction for the selected target cell.
             </p>
             <AttentionHeatmap
@@ -731,7 +731,7 @@ export const Explainability: React.FC<ExplainabilityProps> = ({
 
         {activeTab === 'importance' && (
           <div>
-            <p style={{ margin: '0 0 12px', fontSize: 12, color: '#9ca3af' }}>
+            <p style={{ margin: '0 0 12px', fontSize: 12, color: 'var(--color-text-muted)' }}>
               Relative contribution of each input variable to the {varLabel} prediction.
             </p>
             <FeatureImportancePanel importances={featureImportances} />
@@ -740,7 +740,7 @@ export const Explainability: React.FC<ExplainabilityProps> = ({
 
         {activeTab === 'shap' && (
           <div>
-            <p style={{ margin: '0 0 10px', fontSize: 12, color: '#9ca3af' }}>
+            <p style={{ margin: '0 0 10px', fontSize: 12, color: 'var(--color-text-muted)' }}>
               SHAP-style feature contributions to the final {varLabel} value (baseline = regional mean).
             </p>
             {selectedCell ? (
@@ -761,7 +761,7 @@ export const Explainability: React.FC<ExplainabilityProps> = ({
 
         {activeTab === 'architecture' && (
           <div>
-            <p style={{ margin: '0 0 12px', fontSize: 12, color: '#9ca3af' }}>
+            <p style={{ margin: '0 0 12px', fontSize: 12, color: 'var(--color-text-muted)' }}>
               VAYU model architecture and training details.
             </p>
             <ModelArchPanel arch={VAYU_MODEL_ARCH} />

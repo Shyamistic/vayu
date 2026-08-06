@@ -35,7 +35,7 @@ const RISK_STYLES = {
 export default function FloodRiskPanel({ gridCells, forecastDay }: FloodRiskPanelProps) {
   if (gridCells.length === 0) {
     return (
-      <div className="panel-tight p-3 text-xs text-white/30 text-center py-5">
+      <div className="panel-tight p-3 text-xs text-foreground/30 text-center py-5">
         No prediction data available
       </div>
     );
@@ -71,9 +71,9 @@ export default function FloodRiskPanel({ gridCells, forecastDay }: FloodRiskPane
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-1.5">
           <Waves size={13} className="text-blue-400" />
-          <span className="text-xs font-semibold text-white/80">Flood Risk Assessment</span>
+          <span className="text-xs font-semibold text-foreground/80">Flood Risk Assessment</span>
         </div>
-        <span className="text-[9px] font-mono text-white/30">T+{forecastDay}d accum</span>
+        <span className="text-[9px] font-mono text-foreground/30">T+{forecastDay}d accum</span>
       </div>
 
       {!hasRisk ? (
@@ -88,12 +88,12 @@ export default function FloodRiskPanel({ gridCells, forecastDay }: FloodRiskPane
             <div className="flex flex-col items-center rounded-lg p-2" style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.18)' }}>
               <AlertTriangle size={11} className="text-red-400 mb-0.5" />
               <span className="text-lg font-bold font-mono tabular-nums text-red-300">{totalAtRisk}</span>
-              <span className="text-[9px] text-white/35">cells at risk</span>
+              <span className="text-[9px] text-foreground/35">cells at risk</span>
             </div>
-            <div className="flex flex-col items-center rounded-lg p-2" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)' }}>
-              <span className="text-[9px] text-white/40 mb-0.5">Area affected</span>
+            <div className="flex flex-col items-center rounded-lg p-2" style={{ background: 'rgba(var(--fg-rgb),var(--fg-a05))', border: '1px solid rgba(var(--fg-rgb),var(--fg-a08))' }}>
+              <span className="text-[9px] text-foreground/40 mb-0.5">Area affected</span>
               <span className="text-lg font-bold font-mono tabular-nums text-orange-300">{pctAtRisk}%</span>
-              <span className="text-[9px] text-white/35">of region</span>
+              <span className="text-[9px] text-foreground/35">of region</span>
             </div>
           </div>
 
@@ -114,7 +114,7 @@ export default function FloodRiskPanel({ gridCells, forecastDay }: FloodRiskPane
                     <div className="text-[10px] font-medium" style={{ color: style.color }}>
                       {style.label}
                     </div>
-                    <div className="text-[9px] text-white/30">
+                    <div className="text-[9px] text-foreground/30">
                       ≥ {THRESHOLDS[level]} mm · {cells.length} cells
                     </div>
                   </div>
@@ -123,20 +123,20 @@ export default function FloodRiskPanel({ gridCells, forecastDay }: FloodRiskPane
                   <div className="text-xs font-bold font-mono tabular-nums" style={{ color: style.color }}>
                     {Math.max(...cells.map((c) => c.rainfall)).toFixed(0)} mm
                   </div>
-                  <div className="text-[9px] text-white/30">peak</div>
+                  <div className="text-[9px] text-foreground/30">peak</div>
                 </div>
               </div>
             );
           })}
 
           {/* Max rainfall */}
-          <div className="text-center text-[9px] text-white/30">
+          <div className="text-center text-[9px] text-foreground/30">
             Peak accumulated: <span className="font-mono text-red-300">{maxRainfall.toFixed(1)} mm</span> over {Math.min(forecastDay, 3)} days
           </div>
         </>
       )}
 
-      <p className="text-[9px] text-white/20 text-center">
+      <p className="text-[9px] text-foreground/20 text-center">
         IMD Flash Flood Guidance thresholds · {forecastDay}-day lead time
       </p>
     </div>

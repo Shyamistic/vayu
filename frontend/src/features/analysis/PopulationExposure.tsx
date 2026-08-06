@@ -455,7 +455,7 @@ const HazardTotalChip: React.FC<{ hazard: HazardType; total: number }> = ({ haza
     >
       <span style={{ fontSize: '18px' }} aria-hidden="true">{icon}</span>
       <span style={{ fontSize: '11px', color, fontWeight: 700, textTransform: 'capitalize' }}>{hazard}</span>
-      <span style={{ fontSize: '13px', color: 'rgba(255,255,255,0.9)', fontWeight: 600 }}>
+      <span style={{ fontSize: '13px', color: 'rgba(var(--fg-rgb),var(--fg-a75))', fontWeight: 600 }}>
         {formatPopulation(total)}
       </span>
     </div>
@@ -468,12 +468,12 @@ const VulnerableAreaRow: React.FC<{ entry: HazardZoneExposure; rank: number }> =
   const icon = HAZARD_ICONS[entry.hazardType];
   return (
     <tr
-      style={{ borderLeft: `3px solid ${color}`, background: rank % 2 === 0 ? 'rgba(255,255,255,0.02)' : 'transparent' }}
+      style={{ borderLeft: `3px solid ${color}`, background: rank % 2 === 0 ? 'rgba(var(--fg-rgb),var(--fg-a05))' : 'transparent' }}
     >
-      <td style={{ padding: '5px 8px', textAlign: 'center', color: 'rgba(255,255,255,0.35)', fontSize: '11px' }}>
+      <td style={{ padding: '5px 8px', textAlign: 'center', color: 'rgba(var(--fg-rgb),var(--fg-a3))', fontSize: '11px' }}>
         {rank}
       </td>
-      <td style={{ padding: '5px 8px', fontSize: '12px', color: 'rgba(255,255,255,0.8)' }}>
+      <td style={{ padding: '5px 8px', fontSize: '12px', color: 'rgba(var(--fg-rgb),var(--fg-a75))' }}>
         <span aria-hidden="true">{icon} </span>
         ({entry.lat.toFixed(2)}°, {entry.lon.toFixed(2)}°)
       </td>
@@ -493,10 +493,10 @@ const VulnerableAreaRow: React.FC<{ entry: HazardZoneExposure; rank: number }> =
           {entry.hazardType}
         </span>
       </td>
-      <td style={{ padding: '5px 8px', textAlign: 'center', fontSize: '11px', color: 'rgba(255,255,255,0.75)', fontWeight: 600 }}>
+      <td style={{ padding: '5px 8px', textAlign: 'center', fontSize: '11px', color: 'rgba(var(--fg-rgb),var(--fg-a75))', fontWeight: 600 }}>
         {formatPopulation(entry.exposedPopulation)}
       </td>
-      <td style={{ padding: '5px 8px', textAlign: 'center', fontSize: '11px', color: 'rgba(255,255,255,0.5)' }}>
+      <td style={{ padding: '5px 8px', textAlign: 'center', fontSize: '11px', color: 'rgba(var(--fg-rgb),var(--fg-a4))' }}>
         {entry.severity}
       </td>
     </tr>
@@ -515,27 +515,27 @@ const DistrictRiskRow: React.FC<{ d: DistrictPopWeightedRisk; rank: number; isSe
       aria-selected={isSelected}
       style={{
         cursor: 'pointer',
-        background: isSelected ? 'rgba(255,255,255,0.08)' : rank % 2 === 0 ? 'rgba(255,255,255,0.02)' : 'transparent',
+        background: isSelected ? 'rgba(var(--fg-rgb),var(--fg-a08))' : rank % 2 === 0 ? 'rgba(var(--fg-rgb),var(--fg-a05))' : 'transparent',
         borderLeft: isSelected ? `3px solid ${scoreColor}` : '3px solid transparent',
         transition: 'background 150ms ease',
       }}
-      onMouseEnter={(e) => ((e.currentTarget as HTMLTableRowElement).style.background = 'rgba(255,255,255,0.06)')}
-      onMouseLeave={(e) => ((e.currentTarget as HTMLTableRowElement).style.background = isSelected ? 'rgba(255,255,255,0.08)' : rank % 2 === 0 ? 'rgba(255,255,255,0.02)' : 'transparent')}
+      onMouseEnter={(e) => ((e.currentTarget as HTMLTableRowElement).style.background = 'rgba(var(--fg-rgb),var(--fg-a05))')}
+      onMouseLeave={(e) => ((e.currentTarget as HTMLTableRowElement).style.background = isSelected ? 'rgba(var(--fg-rgb),var(--fg-a08))' : rank % 2 === 0 ? 'rgba(var(--fg-rgb),var(--fg-a05))' : 'transparent')}
     >
-      <td style={{ padding: '5px 8px', textAlign: 'center', color: 'rgba(255,255,255,0.35)', fontSize: '11px' }}>{rank}</td>
+      <td style={{ padding: '5px 8px', textAlign: 'center', color: 'rgba(var(--fg-rgb),var(--fg-a3))', fontSize: '11px' }}>{rank}</td>
       <td style={{ padding: '5px 8px' }}>
-        <span style={{ color: 'rgba(255,255,255,0.9)', fontWeight: 500, fontSize: '12px' }}>{d.district}</span>
-        <span style={{ marginLeft: '5px', color: 'rgba(255,255,255,0.35)', fontSize: '10px' }}>{d.state}</span>
+        <span style={{ color: 'rgba(var(--fg-rgb),var(--fg-a75))', fontWeight: 500, fontSize: '12px' }}>{d.district}</span>
+        <span style={{ marginLeft: '5px', color: 'rgba(var(--fg-rgb),var(--fg-a3))', fontSize: '10px' }}>{d.state}</span>
       </td>
       <td style={{ padding: '5px 8px', textAlign: 'center' }}>
         <span style={{ color: scoreColor, fontWeight: 700, fontSize: '12px' }}>
           {d.populationWeightedScore.toFixed(1)}
         </span>
       </td>
-      <td style={{ padding: '5px 8px', textAlign: 'center', fontSize: '11px', color: 'rgba(255,255,255,0.6)' }}>
+      <td style={{ padding: '5px 8px', textAlign: 'center', fontSize: '11px', color: 'rgba(var(--fg-rgb),var(--fg-a6))' }}>
         {formatPopulation(d.totalExposedPopulation)}
       </td>
-      <td style={{ padding: '5px 8px', textAlign: 'center', fontSize: '11px', color: 'rgba(255,255,255,0.5)' }}>
+      <td style={{ padding: '5px 8px', textAlign: 'center', fontSize: '11px', color: 'rgba(var(--fg-rgb),var(--fg-a4))' }}>
         {d.rawRiskScore.toFixed(0)}
       </td>
     </tr>
@@ -656,11 +656,11 @@ export const PopulationExposure: React.FC<PopulationExposureProps> = ({
           <span style={{ fontSize: '15px', fontWeight: 700, color: '#c4b5fd' }}>
             {formatPopulation(grandTotal)} people exposed
           </span>
-          <span style={{ marginLeft: '8px', fontSize: '11px', color: 'rgba(255,255,255,0.4)' }}>
+          <span style={{ marginLeft: '8px', fontSize: '11px', color: 'rgba(var(--fg-rgb),var(--fg-a4))' }}>
             across {exposures.length} hazard zones
           </span>
         </div>
-        <span style={{ marginLeft: 'auto', fontSize: '11px', color: 'rgba(255,255,255,0.35)' }}>
+        <span style={{ marginLeft: 'auto', fontSize: '11px', color: 'rgba(var(--fg-rgb),var(--fg-a3))' }}>
           WorldPop / Census 2011
         </span>
       </div>
@@ -670,7 +670,7 @@ export const PopulationExposure: React.FC<PopulationExposureProps> = ({
           style={{
             fontSize: 'var(--font-heading-sm, 18px)',
             fontWeight: 600,
-            color: 'rgba(255,255,255,0.95)',
+            color: 'rgba(var(--fg-rgb),var(--fg-a75))',
             margin: '0 0 var(--space-md, 12px) 0',
             display: 'flex',
             alignItems: 'center',
@@ -693,7 +693,7 @@ export const PopulationExposure: React.FC<PopulationExposureProps> = ({
         {/* Tab selector */}
         <div
           role="tablist"
-          style={{ display: 'flex', gap: '4px', marginBottom: 'var(--space-md, 12px)', borderBottom: '1px solid rgba(255,255,255,0.08)', paddingBottom: '8px' }}
+          style={{ display: 'flex', gap: '4px', marginBottom: 'var(--space-md, 12px)', borderBottom: '1px solid rgba(var(--fg-rgb),var(--fg-a08))', paddingBottom: '8px' }}
         >
           {([
             { key: 'hazard', label: '⚠ Hazard Zones' },
@@ -707,9 +707,9 @@ export const PopulationExposure: React.FC<PopulationExposureProps> = ({
               onClick={() => setActiveTab(key)}
               style={{
                 background: activeTab === key ? 'rgba(139,92,246,0.2)' : 'transparent',
-                border: activeTab === key ? '1px solid #8b5cf6' : '1px solid rgba(255,255,255,0.1)',
+                border: activeTab === key ? '1px solid #8b5cf6' : '1px solid rgba(var(--fg-rgb),var(--fg-a1))',
                 borderRadius: 'var(--radius-sm, 6px)',
-                color: activeTab === key ? '#c4b5fd' : 'rgba(255,255,255,0.5)',
+                color: activeTab === key ? '#c4b5fd' : 'rgba(var(--fg-rgb),var(--fg-a4))',
                 cursor: 'pointer',
                 fontSize: '12px',
                 fontWeight: activeTab === key ? 600 : 400,
@@ -726,13 +726,13 @@ export const PopulationExposure: React.FC<PopulationExposureProps> = ({
         {activeTab === 'hazard' && (
           <div style={{ overflowY: 'auto', maxHeight: '320px' }}>
             {exposures.length === 0 ? (
-              <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: '13px' }}>No hazard zones detected.</p>
+              <p style={{ color: 'rgba(var(--fg-rgb),var(--fg-a4))', fontSize: '13px' }}>No hazard zones detected.</p>
             ) : (
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
                 <thead style={{ position: 'sticky', top: 0, background: 'rgba(10,12,20,0.95)', zIndex: 1 }}>
                   <tr>
                     {['Hazard', 'Location', 'Density/km²', 'Exposed Pop.', 'Severity'].map((h) => (
-                      <th key={h} style={{ padding: '6px 8px', textAlign: 'center', fontSize: '11px', fontWeight: 600, color: 'rgba(255,255,255,0.5)', borderBottom: '1px solid rgba(255,255,255,0.1)', whiteSpace: 'nowrap' }}>{h}</th>
+                      <th key={h} style={{ padding: '6px 8px', textAlign: 'center', fontSize: '11px', fontWeight: 600, color: 'rgba(var(--fg-rgb),var(--fg-a4))', borderBottom: '1px solid rgba(var(--fg-rgb),var(--fg-a1))', whiteSpace: 'nowrap' }}>{h}</th>
                     ))}
                   </tr>
                 </thead>
@@ -740,18 +740,18 @@ export const PopulationExposure: React.FC<PopulationExposureProps> = ({
                   {exposures.map((e, idx) => {
                     const color = HAZARD_COLORS[e.hazardType];
                     return (
-                      <tr key={e.id} style={{ background: idx % 2 === 0 ? 'rgba(255,255,255,0.02)' : 'transparent', borderLeft: `3px solid ${color}` }}>
+                      <tr key={e.id} style={{ background: idx % 2 === 0 ? 'rgba(var(--fg-rgb),var(--fg-a05))' : 'transparent', borderLeft: `3px solid ${color}` }}>
                         <td style={{ padding: '5px 8px', textAlign: 'center', fontSize: '14px' }}>{HAZARD_ICONS[e.hazardType]}</td>
-                        <td style={{ padding: '5px 8px', fontSize: '11px', color: 'rgba(255,255,255,0.7)' }}>
+                        <td style={{ padding: '5px 8px', fontSize: '11px', color: 'rgba(var(--fg-rgb),var(--fg-a7))' }}>
                           {e.lat.toFixed(2)}°, {e.lon.toFixed(2)}°
                         </td>
-                        <td style={{ padding: '5px 8px', textAlign: 'center', fontSize: '11px', color: 'rgba(255,255,255,0.6)' }}>
+                        <td style={{ padding: '5px 8px', textAlign: 'center', fontSize: '11px', color: 'rgba(var(--fg-rgb),var(--fg-a6))' }}>
                           {e.densityPerKm2.toFixed(0)}
                         </td>
                         <td style={{ padding: '5px 8px', textAlign: 'center', fontWeight: 600, color }}>
                           {formatPopulation(e.exposedPopulation)}
                         </td>
-                        <td style={{ padding: '5px 8px', textAlign: 'center', fontSize: '11px', color: 'rgba(255,255,255,0.5)' }}>
+                        <td style={{ padding: '5px 8px', textAlign: 'center', fontSize: '11px', color: 'rgba(var(--fg-rgb),var(--fg-a4))' }}>
                           {e.severity}
                         </td>
                       </tr>
@@ -767,12 +767,12 @@ export const PopulationExposure: React.FC<PopulationExposureProps> = ({
         {activeTab === 'vulnerable' && (
           <div>
             {topVulnerable.length === 0 ? (
-              <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: '13px' }}>
+              <p style={{ color: 'rgba(var(--fg-rgb),var(--fg-a4))', fontSize: '13px' }}>
                 No areas above exposure threshold ({formatPopulation(VULNERABILITY_DISPLAY_THRESHOLD)}).
               </p>
             ) : (
               <>
-                <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.4)', marginBottom: '8px' }}>
+                <p style={{ fontSize: '11px', color: 'rgba(var(--fg-rgb),var(--fg-a4))', marginBottom: '8px' }}>
                   Areas ranked by estimated exposed population — priority evacuation targets.
                 </p>
                 <div style={{ overflowY: 'auto', maxHeight: '300px' }}>
@@ -780,7 +780,7 @@ export const PopulationExposure: React.FC<PopulationExposureProps> = ({
                     <thead style={{ position: 'sticky', top: 0, background: 'rgba(10,12,20,0.95)', zIndex: 1 }}>
                       <tr>
                         {['#', 'Location', 'Hazard', 'Exposed Pop.', 'Severity'].map((h) => (
-                          <th key={h} style={{ padding: '6px 8px', textAlign: 'center', fontSize: '11px', fontWeight: 600, color: 'rgba(255,255,255,0.5)', borderBottom: '1px solid rgba(255,255,255,0.1)', whiteSpace: 'nowrap' }}>{h}</th>
+                          <th key={h} style={{ padding: '6px 8px', textAlign: 'center', fontSize: '11px', fontWeight: 600, color: 'rgba(var(--fg-rgb),var(--fg-a4))', borderBottom: '1px solid rgba(var(--fg-rgb),var(--fg-a1))', whiteSpace: 'nowrap' }}>{h}</th>
                         ))}
                       </tr>
                     </thead>
@@ -799,7 +799,7 @@ export const PopulationExposure: React.FC<PopulationExposureProps> = ({
         {/* ── Tab: Population-Weighted District Risk (Req 62.4) ── */}
         {activeTab === 'district' && (
           <div>
-            <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.4)', marginBottom: '8px' }}>
+            <p style={{ fontSize: '11px', color: 'rgba(var(--fg-rgb),var(--fg-a4))', marginBottom: '8px' }}>
               Risk scores weighted by local population density. Higher-density districts amplify risk.
             </p>
             <div style={{ overflowY: 'auto', maxHeight: '300px' }}>
@@ -810,7 +810,7 @@ export const PopulationExposure: React.FC<PopulationExposureProps> = ({
                 <thead style={{ position: 'sticky', top: 0, background: 'rgba(10,12,20,0.95)', zIndex: 1 }}>
                   <tr>
                     {['#', 'District', 'Pop-Weighted', 'Exposed Pop.', 'Raw Score'].map((h) => (
-                      <th key={h} style={{ padding: '6px 8px', textAlign: 'center', fontSize: '11px', fontWeight: 600, color: 'rgba(255,255,255,0.5)', borderBottom: '1px solid rgba(255,255,255,0.1)', whiteSpace: 'nowrap' }}>{h}</th>
+                      <th key={h} style={{ padding: '6px 8px', textAlign: 'center', fontSize: '11px', fontWeight: 600, color: 'rgba(var(--fg-rgb),var(--fg-a4))', borderBottom: '1px solid rgba(var(--fg-rgb),var(--fg-a1))', whiteSpace: 'nowrap' }}>{h}</th>
                     ))}
                   </tr>
                 </thead>
@@ -848,20 +848,20 @@ export const PopulationExposure: React.FC<PopulationExposureProps> = ({
                 >
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
                     <div>
-                      <span style={{ fontSize: '16px', fontWeight: 700, color: 'rgba(255,255,255,0.95)' }}>{sel.district}</span>
-                      <span style={{ marginLeft: '8px', fontSize: '12px', color: 'rgba(255,255,255,0.45)' }}>{sel.state}</span>
+                      <span style={{ fontSize: '16px', fontWeight: 700, color: 'rgba(var(--fg-rgb),var(--fg-a75))' }}>{sel.district}</span>
+                      <span style={{ marginLeft: '8px', fontSize: '12px', color: 'rgba(var(--fg-rgb),var(--fg-a4))' }}>{sel.state}</span>
                     </div>
                     <span style={{ fontSize: '20px', fontWeight: 700, color: scoreColor }}>
                       {sel.populationWeightedScore.toFixed(1)}
                     </span>
                   </div>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px', fontSize: '12px' }}>
-                    <div><span style={{ color: 'rgba(255,255,255,0.45)' }}>Exposed population: </span><span style={{ color: '#c4b5fd', fontWeight: 600 }}>{formatPopulation(sel.totalExposedPopulation)}</span></div>
-                    <div><span style={{ color: 'rgba(255,255,255,0.45)' }}>Raw risk score: </span><span style={{ color: scoreColor, fontWeight: 600 }}>{sel.rawRiskScore.toFixed(1)}</span></div>
-                    <div><span style={{ color: 'rgba(255,255,255,0.45)' }}>Flood: </span><span style={{ color: '#3b82f6', fontWeight: 600 }}>{sel.components.flood}</span></div>
-                    <div><span style={{ color: 'rgba(255,255,255,0.45)' }}>Heat: </span><span style={{ color: '#f97316', fontWeight: 600 }}>{sel.components.heatwave}</span></div>
-                    <div><span style={{ color: 'rgba(255,255,255,0.45)' }}>Drought: </span><span style={{ color: '#fbbf24', fontWeight: 600 }}>{sel.components.drought}</span></div>
-                    <div><span style={{ color: 'rgba(255,255,255,0.45)' }}>Cyclone: </span><span style={{ color: '#a78bfa', fontWeight: 600 }}>{sel.components.cyclone}</span></div>
+                    <div><span style={{ color: 'rgba(var(--fg-rgb),var(--fg-a4))' }}>Exposed population: </span><span style={{ color: '#c4b5fd', fontWeight: 600 }}>{formatPopulation(sel.totalExposedPopulation)}</span></div>
+                    <div><span style={{ color: 'rgba(var(--fg-rgb),var(--fg-a4))' }}>Raw risk score: </span><span style={{ color: scoreColor, fontWeight: 600 }}>{sel.rawRiskScore.toFixed(1)}</span></div>
+                    <div><span style={{ color: 'rgba(var(--fg-rgb),var(--fg-a4))' }}>Flood: </span><span style={{ color: '#3b82f6', fontWeight: 600 }}>{sel.components.flood}</span></div>
+                    <div><span style={{ color: 'rgba(var(--fg-rgb),var(--fg-a4))' }}>Heat: </span><span style={{ color: '#f97316', fontWeight: 600 }}>{sel.components.heatwave}</span></div>
+                    <div><span style={{ color: 'rgba(var(--fg-rgb),var(--fg-a4))' }}>Drought: </span><span style={{ color: '#fbbf24', fontWeight: 600 }}>{sel.components.drought}</span></div>
+                    <div><span style={{ color: 'rgba(var(--fg-rgb),var(--fg-a4))' }}>Cyclone: </span><span style={{ color: '#a78bfa', fontWeight: 600 }}>{sel.components.cyclone}</span></div>
                   </div>
                 </div>
               );

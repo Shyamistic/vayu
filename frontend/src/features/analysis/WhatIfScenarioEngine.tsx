@@ -139,7 +139,7 @@ function AnomalyBar({ delta, maxDelta }: { delta: number; maxDelta: number }) {
   const positive = delta >= 0;
   return (
     <div className="flex items-center gap-1 w-full">
-      <div className="flex-1 h-1.5 bg-white/10 rounded-full overflow-hidden">
+      <div className="flex-1 h-1.5 bg-foreground/10 rounded-full overflow-hidden">
         <div
           className={`h-full rounded-full transition-all ${positive ? 'bg-orange-400' : 'bg-blue-400'}`}
           style={{ width: `${pct}%` }}
@@ -167,11 +167,11 @@ function ChainStep({
 }) {
   const opt = SCENARIO_OPTIONS.find((o) => o.id === step.scenario_type)!;
   return (
-    <div className="flex items-center gap-2 p-2 bg-white/5 rounded-lg border border-white/10">
-      <span className="text-xs text-white/30 font-mono w-4 shrink-0">{index + 1}</span>
+    <div className="flex items-center gap-2 p-2 bg-foreground/5 rounded-lg border border-foreground/10">
+      <span className="text-xs text-foreground/30 font-mono w-4 shrink-0">{index + 1}</span>
       <span className="text-xs text-vayu-accent shrink-0">{opt.icon}</span>
-      <span className="text-xs text-white/70 flex-1 truncate">{opt.label}</span>
-      <span className="text-xs font-mono text-white/50">{opt.formatMagnitude(step.magnitude)}</span>
+      <span className="text-xs text-foreground/70 flex-1 truncate">{opt.label}</span>
+      <span className="text-xs font-mono text-foreground/50">{opt.formatMagnitude(step.magnitude)}</span>
       <button
         onClick={() => onRemove(step.id)}
         className="text-red-400/60 hover:text-red-400 transition-colors"
@@ -221,18 +221,18 @@ function AnomalyMapSummary({ results }: { results: ScenarioResult[] }) {
     <div className="flex flex-col gap-2 p-3 bg-vayu-blue/10 border border-vayu-blue/20 rounded-lg">
       <div className="flex items-center gap-1.5 mb-1">
         <Layers size={12} className="text-vayu-blue" />
-        <p className="text-xs text-white/70 font-medium">Anomaly Map (Δ from Baseline)</p>
+        <p className="text-xs text-foreground/70 font-medium">Anomaly Map (Δ from Baseline)</p>
         {results.length > 1 && (
-          <span className="ml-auto text-xs text-white/30">{results.length} scenarios chained</span>
+          <span className="ml-auto text-xs text-foreground/30">{results.length} scenarios chained</span>
         )}
       </div>
       {summaryRows.map((row) => {
         if (!row) return null;
         return (
           <div key={row.variable} className="flex flex-col gap-0.5">
-            <div className="flex justify-between text-xs text-white/40">
+            <div className="flex justify-between text-xs text-foreground/40">
               <span>{labels[row.variable]}</span>
-              <span className="text-white/25">{row.affectedCells} cells affected</span>
+              <span className="text-foreground/25">{row.affectedCells} cells affected</span>
             </div>
             <AnomalyBar delta={row.avgDelta} maxDelta={row.maxAbsDelta || 1} />
           </div>
@@ -243,7 +243,7 @@ function AnomalyMapSummary({ results }: { results: ScenarioResult[] }) {
           {results[results.length - 1].clamp_message}
         </p>
       )}
-      <p className="text-xs text-white/20">
+      <p className="text-xs text-foreground/20">
         Computed in {results.reduce((s, r) => s + r.computation_time_s, 0).toFixed(1)}s
         {results.length > 1 ? ` (${results.length}× chained)` : ''}
       </p>
@@ -365,7 +365,7 @@ export default function WhatIfScenarioEngine({
     <div className="panel p-4 flex flex-col gap-4 w-full">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <h2 className="text-white font-semibold text-sm tracking-wide flex items-center gap-1.5">
+        <h2 className="text-foreground font-semibold text-sm tracking-wide flex items-center gap-1.5">
           <Layers size={14} className="text-vayu-blue" />
           What-If Scenarios
         </h2>
@@ -379,8 +379,8 @@ export default function WhatIfScenarioEngine({
             onClick={() => setChainMode((v) => !v)}
             className={`text-xs px-2 py-1 rounded-md border transition-colors ${
               chainMode
-                ? 'border-vayu-blue bg-vayu-blue/20 text-white'
-                : 'border-white/10 text-white/40 hover:text-white/60'
+                ? 'border-vayu-blue bg-vayu-blue/20 text-foreground'
+                : 'border-foreground/10 text-foreground/40 hover:text-foreground/60'
             }`}
             title="Enable compound scenario chaining"
           >
@@ -397,8 +397,8 @@ export default function WhatIfScenarioEngine({
             onClick={() => handleScenarioChange(opt)}
             className={`flex flex-col items-start gap-1 p-2 rounded-lg border transition-all text-left ${
               selectedScenario.id === opt.id
-                ? 'border-vayu-blue bg-vayu-blue/20 text-white'
-                : 'border-white/10 bg-white/5 text-white/60 hover:text-white/80 hover:border-white/20'
+                ? 'border-vayu-blue bg-vayu-blue/20 text-foreground'
+                : 'border-foreground/10 bg-foreground/5 text-foreground/60 hover:text-foreground/80 hover:border-foreground/20'
             }`}
             title={opt.description}
           >
@@ -411,7 +411,7 @@ export default function WhatIfScenarioEngine({
       {/* Magnitude slider */}
       <div className="flex flex-col gap-2">
         <div className="flex justify-between items-center">
-          <span className="text-xs text-white/50">{selectedScenario.magnitudeLabel}</span>
+          <span className="text-xs text-foreground/50">{selectedScenario.magnitudeLabel}</span>
           <span className="text-sm font-bold text-vayu-accent font-mono">
             {selectedScenario.formatMagnitude(magnitude)}
           </span>
@@ -424,13 +424,13 @@ export default function WhatIfScenarioEngine({
           step={selectedScenario.magnitudeStep}
           value={magnitude}
           onChange={(e) => setMagnitude(Number(e.target.value))}
-          className="w-full h-1.5 appearance-none bg-white/10 rounded-full cursor-pointer
+          className="w-full h-1.5 appearance-none bg-foreground/10 rounded-full cursor-pointer
                      [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4
                      [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full
                      [&::-webkit-slider-thumb]:bg-vayu-accent [&::-webkit-slider-thumb]:cursor-pointer"
           aria-label={`${selectedScenario.magnitudeLabel}: ${selectedScenario.formatMagnitude(magnitude)}`}
         />
-        <div className="flex justify-between text-xs text-white/20">
+        <div className="flex justify-between text-xs text-foreground/20">
           <span>{selectedScenario.formatMagnitude(selectedScenario.magnitudeMin)}</span>
           <span>{selectedScenario.formatMagnitude(selectedScenario.magnitudeMax)}</span>
         </div>
@@ -438,7 +438,7 @@ export default function WhatIfScenarioEngine({
 
       {/* Target season */}
       <div className="flex flex-col gap-1.5">
-        <span className="text-xs text-white/50">Target Season</span>
+        <span className="text-xs text-foreground/50">Target Season</span>
         <div className="grid grid-cols-2 gap-1">
           {TARGET_SEASONS.map((s) => (
             <button
@@ -446,8 +446,8 @@ export default function WhatIfScenarioEngine({
               onClick={() => setTargetSeason(s.id)}
               className={`text-xs py-1.5 px-2 rounded-md border transition-colors ${
                 targetSeason === s.id
-                  ? 'border-vayu-blue bg-vayu-blue/20 text-white'
-                  : 'border-white/10 text-white/40 hover:text-white/60'
+                  ? 'border-vayu-blue bg-vayu-blue/20 text-foreground'
+                  : 'border-foreground/10 text-foreground/40 hover:text-foreground/60'
               }`}
             >
               {s.label}
@@ -457,9 +457,9 @@ export default function WhatIfScenarioEngine({
       </div>
 
       {/* Description */}
-      <div className="flex gap-2 p-2.5 bg-white/5 rounded-lg">
+      <div className="flex gap-2 p-2.5 bg-foreground/5 rounded-lg">
         <Info size={12} className="text-vayu-blue mt-0.5 shrink-0" />
-        <p className="text-xs text-white/50">{selectedScenario.description}</p>
+        <p className="text-xs text-foreground/50">{selectedScenario.description}</p>
       </div>
 
       {/* Chain builder — shown when chain mode is on */}
@@ -467,9 +467,9 @@ export default function WhatIfScenarioEngine({
         <div className="flex flex-col gap-2">
           <button
             onClick={() => setShowChainBuilder((v) => !v)}
-            className="flex items-center justify-between text-xs text-white/50 hover:text-white/70"
+            className="flex items-center justify-between text-xs text-foreground/50 hover:text-foreground/70"
           >
-            <span className="font-medium text-white/70 flex items-center gap-1">
+            <span className="font-medium text-foreground/70 flex items-center gap-1">
               <Layers size={12} />
               Compound Chain ({chainedSteps.length} step{chainedSteps.length !== 1 ? 's' : ''})
             </span>
@@ -479,7 +479,7 @@ export default function WhatIfScenarioEngine({
           {showChainBuilder && (
             <div className="flex flex-col gap-1.5">
               {chainedSteps.length === 0 ? (
-                <p className="text-xs text-white/25 italic">
+                <p className="text-xs text-foreground/25 italic">
                   Configure a scenario above then click "+ Add to Chain" to build compound effects.
                 </p>
               ) : (
@@ -516,7 +516,7 @@ export default function WhatIfScenarioEngine({
       >
         {isLoading ? (
           <>
-            <div className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+            <div className="w-4 h-4 border-2 border-foreground/40 border-t-white rounded-full animate-spin" />
             <span>Computing…</span>
           </>
         ) : (

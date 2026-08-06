@@ -116,7 +116,7 @@ export const ResolutionLabel: React.FC<ResolutionLabelProps> = ({
           style={{
             fontSize: 'var(--font-body, 14px)',
             fontWeight: 600,
-            color: 'rgba(255,255,255,0.8)',
+            color: 'rgba(var(--fg-rgb),var(--fg-a75))',
           }}
         >
           ≈ {resKm} km
@@ -234,7 +234,7 @@ const ComparisonPanel: React.FC<ComparisonPanelProps> = ({ downscalingActive }) 
         style={{
           fontSize: 'var(--font-small, 12px)',
           fontWeight: 600,
-          color: 'rgba(255,255,255,0.6)',
+          color: 'rgba(var(--fg-rgb),var(--fg-a6))',
           textTransform: 'uppercase',
           letterSpacing: '0.06em',
           margin: '0 0 var(--space-sm, 8px) 0',
@@ -275,7 +275,7 @@ const ComparisonPanel: React.FC<ComparisonPanelProps> = ({ downscalingActive }) 
                 style={{
                   flex: 1,
                   height: isNative || isDownscaled ? '10px' : '7px',
-                  background: 'rgba(255,255,255,0.07)',
+                  background: 'rgba(var(--fg-rgb),var(--fg-a08))',
                   borderRadius: '4px',
                   overflow: 'hidden',
                   position: 'relative',
@@ -301,7 +301,7 @@ const ComparisonPanel: React.FC<ComparisonPanelProps> = ({ downscalingActive }) 
                   width: '48px',
                   fontSize: 'var(--font-caption, 10px)',
                   fontWeight: isNative || isDownscaled ? 700 : 400,
-                  color: isNative || isDownscaled ? model.color : 'rgba(255,255,255,0.5)',
+                  color: isNative || isDownscaled ? model.color : 'rgba(var(--fg-rgb),var(--fg-a4))',
                   fontFamily: 'var(--font-family-mono)',
                   flexShrink: 0,
                 }}
@@ -318,7 +318,7 @@ const ComparisonPanel: React.FC<ComparisonPanelProps> = ({ downscalingActive }) 
         style={{
           marginTop: 'var(--space-sm, 8px)',
           fontSize: 'var(--font-caption, 10px)',
-          color: 'rgba(255,255,255,0.3)',
+          color: 'rgba(var(--fg-rgb),var(--fg-a3))',
           lineHeight: 1.5,
         }}
       >
@@ -409,7 +409,7 @@ const DownscalingStats: React.FC<DownscalingStatsProps> = ({
           >
             {value.toLocaleString()}
           </div>
-          <div style={{ fontSize: 'var(--font-caption, 10px)', color: 'rgba(255,255,255,0.4)' }}>
+          <div style={{ fontSize: 'var(--font-caption, 10px)', color: 'rgba(var(--fg-rgb),var(--fg-a4))' }}>
             {label}
           </div>
         </div>
@@ -512,7 +512,7 @@ export const ResolutionDisplay: React.FC<ResolutionDisplayProps> = ({
             style={{
               fontSize: 'var(--font-heading-sm, 18px)',
               fontWeight: 600,
-              color: 'rgba(255,255,255,0.95)',
+              color: 'rgba(var(--fg-rgb),var(--fg-a75))',
               margin: 0,
               display: 'flex',
               alignItems: 'center',
@@ -529,7 +529,7 @@ export const ResolutionDisplay: React.FC<ResolutionDisplayProps> = ({
             style={{
               background: 'none',
               border: 'none',
-              color: 'rgba(255,255,255,0.5)',
+              color: 'rgba(var(--fg-rgb),var(--fg-a4))',
               cursor: 'pointer',
               fontSize: 'var(--font-small, 12px)',
               padding: '2px 6px',
@@ -563,7 +563,7 @@ export const ResolutionDisplay: React.FC<ResolutionDisplayProps> = ({
             <span
               style={{
                 fontSize: 'var(--font-caption, 10px)',
-                color: downscalingActive ? 'rgba(255,255,255,0.3)' : '#22d3ee',
+                color: downscalingActive ? 'rgba(var(--fg-rgb),var(--fg-a3))' : '#22d3ee',
                 fontWeight: downscalingActive ? 400 : 600,
                 textDecoration: downscalingActive ? 'line-through' : 'none',
               }}
@@ -594,8 +594,8 @@ export const ResolutionDisplay: React.FC<ResolutionDisplayProps> = ({
               justifyContent: 'space-between',
               cursor: 'pointer',
               padding: '8px 10px',
-              background: showGrid ? 'rgba(34, 211, 238, 0.08)' : 'rgba(255,255,255,0.04)',
-              border: `1px solid ${showGrid ? 'rgba(34,211,238,0.3)' : 'rgba(255,255,255,0.08)'}`,
+              background: showGrid ? 'rgba(34, 211, 238, 0.08)' : 'rgba(var(--fg-rgb),var(--fg-a05))',
+              border: `1px solid ${showGrid ? 'rgba(34,211,238,0.3)' : 'rgba(var(--fg-rgb),var(--fg-a08))'}`,
               borderRadius: 'var(--radius-md, 8px)',
               transition: 'background 200ms ease, border-color 200ms ease',
             }}
@@ -605,7 +605,7 @@ export const ResolutionDisplay: React.FC<ResolutionDisplayProps> = ({
                 style={{
                   fontSize: 'var(--font-body, 14px)',
                   fontWeight: 500,
-                  color: showGrid ? '#22d3ee' : 'rgba(255,255,255,0.85)',
+                  color: showGrid ? '#22d3ee' : 'rgba(var(--fg-rgb),var(--fg-a75))',
                 }}
               >
                 Show Grid Overlay
@@ -613,7 +613,7 @@ export const ResolutionDisplay: React.FC<ResolutionDisplayProps> = ({
               <div
                 style={{
                   fontSize: 'var(--font-caption, 10px)',
-                  color: 'rgba(255,255,255,0.4)',
+                  color: 'rgba(var(--fg-rgb),var(--fg-a4))',
                   marginTop: '2px',
                 }}
               >
@@ -644,8 +644,8 @@ export const ResolutionDisplay: React.FC<ResolutionDisplayProps> = ({
               padding: '8px 10px',
               background: downscalingActive
                 ? 'rgba(16, 185, 129, 0.08)'
-                : 'rgba(255,255,255,0.04)',
-              border: `1px solid ${downscalingActive ? 'rgba(16,185,129,0.3)' : 'rgba(255,255,255,0.08)'}`,
+                : 'rgba(var(--fg-rgb),var(--fg-a05))',
+              border: `1px solid ${downscalingActive ? 'rgba(16,185,129,0.3)' : 'rgba(var(--fg-rgb),var(--fg-a08))'}`,
               borderRadius: 'var(--radius-md, 8px)',
               transition: 'background 200ms ease, border-color 200ms ease',
             }}
@@ -655,7 +655,7 @@ export const ResolutionDisplay: React.FC<ResolutionDisplayProps> = ({
                 style={{
                   fontSize: 'var(--font-body, 14px)',
                   fontWeight: 500,
-                  color: downscalingActive ? '#10b981' : 'rgba(255,255,255,0.85)',
+                  color: downscalingActive ? '#10b981' : 'rgba(var(--fg-rgb),var(--fg-a75))',
                 }}
               >
                 Statistical Downscaling
@@ -663,7 +663,7 @@ export const ResolutionDisplay: React.FC<ResolutionDisplayProps> = ({
               <div
                 style={{
                   fontSize: 'var(--font-caption, 10px)',
-                  color: 'rgba(255,255,255,0.4)',
+                  color: 'rgba(var(--fg-rgb),var(--fg-a4))',
                   marginTop: '2px',
                 }}
               >
@@ -701,15 +701,15 @@ export const ResolutionDisplay: React.FC<ResolutionDisplayProps> = ({
             style={{
               marginTop: 'var(--space-md, 12px)',
               padding: 'var(--space-sm, 8px) var(--space-md, 12px)',
-              background: 'rgba(255,255,255,0.04)',
+              background: 'rgba(var(--fg-rgb),var(--fg-a05))',
               borderRadius: 'var(--radius-md, 8px)',
               fontSize: 'var(--font-small, 12px)',
-              color: 'rgba(255,255,255,0.55)',
+              color: 'rgba(var(--fg-rgb),var(--fg-a6))',
               lineHeight: 1.6,
             }}
           >
             <p style={{ margin: '0 0 6px' }}>
-              <strong style={{ color: 'rgba(255,255,255,0.8)' }}>Native resolution:</strong> The
+              <strong style={{ color: 'rgba(var(--fg-rgb),var(--fg-a75))' }}>Native resolution:</strong> The
               VAYU model produces predictions at 0.25° ({NATIVE_RESOLUTION_KM} km) — the IMD gridded
               rainfall dataset resolution.
             </p>

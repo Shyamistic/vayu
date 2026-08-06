@@ -72,7 +72,7 @@ const GlobeZoom: React.FC<{ playing: boolean }> = ({ playing }) => (
               rgba(14,165,233,0.6) 0%,
               rgba(16,185,129,0.4) 25%,
               rgba(6,78,59,0.6) 55%,
-              rgba(6,10,22,0.9) 100%
+              rgba(var(--panel-bg-rgb),0.9) 100%
             )
           `,
           boxShadow: `
@@ -108,7 +108,7 @@ const GlobeZoom: React.FC<{ playing: boolean }> = ({ playing }) => (
             position: 'absolute',
             inset: 0,
             borderRadius: '50%',
-            background: 'radial-gradient(circle at 35% 35%, rgba(255,255,255,0.08) 0%, transparent 60%)',
+            background: 'radial-gradient(circle at 35% 35%, rgba(var(--fg-rgb),var(--fg-a08)) 0%, transparent 60%)',
           }}
         />
 
@@ -194,10 +194,10 @@ const StagedPanels: React.FC<{ playing: boolean }> = ({ playing }) => (
           gap: 10,
           padding: '8px 16px',
           borderRadius: 8,
-          background: 'rgba(6,10,22,0.8)',
+          background: 'rgba(var(--panel-bg-rgb),0.8)',
           backdropFilter: 'blur(12px)',
           WebkitBackdropFilter: 'blur(12px)',
-          border: '1px solid rgba(255,255,255,0.07)',
+          border: '1px solid rgba(var(--fg-rgb),var(--fg-a08))',
           boxShadow: '0 2px 12px rgba(0,0,0,0.4)',
         }}
         initial={{ opacity: 0, x: -24 }}
@@ -229,7 +229,7 @@ const StagedPanels: React.FC<{ playing: boolean }> = ({ playing }) => (
         <span
           style={{
             fontSize: 11,
-            color: 'rgba(255,255,255,0.6)',
+            color: 'rgba(var(--fg-rgb),var(--fg-a6))',
             fontFamily: 'Inter, system-ui, sans-serif',
             fontWeight: 500,
             letterSpacing: '0.02em',
@@ -345,14 +345,14 @@ export const CinematicIntro: React.FC<CinematicIntroProps> = ({
               position: 'absolute',
               inset: 0,
               backgroundImage: `
-                radial-gradient(1px 1px at 20% 30%, rgba(255,255,255,0.4) 0%, transparent 100%),
-                radial-gradient(1px 1px at 80% 10%, rgba(255,255,255,0.3) 0%, transparent 100%),
-                radial-gradient(1px 1px at 60% 70%, rgba(255,255,255,0.35) 0%, transparent 100%),
-                radial-gradient(1px 1px at 10% 80%, rgba(255,255,255,0.25) 0%, transparent 100%),
-                radial-gradient(1px 1px at 90% 50%, rgba(255,255,255,0.3) 0%, transparent 100%),
-                radial-gradient(1px 1px at 45% 15%, rgba(255,255,255,0.4) 0%, transparent 100%),
-                radial-gradient(1px 1px at 35% 90%, rgba(255,255,255,0.2) 0%, transparent 100%),
-                radial-gradient(1px 1px at 75% 85%, rgba(255,255,255,0.35) 0%, transparent 100%)
+                radial-gradient(1px 1px at 20% 30%, rgba(var(--fg-rgb),var(--fg-a4)) 0%, transparent 100%),
+                radial-gradient(1px 1px at 80% 10%, rgba(var(--fg-rgb),var(--fg-a3)) 0%, transparent 100%),
+                radial-gradient(1px 1px at 60% 70%, rgba(var(--fg-rgb),var(--fg-a3)) 0%, transparent 100%),
+                radial-gradient(1px 1px at 10% 80%, rgba(var(--fg-rgb),var(--fg-a2)) 0%, transparent 100%),
+                radial-gradient(1px 1px at 90% 50%, rgba(var(--fg-rgb),var(--fg-a3)) 0%, transparent 100%),
+                radial-gradient(1px 1px at 45% 15%, rgba(var(--fg-rgb),var(--fg-a4)) 0%, transparent 100%),
+                radial-gradient(1px 1px at 35% 90%, rgba(var(--fg-rgb),var(--fg-a2)) 0%, transparent 100%),
+                radial-gradient(1px 1px at 75% 85%, rgba(var(--fg-rgb),var(--fg-a3)) 0%, transparent 100%)
               `,
               opacity: 0.8,
             }}
@@ -402,7 +402,7 @@ export const CinematicIntro: React.FC<CinematicIntroProps> = ({
                 justifyContent: 'center',
                 fontSize: 26,
                 boxShadow: '0 0 32px rgba(14,165,233,0.5), 0 0 64px rgba(14,165,233,0.15)',
-                border: '2px solid rgba(255,255,255,0.15)',
+                border: '2px solid rgba(var(--fg-rgb),var(--fg-a15))',
               }}
               aria-hidden="true"
             >
@@ -429,7 +429,7 @@ export const CinematicIntro: React.FC<CinematicIntroProps> = ({
                   fontWeight: 400,
                   fontSize: 12,
                   letterSpacing: '0.25em',
-                  color: 'rgba(255,255,255,0.45)',
+                  color: 'rgba(var(--fg-rgb),var(--fg-a4))',
                   marginTop: 6,
                   textTransform: 'uppercase',
                 }}
@@ -453,9 +453,9 @@ export const CinematicIntro: React.FC<CinematicIntroProps> = ({
               zIndex: 20,
               padding: '6px 16px',
               borderRadius: 6,
-              background: 'rgba(255,255,255,0.06)',
-              border: '1px solid rgba(255,255,255,0.12)',
-              color: 'rgba(255,255,255,0.5)',
+              background: 'rgba(var(--fg-rgb),var(--fg-a05))',
+              border: '1px solid rgba(var(--fg-rgb),var(--fg-a12))',
+              color: 'rgba(var(--fg-rgb),var(--fg-a4))',
               fontFamily: 'Inter, system-ui, sans-serif',
               fontSize: 12,
               fontWeight: 500,
@@ -464,14 +464,14 @@ export const CinematicIntro: React.FC<CinematicIntroProps> = ({
               transition: 'background 200ms, color 200ms, border-color 200ms',
             }}
             onMouseEnter={(e) => {
-              (e.currentTarget as HTMLButtonElement).style.background = 'rgba(255,255,255,0.12)';
-              (e.currentTarget as HTMLButtonElement).style.color = 'rgba(255,255,255,0.85)';
-              (e.currentTarget as HTMLButtonElement).style.borderColor = 'rgba(255,255,255,0.25)';
+              (e.currentTarget as HTMLButtonElement).style.background = 'rgba(var(--fg-rgb),var(--fg-a12))';
+              (e.currentTarget as HTMLButtonElement).style.color = 'rgba(var(--fg-rgb),var(--fg-a75))';
+              (e.currentTarget as HTMLButtonElement).style.borderColor = 'rgba(var(--fg-rgb),var(--fg-a2))';
             }}
             onMouseLeave={(e) => {
-              (e.currentTarget as HTMLButtonElement).style.background = 'rgba(255,255,255,0.06)';
-              (e.currentTarget as HTMLButtonElement).style.color = 'rgba(255,255,255,0.5)';
-              (e.currentTarget as HTMLButtonElement).style.borderColor = 'rgba(255,255,255,0.12)';
+              (e.currentTarget as HTMLButtonElement).style.background = 'rgba(var(--fg-rgb),var(--fg-a05))';
+              (e.currentTarget as HTMLButtonElement).style.color = 'rgba(var(--fg-rgb),var(--fg-a4))';
+              (e.currentTarget as HTMLButtonElement).style.borderColor = 'rgba(var(--fg-rgb),var(--fg-a12))';
             }}
           >
             Skip
@@ -486,7 +486,7 @@ export const CinematicIntro: React.FC<CinematicIntroProps> = ({
               left: 0,
               right: 0,
               height: 2,
-              background: 'rgba(255,255,255,0.06)',
+              background: 'rgba(var(--fg-rgb),var(--fg-a05))',
             }}
           >
             <motion.div

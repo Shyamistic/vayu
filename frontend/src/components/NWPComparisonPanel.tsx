@@ -78,7 +78,7 @@ interface NWPComparisonPanelProps {
 function Bar({ value, max, color }: { value: number; max: number; color: string }) {
   const pct = Math.max(0, (value / max) * 100);
   return (
-    <div className="relative h-3 rounded-sm overflow-hidden" style={{ background: 'rgba(255,255,255,0.06)', flex: 1 }}>
+    <div className="relative h-3 rounded-sm overflow-hidden" style={{ background: 'rgba(var(--fg-rgb),var(--fg-a05))', flex: 1 }}>
       <div
         className="absolute inset-y-0 left-0 rounded-sm transition-all duration-500"
         style={{ width: `${pct}%`, background: color }}
@@ -94,12 +94,12 @@ export default function NWPComparisonPanel({ variable }: NWPComparisonPanelProps
     <div className="panel p-4 flex flex-col gap-3">
       <div className="flex items-center gap-2">
         <BarChart2 size={14} className="text-blue-400" />
-        <span className="text-sm font-semibold text-white/85">NWP Model Comparison</span>
+        <span className="text-sm font-semibold text-foreground/85">NWP Model Comparison</span>
       </div>
 
       {/* Metric selector label */}
       <div className="flex items-center justify-between">
-        <span className="text-[10px] text-white/40">
+        <span className="text-[10px] text-foreground/40">
           Showing: {variable === 'rainfall' ? 'Rainfall R²' : variable === 'temp_max' ? 'Tmax R²' : 'Tmin R²'}
         </span>
         <div className="flex items-center gap-1 text-[9px] text-green-400/60">
@@ -121,7 +121,7 @@ export default function NWPComparisonPanel({ variable }: NWPComparisonPanelProps
                   <div className="w-1.5 h-1.5 rounded-full" style={{ background: bm.color }} />
                   <span
                     className="text-[10px] font-medium"
-                    style={{ color: isVayu ? bm.color : 'rgba(255,255,255,0.65)' }}
+                    style={{ color: isVayu ? bm.color : 'rgba(var(--fg-rgb),var(--fg-a7))' }}
                   >
                     {bm.model}
                   </span>
@@ -132,7 +132,7 @@ export default function NWPComparisonPanel({ variable }: NWPComparisonPanelProps
                   )}
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="text-[9px] text-white/30 tabular-nums font-mono">
+                  <span className="text-[9px] text-foreground/30 tabular-nums font-mono">
                     RMSE: {rmse.toFixed(1)}
                   </span>
                   <span className="text-xs font-bold font-mono tabular-nums" style={{ color: bm.color }}>
@@ -149,16 +149,16 @@ export default function NWPComparisonPanel({ variable }: NWPComparisonPanelProps
       </div>
 
       {/* Skill score table */}
-      <div className="border-t pt-2.5" style={{ borderColor: 'rgba(255,255,255,0.07)' }}>
-        <div className="text-[9px] text-white/30 mb-1.5 uppercase tracking-wider">Skill Score vs Persistence</div>
+      <div className="border-t pt-2.5" style={{ borderColor: 'rgba(var(--fg-rgb),var(--fg-a08))' }}>
+        <div className="text-[9px] text-foreground/30 mb-1.5 uppercase tracking-wider">Skill Score vs Persistence</div>
         <div className="grid grid-cols-4 gap-1 text-[9px]">
-          <div className="text-white/25">Model</div>
+          <div className="text-foreground/25">Model</div>
           {METRIC_LABELS.map((m) => (
-            <div key={m.id} className="text-white/25 text-center">{m.label}</div>
+            <div key={m.id} className="text-foreground/25 text-center">{m.label}</div>
           ))}
           {BENCHMARKS.slice(0, 3).map((bm) => (
             <>
-              <div key={`${bm.model}-label`} className="text-white/60 truncate">{bm.model}</div>
+              <div key={`${bm.model}-label`} className="text-foreground/60 truncate">{bm.model}</div>
               {METRIC_LABELS.map((m) => {
                 const sk = bm.skill[m.id];
                 return (
@@ -176,7 +176,7 @@ export default function NWPComparisonPanel({ variable }: NWPComparisonPanelProps
         </div>
       </div>
 
-      <p className="text-[9px] text-white/20 text-center">
+      <p className="text-[9px] text-foreground/20 text-center">
         ECMWF: Rasp et al. 2024 · IMD: official forecasts · Skill = SS vs persistence
       </p>
     </div>

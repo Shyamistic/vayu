@@ -306,9 +306,9 @@ const ModelPill: React.FC<{
         gap: '5px',
         padding: '3px 9px',
         borderRadius: '12px',
-        border: `1px solid ${isActive ? color : 'rgba(255,255,255,0.15)'}`,
-        background: isActive ? `${color}20` : 'rgba(255,255,255,0.04)',
-        color: isActive ? color : 'rgba(255,255,255,0.4)',
+        border: `1px solid ${isActive ? color : 'rgba(var(--fg-rgb),var(--fg-a15))'}`,
+        background: isActive ? `${color}20` : 'rgba(var(--fg-rgb),var(--fg-a05))',
+        color: isActive ? color : 'rgba(var(--fg-rgb),var(--fg-a4))',
         fontSize: '11px',
         fontWeight: 600,
         cursor: 'pointer',
@@ -353,8 +353,8 @@ const StatsCard: React.FC<{
       style={{
         flex: '1 1 0',
         minWidth: '90px',
-        background: isBest ? `${color}14` : 'rgba(255,255,255,0.04)',
-        border: `1px solid ${isBest ? color : 'rgba(255,255,255,0.1)'}`,
+        background: isBest ? `${color}14` : 'rgba(var(--fg-rgb),var(--fg-a05))',
+        border: `1px solid ${isBest ? color : 'rgba(var(--fg-rgb),var(--fg-a1))'}`,
         borderRadius: '8px',
         padding: '8px 10px',
         position: 'relative',
@@ -390,9 +390,9 @@ const StatsCard: React.FC<{
         { label: 'Corr',  value: corrDisplay, unit: '' },
       ].map(({ label, value, unit }) => (
         <div key={label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '3px' }}>
-          <span style={{ fontSize: '10px', color: 'rgba(255,255,255,0.4)' }}>{label}</span>
-          <span style={{ fontSize: '11px', fontWeight: 600, color: 'rgba(255,255,255,0.85)' }}>
-            {value}{unit && <span style={{ fontSize: '9px', color: 'rgba(255,255,255,0.35)', marginLeft: '1px' }}>{unit}</span>}
+          <span style={{ fontSize: '10px', color: 'rgba(var(--fg-rgb),var(--fg-a4))' }}>{label}</span>
+          <span style={{ fontSize: '11px', fontWeight: 600, color: 'rgba(var(--fg-rgb),var(--fg-a75))' }}>
+            {value}{unit && <span style={{ fontSize: '9px', color: 'rgba(var(--fg-rgb),var(--fg-a3))', marginLeft: '1px' }}>{unit}</span>}
           </span>
         </div>
       ))}
@@ -446,10 +446,10 @@ const SpaghettiPlot: React.FC<{
       style={{ display: 'block', overflow: 'visible' }}
     >
       {/* Y-axis labels */}
-      <text x={PAD_L - 4} y={PAD_T + 4} textAnchor="end" fontSize={8} fill="rgba(255,255,255,0.35)">
+      <text x={PAD_L - 4} y={PAD_T + 4} textAnchor="end" fontSize={8} fill="rgba(var(--fg-rgb),var(--fg-a3))">
         {rawMax.toFixed(0)}{unit}
       </text>
-      <text x={PAD_L - 4} y={PAD_T + plotH + 4} textAnchor="end" fontSize={8} fill="rgba(255,255,255,0.35)">
+      <text x={PAD_L - 4} y={PAD_T + plotH + 4} textAnchor="end" fontSize={8} fill="rgba(var(--fg-rgb),var(--fg-a3))">
         {rawMin.toFixed(0)}{unit}
       </text>
 
@@ -461,7 +461,7 @@ const SpaghettiPlot: React.FC<{
           y={HEIGHT - 3}
           textAnchor="middle"
           fontSize={8}
-          fill="rgba(255,255,255,0.3)"
+          fill="rgba(var(--fg-rgb),var(--fg-a3))"
         >
           D{i + 1}
         </text>
@@ -473,10 +473,10 @@ const SpaghettiPlot: React.FC<{
           key={frac}
           x1={PAD_L} y1={PAD_T + frac * plotH}
           x2={PAD_L + plotW} y2={PAD_T + frac * plotH}
-          stroke="rgba(255,255,255,0.07)" strokeWidth={1}
+          stroke="rgba(var(--fg-rgb),var(--fg-a08))" strokeWidth={1}
         />
       ))}
-      <line x1={PAD_L} y1={PAD_T} x2={PAD_L} y2={PAD_T + plotH} stroke="rgba(255,255,255,0.15)" strokeWidth={1} />
+      <line x1={PAD_L} y1={PAD_T} x2={PAD_L} y2={PAD_T + plotH} stroke="rgba(var(--fg-rgb),var(--fg-a15))" strokeWidth={1} />
 
       {/* Model lines */}
       {visibleSeries.map((s) => {
@@ -712,7 +712,7 @@ export const NWPComparison: React.FC<NWPComparisonProps> = ({
           <h3 style={{
             fontSize: '16px',
             fontWeight: 600,
-            color: 'rgba(255,255,255,0.95)',
+            color: 'rgba(var(--fg-rgb),var(--fg-a75))',
             margin: 0,
             flex: 1,
           }}>
@@ -721,7 +721,7 @@ export const NWPComparison: React.FC<NWPComparisonProps> = ({
           {isLoading && (
             <span
               aria-label="Loading NWP data"
-              style={{ fontSize: '11px', color: 'rgba(255,255,255,0.4)', fontStyle: 'italic' }}
+              style={{ fontSize: '11px', color: 'rgba(var(--fg-rgb),var(--fg-a4))', fontStyle: 'italic' }}
             >
               Fetching…
             </span>
@@ -737,7 +737,7 @@ export const NWPComparison: React.FC<NWPComparisonProps> = ({
         </div>
 
         {/* Location display */}
-        <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.35)', marginBottom: '10px' }}>
+        <div style={{ fontSize: '11px', color: 'rgba(var(--fg-rgb),var(--fg-a3))', marginBottom: '10px' }}>
           📍 {lat.toFixed(2)}°N, {lon.toFixed(2)}°E
         </div>
 
@@ -752,10 +752,10 @@ export const NWPComparison: React.FC<NWPComparisonProps> = ({
               style={{
                 flex: 1,
                 padding: '4px 0',
-                background: variable === v ? 'rgba(56,189,248,0.15)' : 'rgba(255,255,255,0.04)',
-                border: `1px solid ${variable === v ? '#38bdf8' : 'rgba(255,255,255,0.1)'}`,
+                background: variable === v ? 'rgba(56,189,248,0.15)' : 'rgba(var(--fg-rgb),var(--fg-a05))',
+                border: `1px solid ${variable === v ? '#38bdf8' : 'rgba(var(--fg-rgb),var(--fg-a1))'}`,
                 borderRadius: '6px',
-                color: variable === v ? '#38bdf8' : 'rgba(255,255,255,0.4)',
+                color: variable === v ? '#38bdf8' : 'rgba(var(--fg-rgb),var(--fg-a4))',
                 fontSize: '10px',
                 fontWeight: variable === v ? 700 : 400,
                 cursor: 'pointer',
@@ -787,7 +787,7 @@ export const NWPComparison: React.FC<NWPComparisonProps> = ({
       {/* Spaghetti plot — Req 17.3 */}
       <div style={{ marginTop: '8px' }}>
       <GlassPanel padding="md" className="nwp-spaghetti-panel">
-        <div style={{ fontSize: '12px', fontWeight: 600, color: 'rgba(255,255,255,0.7)', marginBottom: '8px' }}>
+        <div style={{ fontSize: '12px', fontWeight: 600, color: 'rgba(var(--fg-rgb),var(--fg-a7))', marginBottom: '8px' }}>
           📈 {varLabel} Forecast — All Models
         </div>
         <SpaghettiPlot
@@ -823,7 +823,7 @@ export const NWPComparison: React.FC<NWPComparisonProps> = ({
       {/* Stats cards — Req 17.2: bias / RMSE / correlation */}
       <div style={{ marginTop: '8px' }}>
       <GlassPanel padding="md" className="nwp-stats-panel">
-        <div style={{ fontSize: '12px', fontWeight: 600, color: 'rgba(255,255,255,0.7)', marginBottom: '8px' }}>
+        <div style={{ fontSize: '12px', fontWeight: 600, color: 'rgba(var(--fg-rgb),var(--fg-a7))', marginBottom: '8px' }}>
           📊 Verification vs VAYU — {varLabel}
         </div>
         <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
@@ -837,7 +837,7 @@ export const NWPComparison: React.FC<NWPComparisonProps> = ({
         </div>
         <p style={{
           fontSize: '10px',
-          color: 'rgba(255,255,255,0.25)',
+          color: 'rgba(var(--fg-rgb),var(--fg-a2))',
           margin: '8px 0 0',
           textAlign: 'right',
         }}>

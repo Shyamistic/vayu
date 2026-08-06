@@ -333,7 +333,7 @@ const ConfidenceBadge: React.FC<{ score: number }> = ({ score }) => {
       <span style={{ fontSize: '20px', fontWeight: 700, color, lineHeight: 1 }}>
         {score}%
       </span>
-      <span style={{ fontSize: '9px', color: 'rgba(255,255,255,0.5)', marginTop: '2px', textAlign: 'center', lineHeight: 1.2 }}>
+      <span style={{ fontSize: '9px', color: 'rgba(var(--fg-rgb),var(--fg-a4))', marginTop: '2px', textAlign: 'center', lineHeight: 1.2 }}>
         Conf.
       </span>
     </div>
@@ -348,7 +348,7 @@ const UncertaintyLegend: React.FC = () => (
       alignItems: 'center',
       gap: 'var(--space-sm, 8px)',
       fontSize: '11px',
-      color: 'rgba(255,255,255,0.5)',
+      color: 'rgba(var(--fg-rgb),var(--fg-a4))',
       marginBottom: 'var(--space-md, 12px)',
     }}
   >
@@ -367,10 +367,10 @@ const UncertaintyLegend: React.FC = () => (
       style={{
         marginLeft: '8px',
         padding: '1px 6px',
-        border: '1px dashed rgba(255,255,255,0.4)',
+        border: '1px dashed rgba(var(--fg-rgb),var(--fg-a4))',
         borderRadius: '3px',
         fontSize: '10px',
-        color: 'rgba(255,255,255,0.4)',
+        color: 'rgba(var(--fg-rgb),var(--fg-a4))',
       }}
     >
       ▨ CV&gt;0.5
@@ -403,25 +403,25 @@ const CellStatsRow: React.FC<{
         transition: 'background 150ms ease',
         ...hatchStyle,
       }}
-      onMouseEnter={(e) => ((e.currentTarget as HTMLTableRowElement).style.background = 'rgba(255,255,255,0.06)')}
+      onMouseEnter={(e) => ((e.currentTarget as HTMLTableRowElement).style.background = 'rgba(var(--fg-rgb),var(--fg-a05))')}
       onMouseLeave={(e) => ((e.currentTarget as HTMLTableRowElement).style.background = isSelected ? 'rgba(96,165,250,0.12)' : 'transparent')}
     >
-      <td style={{ padding: '4px 8px', textAlign: 'center', color: 'rgba(255,255,255,0.35)', fontSize: '10px' }}>
+      <td style={{ padding: '4px 8px', textAlign: 'center', color: 'rgba(var(--fg-rgb),var(--fg-a3))', fontSize: '10px' }}>
         {rank}
       </td>
-      <td style={{ padding: '4px 8px', fontSize: '11px', color: 'rgba(255,255,255,0.8)' }}>
+      <td style={{ padding: '4px 8px', fontSize: '11px', color: 'rgba(var(--fg-rgb),var(--fg-a75))' }}>
         {stats.lat.toFixed(2)}°N, {stats.lon.toFixed(2)}°E
       </td>
       <td style={{ padding: '4px 8px', textAlign: 'right', fontSize: '11px', color: '#60a5fa' }}>
         {stats.mean.toFixed(1)} {unit}
       </td>
-      <td style={{ padding: '4px 8px', textAlign: 'right', fontSize: '11px', color: 'rgba(255,255,255,0.55)' }}>
+      <td style={{ padding: '4px 8px', textAlign: 'right', fontSize: '11px', color: 'rgba(var(--fg-rgb),var(--fg-a6))' }}>
         ±{stats.stdDev.toFixed(1)}
       </td>
       <td style={{ padding: '4px 8px', textAlign: 'right', fontSize: '11px' }}>
         <span
           style={{
-            color: stats.highUncertainty ? '#fbbf24' : 'rgba(255,255,255,0.45)',
+            color: stats.highUncertainty ? '#fbbf24' : 'rgba(var(--fg-rgb),var(--fg-a4))',
             fontWeight: stats.highUncertainty ? 700 : 400,
           }}
           title={stats.highUncertainty ? 'High uncertainty — hatched overlay applied' : undefined}
@@ -430,7 +430,7 @@ const CellStatsRow: React.FC<{
           {stats.highUncertainty && ' ▨'}
         </span>
       </td>
-      <td style={{ padding: '4px 8px', textAlign: 'right', fontSize: '11px', color: 'rgba(255,255,255,0.45)' }}>
+      <td style={{ padding: '4px 8px', textAlign: 'right', fontSize: '11px', color: 'rgba(var(--fg-rgb),var(--fg-a4))' }}>
         {stats.haloRadiusDeg.toFixed(2)}°
       </td>
     </tr>
@@ -483,16 +483,16 @@ const SpaghettiPlot: React.FC<{
       style={{ display: 'block', overflow: 'visible' }}
     >
       {/* Y-axis labels */}
-      <text x={PAD_L - 3} y={PAD_T + 4} textAnchor="end" fontSize={8} fill="rgba(255,255,255,0.35)">
+      <text x={PAD_L - 3} y={PAD_T + 4} textAnchor="end" fontSize={8} fill="rgba(var(--fg-rgb),var(--fg-a3))">
         {maxVal.toFixed(0)}{unit}
       </text>
-      <text x={PAD_L - 3} y={PAD_T + plotH + 4} textAnchor="end" fontSize={8} fill="rgba(255,255,255,0.35)">
+      <text x={PAD_L - 3} y={PAD_T + plotH + 4} textAnchor="end" fontSize={8} fill="rgba(var(--fg-rgb),var(--fg-a3))">
         {minVal.toFixed(0)}{unit}
       </text>
 
       {/* X-axis day labels */}
       {[1, 2, 3, 4, 5, 6, 7].map((d) => (
-        <text key={d} x={toX(d)} y={HEIGHT - 3} textAnchor="middle" fontSize={8} fill="rgba(255,255,255,0.3)">
+        <text key={d} x={toX(d)} y={HEIGHT - 3} textAnchor="middle" fontSize={8} fill="rgba(var(--fg-rgb),var(--fg-a3))">
           D{d}
         </text>
       ))}
@@ -503,7 +503,7 @@ const SpaghettiPlot: React.FC<{
           key={frac}
           x1={PAD_L} y1={PAD_T + frac * plotH}
           x2={PAD_L + plotW} y2={PAD_T + frac * plotH}
-          stroke="rgba(255,255,255,0.08)" strokeWidth={1}
+          stroke="rgba(var(--fg-rgb),var(--fg-a08))" strokeWidth={1}
         />
       ))}
 
@@ -699,13 +699,13 @@ export const EnsembleUncertainty: React.FC<EnsembleUncertaintyProps> = ({
               style={{
                 fontSize: 'var(--font-heading-sm, 18px)',
                 fontWeight: 600,
-                color: 'rgba(255,255,255,0.95)',
+                color: 'rgba(var(--fg-rgb),var(--fg-a75))',
                 margin: '0 0 4px 0',
               }}
             >
               🔮 Ensemble Uncertainty
             </h3>
-            <p style={{ fontSize: '12px', color: 'rgba(255,255,255,0.4)', margin: 0 }}>
+            <p style={{ fontSize: '12px', color: 'rgba(var(--fg-rgb),var(--fg-a4))', margin: 0 }}>
               {varLabel} · {ensembleStats.length} cells · {N_MOCK_MEMBERS} members
             </p>
           </div>
@@ -722,7 +722,7 @@ export const EnsembleUncertainty: React.FC<EnsembleUncertaintyProps> = ({
             style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}
             aria-label="Cell ensemble statistics sorted by CV descending"
           >
-            <thead style={{ position: 'sticky', top: 0, background: 'rgba(6,10,22,0.95)', zIndex: 1 }}>
+            <thead style={{ position: 'sticky', top: 0, background: 'rgba(var(--panel-bg-rgb),0.95)', zIndex: 1 }}>
               <tr>
                 {['#', 'Location', `Mean (${unit})`, `±StdDev`, 'CV', 'Halo°'].map((label, i) => (
                   <th
@@ -733,8 +733,8 @@ export const EnsembleUncertainty: React.FC<EnsembleUncertaintyProps> = ({
                       textAlign: i <= 1 ? 'left' : 'right',
                       fontSize: '10px',
                       fontWeight: 600,
-                      color: 'rgba(255,255,255,0.45)',
-                      borderBottom: '1px solid rgba(255,255,255,0.1)',
+                      color: 'rgba(var(--fg-rgb),var(--fg-a4))',
+                      borderBottom: '1px solid rgba(var(--fg-rgb),var(--fg-a1))',
                       whiteSpace: 'nowrap',
                     }}
                   >
@@ -771,24 +771,24 @@ export const EnsembleUncertainty: React.FC<EnsembleUncertaintyProps> = ({
               padding: '10px 12px',
             }}
           >
-            <div style={{ fontSize: '12px', color: 'rgba(255,255,255,0.7)', fontWeight: 600, marginBottom: '8px' }}>
+            <div style={{ fontSize: '12px', color: 'rgba(var(--fg-rgb),var(--fg-a7))', fontWeight: 600, marginBottom: '8px' }}>
               📈 Spaghetti Plot — {selectedStats.lat.toFixed(2)}°N, {selectedStats.lon.toFixed(2)}°E
-              <span style={{ marginLeft: '8px', fontSize: '11px', fontWeight: 400, color: 'rgba(255,255,255,0.35)' }}>
+              <span style={{ marginLeft: '8px', fontSize: '11px', fontWeight: 400, color: 'rgba(var(--fg-rgb),var(--fg-a3))' }}>
                 7-day ensemble spread
               </span>
             </div>
             <SpaghettiPlot lines={spaghettiLines} variable={variable} />
             <div style={{ display: 'flex', gap: '12px', marginTop: '6px', flexWrap: 'wrap' }}>
-              <span style={{ fontSize: '10px', color: 'rgba(255,255,255,0.4)' }}>
-                CV: <strong style={{ color: selectedStats.highUncertainty ? '#fbbf24' : 'rgba(255,255,255,0.7)' }}>
+              <span style={{ fontSize: '10px', color: 'rgba(var(--fg-rgb),var(--fg-a4))' }}>
+                CV: <strong style={{ color: selectedStats.highUncertainty ? '#fbbf24' : 'rgba(var(--fg-rgb),var(--fg-a7))' }}>
                   {isFinite(selectedStats.cv) ? selectedStats.cv.toFixed(2) : '∞'}
                 </strong>
               </span>
-              <span style={{ fontSize: '10px', color: 'rgba(255,255,255,0.4)' }}>
+              <span style={{ fontSize: '10px', color: 'rgba(var(--fg-rgb),var(--fg-a4))' }}>
                 Spread: <strong style={{ color: '#60a5fa' }}>±{selectedStats.stdDev.toFixed(1)} {unit}</strong>
               </span>
-              <span style={{ fontSize: '10px', color: 'rgba(255,255,255,0.4)' }}>
-                Halo: <strong style={{ color: 'rgba(255,255,255,0.6)' }}>{selectedStats.haloRadiusDeg.toFixed(2)}°</strong>
+              <span style={{ fontSize: '10px', color: 'rgba(var(--fg-rgb),var(--fg-a4))' }}>
+                Halo: <strong style={{ color: 'rgba(var(--fg-rgb),var(--fg-a6))' }}>{selectedStats.haloRadiusDeg.toFixed(2)}°</strong>
               </span>
               {selectedStats.highUncertainty && (
                 <span style={{ fontSize: '10px', color: '#fbbf24', fontWeight: 600 }}>
@@ -800,7 +800,7 @@ export const EnsembleUncertainty: React.FC<EnsembleUncertaintyProps> = ({
         )}
 
         {!selectedCellKey && (
-          <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.3)', textAlign: 'center', margin: '6px 0 0' }}>
+          <p style={{ fontSize: '11px', color: 'rgba(var(--fg-rgb),var(--fg-a3))', textAlign: 'center', margin: '6px 0 0' }}>
             Select a cell to view its spaghetti plot
           </p>
         )}

@@ -346,7 +346,7 @@ const DivergingLegend: React.FC = () => (
       gap: 'var(--space-sm, 8px)',
       marginBottom: 'var(--space-md, 12px)',
       fontSize: 'var(--font-small, 11px)',
-      color: 'rgba(255,255,255,0.6)',
+      color: 'rgba(var(--fg-rgb),var(--fg-a6))',
     }}
   >
     <span>−5°C</span>
@@ -380,14 +380,14 @@ const CityRow: React.FC<CityRowProps> = ({ result, rank, isSelected, onSelect })
       aria-selected={isSelected}
       style={{
         cursor: 'pointer',
-        background: isSelected ? 'rgba(255,255,255,0.08)' : rank % 2 === 0 ? 'rgba(255,255,255,0.02)' : 'transparent',
+        background: isSelected ? 'rgba(var(--fg-rgb),var(--fg-a08))' : rank % 2 === 0 ? 'rgba(var(--fg-rgb),var(--fg-a05))' : 'transparent',
         borderLeft: isSelected ? `3px solid ${color}` : '3px solid transparent',
         transition: 'background 150ms ease',
       }}
-      onMouseEnter={(e) => ((e.currentTarget as HTMLTableRowElement).style.background = 'rgba(255,255,255,0.06)')}
-      onMouseLeave={(e) => ((e.currentTarget as HTMLTableRowElement).style.background = isSelected ? 'rgba(255,255,255,0.08)' : rank % 2 === 0 ? 'rgba(255,255,255,0.02)' : 'transparent')}
+      onMouseEnter={(e) => ((e.currentTarget as HTMLTableRowElement).style.background = 'rgba(var(--fg-rgb),var(--fg-a05))')}
+      onMouseLeave={(e) => ((e.currentTarget as HTMLTableRowElement).style.background = isSelected ? 'rgba(var(--fg-rgb),var(--fg-a08))' : rank % 2 === 0 ? 'rgba(var(--fg-rgb),var(--fg-a05))' : 'transparent')}
     >
-      <td style={{ padding: '5px 8px', textAlign: 'center', color: 'rgba(255,255,255,0.35)', fontSize: '11px' }}>
+      <td style={{ padding: '5px 8px', textAlign: 'center', color: 'rgba(var(--fg-rgb),var(--fg-a3))', fontSize: '11px' }}>
         {rank}
       </td>
       <td style={{ padding: '5px 8px' }}>
@@ -397,8 +397,8 @@ const CityRow: React.FC<CityRowProps> = ({ result, rank, isSelected, onSelect })
               🌡️
             </span>
           )}
-          <span style={{ color: 'rgba(255,255,255,0.9)', fontWeight: 500 }}>{result.cityName}</span>
-          <span style={{ color: 'rgba(255,255,255,0.35)', fontSize: '10px' }}>{result.state}</span>
+          <span style={{ color: 'rgba(var(--fg-rgb),var(--fg-a75))', fontWeight: 500 }}>{result.cityName}</span>
+          <span style={{ color: 'rgba(var(--fg-rgb),var(--fg-a3))', fontSize: '10px' }}>{result.state}</span>
         </div>
       </td>
       <td style={{ padding: '5px 8px', textAlign: 'center' }}>
@@ -419,7 +419,7 @@ const CityRow: React.FC<CityRowProps> = ({ result, rank, isSelected, onSelect })
       <td style={{ padding: '5px 8px', textAlign: 'center' }}>
         <TrendBadge trend={result.trend} />
       </td>
-      <td style={{ padding: '5px 8px', textAlign: 'center', fontSize: '11px', color: 'rgba(255,255,255,0.55)' }}>
+      <td style={{ padding: '5px 8px', textAlign: 'center', fontSize: '11px', color: 'rgba(var(--fg-rgb),var(--fg-a6))' }}>
         {uhiCategory(result.intensity)}
       </td>
     </tr>
@@ -445,10 +445,10 @@ const CityDetailCard: React.FC<{ result: UHIResult }> = ({ result }) => {
     >
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
         <div>
-          <span style={{ fontSize: '16px', fontWeight: 700, color: 'rgba(255,255,255,0.95)' }}>
+          <span style={{ fontSize: '16px', fontWeight: 700, color: 'rgba(var(--fg-rgb),var(--fg-a75))' }}>
             {isHotspot && '🌡️ '}{result.cityName}
           </span>
-          <span style={{ marginLeft: '8px', fontSize: '12px', color: 'rgba(255,255,255,0.45)' }}>
+          <span style={{ marginLeft: '8px', fontSize: '12px', color: 'rgba(var(--fg-rgb),var(--fg-a4))' }}>
             {result.state}
           </span>
         </div>
@@ -465,11 +465,11 @@ const CityDetailCard: React.FC<{ result: UHIResult }> = ({ result }) => {
         {[
           { label: 'Urban mean temp', value: `${result.urbanTemp.toFixed(1)}°C`, color: '#f97316' },
           { label: 'Rural mean temp',  value: `${result.ruralTemp.toFixed(1)}°C`,  color: '#60a5fa' },
-          { label: 'Urban cells used', value: String(result.urbanCellCount), color: 'rgba(255,255,255,0.6)' },
-          { label: 'Rural cells used', value: String(result.ruralCellCount), color: 'rgba(255,255,255,0.6)' },
+          { label: 'Urban cells used', value: String(result.urbanCellCount), color: 'rgba(var(--fg-rgb),var(--fg-a6))' },
+          { label: 'Rural cells used', value: String(result.ruralCellCount), color: 'rgba(var(--fg-rgb),var(--fg-a6))' },
         ].map(({ label, value, color: c }) => (
           <div key={label} style={{ fontSize: '12px' }}>
-            <span style={{ color: 'rgba(255,255,255,0.45)' }}>{label}: </span>
+            <span style={{ color: 'rgba(var(--fg-rgb),var(--fg-a4))' }}>{label}: </span>
             <span style={{ color: c, fontWeight: 600 }}>{value}</span>
           </div>
         ))}
@@ -627,7 +627,7 @@ export const UrbanHeatIsland: React.FC<UrbanHeatIslandProps> = ({
           <span style={{ fontSize: '15px', fontWeight: 600, color: '#fdba74' }}>
             {hotspotCount} UHI Hotspot{hotspotCount > 1 ? 's' : ''} ≥ {UHI_HOTSPOT_THRESHOLD}°C intensity
           </span>
-          <span style={{ marginLeft: 'auto', fontSize: '11px', color: 'rgba(255,255,255,0.4)' }}>
+          <span style={{ marginLeft: 'auto', fontSize: '11px', color: 'rgba(var(--fg-rgb),var(--fg-a4))' }}>
             urban − rural delta
           </span>
         </div>
@@ -639,7 +639,7 @@ export const UrbanHeatIsland: React.FC<UrbanHeatIslandProps> = ({
           style={{
             fontSize: 'var(--font-heading-sm, 18px)',
             fontWeight: 600,
-            color: 'rgba(255,255,255,0.95)',
+            color: 'rgba(var(--fg-rgb),var(--fg-a75))',
             margin: '0 0 var(--space-md, 12px) 0',
             display: 'flex',
             alignItems: 'center',
@@ -647,7 +647,7 @@ export const UrbanHeatIsland: React.FC<UrbanHeatIslandProps> = ({
           }}
         >
           🌆 Urban Heat Island Mapping
-          <span style={{ marginLeft: 'auto', fontSize: '12px', fontWeight: 400, color: 'rgba(255,255,255,0.4)' }}>
+          <span style={{ marginLeft: 'auto', fontSize: '12px', fontWeight: 400, color: 'rgba(var(--fg-rgb),var(--fg-a4))' }}>
             {uhiResults.length} cities
           </span>
         </h3>
@@ -675,8 +675,8 @@ export const UrbanHeatIsland: React.FC<UrbanHeatIslandProps> = ({
                       textAlign: i === 0 ? 'center' : i === 1 ? 'left' : 'center',
                       fontSize: '11px',
                       fontWeight: 600,
-                      color: 'rgba(255,255,255,0.5)',
-                      borderBottom: '1px solid rgba(255,255,255,0.1)',
+                      color: 'rgba(var(--fg-rgb),var(--fg-a4))',
+                      borderBottom: '1px solid rgba(var(--fg-rgb),var(--fg-a1))',
                       whiteSpace: 'nowrap',
                     }}
                   >

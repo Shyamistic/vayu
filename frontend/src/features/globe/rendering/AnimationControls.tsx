@@ -71,7 +71,7 @@ export function AnimationControls({
         borderRadius: '8px',
         background: 'rgba(15, 23, 42, 0.85)',
         backdropFilter: 'blur(12px)',
-        border: '1px solid rgba(255, 255, 255, 0.1)',
+        border: '1px solid rgba(var(--fg-rgb),var(--fg-a1))',
         color: '#e2e8f0',
         fontSize: '13px',
         fontFamily: 'Inter, sans-serif',
@@ -134,7 +134,7 @@ export function AnimationControls({
             width: '100%',
             height: '4px',
             borderRadius: '2px',
-            background: 'rgba(255, 255, 255, 0.1)',
+            background: 'rgba(var(--fg-rgb),var(--fg-a1))',
             overflow: 'hidden',
           }}
         >
@@ -167,7 +167,7 @@ export function AnimationControls({
           aria-label="Animation speed (frames per second)"
           style={{
             background: 'rgba(30, 41, 59, 0.9)',
-            border: '1px solid rgba(255, 255, 255, 0.15)',
+            border: '1px solid rgba(var(--fg-rgb),var(--fg-a15))',
             borderRadius: '4px',
             color: '#e2e8f0',
             padding: '2px 6px',

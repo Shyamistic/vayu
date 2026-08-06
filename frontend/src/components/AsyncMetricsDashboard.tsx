@@ -9,7 +9,7 @@ export default function AsyncMetricsDashboard(props: MetricsDashboardProps) {
   return (
     <Suspense
       fallback={
-        <div className="panel p-4 w-full text-sm text-white/60" aria-busy="true">
+        <div className="panel p-4 w-full text-sm text-foreground/60" aria-busy="true">
           Loading performance charts…
         </div>
       }

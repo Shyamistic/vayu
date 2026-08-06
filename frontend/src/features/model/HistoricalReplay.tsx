@@ -395,7 +395,7 @@ function fmtScore(v: number): string {
 
 /** Color for a skill score where higher is better (or lower for FAR) */
 function scoreColor(v: number, invert = false): string {
-  if (isNaN(v)) return 'rgba(255,255,255,0.3)';
+  if (isNaN(v)) return 'rgba(var(--fg-rgb),var(--fg-a3))';
   const good = invert ? v < 0.3 : v > 0.6;
   const ok   = invert ? v < 0.5 : v > 0.35;
   if (good) return '#4ade80';
@@ -418,10 +418,10 @@ const SkillScoreBar: React.FC<{
       aria-label={`${label}: ${fmtScore(value)}`}
     >
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '3px', fontSize: '11px' }}>
-        <span style={{ color: 'rgba(255,255,255,0.65)' }}>{label}</span>
+        <span style={{ color: 'rgba(var(--fg-rgb),var(--fg-a7))' }}>{label}</span>
         <span style={{ color, fontWeight: 600 }}>{fmtScore(value)}</span>
       </div>
-      <div style={{ height: '4px', background: 'rgba(255,255,255,0.08)', borderRadius: '2px', overflow: 'hidden' }}>
+      <div style={{ height: '4px', background: 'rgba(var(--fg-rgb),var(--fg-a08))', borderRadius: '2px', overflow: 'hidden' }}>
         <div
           style={{
             height: '100%',
@@ -445,7 +445,7 @@ const GridMiniMap: React.FC<{
 }> = ({ cells, variable, label, accentColor }) => {
   if (cells.length === 0) {
     return (
-      <div style={{ textAlign: 'center', padding: '16px', color: 'rgba(255,255,255,0.3)', fontSize: '11px' }}>
+      <div style={{ textAlign: 'center', padding: '16px', color: 'rgba(var(--fg-rgb),var(--fg-a3))', fontSize: '11px' }}>
         No data
       </div>
     );
@@ -487,7 +487,7 @@ const GridMiniMap: React.FC<{
                   style={{
                     width: cellSizePx,
                     height: cellSizePx,
-                    background: cell ? bg : 'rgba(255,255,255,0.03)',
+                    background: cell ? bg : 'rgba(var(--fg-rgb),var(--fg-a05))',
                     border: '1px solid rgba(0,0,0,0.2)',
                   }}
                 />
@@ -496,7 +496,7 @@ const GridMiniMap: React.FC<{
           </div>
         ))}
       </div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '9px', color: 'rgba(255,255,255,0.35)', marginTop: '3px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '9px', color: 'rgba(var(--fg-rgb),var(--fg-a3))', marginTop: '3px' }}>
         <span>{minVal.toFixed(1)}</span>
         <span>{variable === 'rainfall' ? 'mm/day' : '°C'}</span>
         <span>{maxVal.toFixed(1)}</span>
@@ -521,20 +521,20 @@ const EventCard: React.FC<{
         display: 'block',
         width: '100%',
         textAlign: 'left',
-        background: isSelected ? `${cfg.color}18` : 'rgba(255,255,255,0.025)',
-        border: `1px solid ${isSelected ? cfg.color : 'rgba(255,255,255,0.07)'}`,
+        background: isSelected ? `${cfg.color}18` : 'rgba(var(--fg-rgb),var(--fg-a05))',
+        border: `1px solid ${isSelected ? cfg.color : 'rgba(var(--fg-rgb),var(--fg-a08))'}`,
         borderRadius: '8px',
         padding: '8px 10px',
         cursor: 'pointer',
         marginBottom: '6px',
         transition: 'all 150ms ease',
       }}
-      onMouseEnter={(e) => { if (!isSelected) (e.currentTarget as HTMLButtonElement).style.background = 'rgba(255,255,255,0.05)'; }}
-      onMouseLeave={(e) => { if (!isSelected) (e.currentTarget as HTMLButtonElement).style.background = 'rgba(255,255,255,0.025)'; }}
+      onMouseEnter={(e) => { if (!isSelected) (e.currentTarget as HTMLButtonElement).style.background = 'rgba(var(--fg-rgb),var(--fg-a05))'; }}
+      onMouseLeave={(e) => { if (!isSelected) (e.currentTarget as HTMLButtonElement).style.background = 'rgba(var(--fg-rgb),var(--fg-a05))'; }}
     >
       <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '3px' }}>
         <span style={{ fontSize: '15px' }} aria-hidden="true">{cfg.icon}</span>
-        <span style={{ color: 'rgba(255,255,255,0.9)', fontWeight: 600, fontSize: '12px', flex: 1 }}>
+        <span style={{ color: 'rgba(var(--fg-rgb),var(--fg-a75))', fontWeight: 600, fontSize: '12px', flex: 1 }}>
           {event.name}
         </span>
         <span
@@ -553,10 +553,10 @@ const EventCard: React.FC<{
           {cfg.label}
         </span>
       </div>
-      <div style={{ fontSize: '10px', color: 'rgba(255,255,255,0.4)', marginBottom: '2px' }}>
+      <div style={{ fontSize: '10px', color: 'rgba(var(--fg-rgb),var(--fg-a4))', marginBottom: '2px' }}>
         {event.startDate} → {event.endDate} · {event.durationDays}d · {event.region}
       </div>
-      <div style={{ fontSize: '10px', color: 'rgba(255,255,255,0.55)' }}>{event.peakStat}</div>
+      <div style={{ fontSize: '10px', color: 'rgba(var(--fg-rgb),var(--fg-a6))' }}>{event.peakStat}</div>
     </button>
   );
 };
@@ -714,9 +714,9 @@ export const HistoricalReplay: React.FC<HistoricalReplayProps> = ({
                 padding: '3px 8px',
                 borderRadius: '4px',
                 cursor: 'pointer',
-                border: `1px solid ${isActive ? (catCfg?.color ?? '#60a5fa') : 'rgba(255,255,255,0.15)'}`,
+                border: `1px solid ${isActive ? (catCfg?.color ?? '#60a5fa') : 'rgba(var(--fg-rgb),var(--fg-a15))'}`,
                 background: isActive ? `${catCfg?.color ?? '#60a5fa'}20` : 'transparent',
-                color: isActive ? (catCfg?.color ?? '#60a5fa') : 'rgba(255,255,255,0.5)',
+                color: isActive ? (catCfg?.color ?? '#60a5fa') : 'rgba(var(--fg-rgb),var(--fg-a4))',
                 transition: 'all 150ms ease',
               }}
             >
@@ -724,7 +724,7 @@ export const HistoricalReplay: React.FC<HistoricalReplayProps> = ({
             </button>
           );
         })}
-        <span style={{ marginLeft: 'auto', fontSize: '10px', color: 'rgba(255,255,255,0.3)', alignSelf: 'center' }}>
+        <span style={{ marginLeft: 'auto', fontSize: '10px', color: 'rgba(var(--fg-rgb),var(--fg-a3))', alignSelf: 'center' }}>
           {filteredEvents.length} events
         </span>
       </div>
@@ -735,7 +735,7 @@ export const HistoricalReplay: React.FC<HistoricalReplayProps> = ({
           style={{
             fontSize: '11px',
             fontWeight: 600,
-            color: 'rgba(255,255,255,0.5)',
+            color: 'rgba(var(--fg-rgb),var(--fg-a4))',
             textTransform: 'uppercase',
             letterSpacing: '0.06em',
             marginBottom: '8px',
@@ -763,7 +763,7 @@ export const HistoricalReplay: React.FC<HistoricalReplayProps> = ({
           <GlassPanel padding="sm" className="timeline-panel">
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
               <span style={{ fontSize: '14px' }} aria-hidden="true">{cfg.icon}</span>
-              <span style={{ fontSize: '13px', fontWeight: 600, color: 'rgba(255,255,255,0.9)', flex: 1 }}>
+              <span style={{ fontSize: '13px', fontWeight: 600, color: 'rgba(var(--fg-rgb),var(--fg-a75))', flex: 1 }}>
                 {selectedEvent.name}
               </span>
               <span style={{ fontSize: '10px', color: cfg.color }}>
@@ -771,7 +771,7 @@ export const HistoricalReplay: React.FC<HistoricalReplayProps> = ({
               </span>
             </div>
 
-            <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.45)', marginBottom: '6px' }}>
+            <div style={{ fontSize: '11px', color: 'rgba(var(--fg-rgb),var(--fg-a4))', marginBottom: '6px' }}>
               {currentSnapshot?.date}
             </div>
 
@@ -794,7 +794,7 @@ export const HistoricalReplay: React.FC<HistoricalReplayProps> = ({
             />
 
             {/* Day tick labels */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '9px', color: 'rgba(255,255,255,0.25)', marginBottom: '8px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '9px', color: 'rgba(var(--fg-rgb),var(--fg-a2))', marginBottom: '8px' }}>
               {selectedEvent.snapshots.map((s) => (
                 <span
                   key={s.day}
@@ -811,7 +811,7 @@ export const HistoricalReplay: React.FC<HistoricalReplayProps> = ({
                 onClick={() => { stopPlayback(); setCurrentDay(0); }}
                 aria-label="Reset to day 1"
                 title="Reset"
-                style={{ background: 'none', border: '1px solid rgba(255,255,255,0.2)', borderRadius: '4px', cursor: 'pointer', color: 'rgba(255,255,255,0.6)', padding: '3px 7px', fontSize: '12px' }}
+                style={{ background: 'none', border: '1px solid rgba(var(--fg-rgb),var(--fg-a2))', borderRadius: '4px', cursor: 'pointer', color: 'rgba(var(--fg-rgb),var(--fg-a6))', padding: '3px 7px', fontSize: '12px' }}
               >
                 ⏮
               </button>
@@ -819,7 +819,7 @@ export const HistoricalReplay: React.FC<HistoricalReplayProps> = ({
                 onClick={() => { stopPlayback(); setCurrentDay((d) => Math.max(0, d - 1)); }}
                 aria-label="Previous day"
                 title="Previous"
-                style={{ background: 'none', border: '1px solid rgba(255,255,255,0.2)', borderRadius: '4px', cursor: 'pointer', color: 'rgba(255,255,255,0.6)', padding: '3px 7px', fontSize: '12px' }}
+                style={{ background: 'none', border: '1px solid rgba(var(--fg-rgb),var(--fg-a2))', borderRadius: '4px', cursor: 'pointer', color: 'rgba(var(--fg-rgb),var(--fg-a6))', padding: '3px 7px', fontSize: '12px' }}
               >
                 ◀
               </button>
@@ -828,11 +828,11 @@ export const HistoricalReplay: React.FC<HistoricalReplayProps> = ({
                 aria-label={isPlaying ? 'Pause playback' : 'Play animation'}
                 aria-pressed={isPlaying}
                 style={{
-                  background: isPlaying ? `${cfg.color}30` : 'rgba(255,255,255,0.08)',
-                  border: `1px solid ${isPlaying ? cfg.color : 'rgba(255,255,255,0.2)'}`,
+                  background: isPlaying ? `${cfg.color}30` : 'rgba(var(--fg-rgb),var(--fg-a08))',
+                  border: `1px solid ${isPlaying ? cfg.color : 'rgba(var(--fg-rgb),var(--fg-a2))'}`,
                   borderRadius: '4px',
                   cursor: 'pointer',
-                  color: isPlaying ? cfg.color : 'rgba(255,255,255,0.8)',
+                  color: isPlaying ? cfg.color : 'rgba(var(--fg-rgb),var(--fg-a75))',
                   padding: '3px 10px',
                   fontSize: '13px',
                   transition: 'all 150ms ease',
@@ -844,7 +844,7 @@ export const HistoricalReplay: React.FC<HistoricalReplayProps> = ({
                 onClick={() => { stopPlayback(); setCurrentDay((d) => Math.min(selectedEvent.durationDays - 1, d + 1)); }}
                 aria-label="Next day"
                 title="Next"
-                style={{ background: 'none', border: '1px solid rgba(255,255,255,0.2)', borderRadius: '4px', cursor: 'pointer', color: 'rgba(255,255,255,0.6)', padding: '3px 7px', fontSize: '12px' }}
+                style={{ background: 'none', border: '1px solid rgba(var(--fg-rgb),var(--fg-a2))', borderRadius: '4px', cursor: 'pointer', color: 'rgba(var(--fg-rgb),var(--fg-a6))', padding: '3px 7px', fontSize: '12px' }}
               >
                 ▶
               </button>
@@ -856,10 +856,10 @@ export const HistoricalReplay: React.FC<HistoricalReplayProps> = ({
                 aria-label="Playback speed"
                 style={{
                   marginLeft: 'auto',
-                  background: 'rgba(255,255,255,0.06)',
-                  border: '1px solid rgba(255,255,255,0.15)',
+                  background: 'rgba(var(--fg-rgb),var(--fg-a05))',
+                  border: '1px solid rgba(var(--fg-rgb),var(--fg-a15))',
                   borderRadius: '4px',
-                  color: 'rgba(255,255,255,0.6)',
+                  color: 'rgba(var(--fg-rgb),var(--fg-a6))',
                   fontSize: '10px',
                   padding: '2px 4px',
                   cursor: 'pointer',
@@ -877,10 +877,10 @@ export const HistoricalReplay: React.FC<HistoricalReplayProps> = ({
                 onChange={(e) => setDisplayVariable(e.target.value as typeof displayVariable)}
                 aria-label="Display variable"
                 style={{
-                  background: 'rgba(255,255,255,0.06)',
-                  border: '1px solid rgba(255,255,255,0.15)',
+                  background: 'rgba(var(--fg-rgb),var(--fg-a05))',
+                  border: '1px solid rgba(var(--fg-rgb),var(--fg-a15))',
                   borderRadius: '4px',
-                  color: 'rgba(255,255,255,0.6)',
+                  color: 'rgba(var(--fg-rgb),var(--fg-a6))',
                   fontSize: '10px',
                   padding: '2px 4px',
                   cursor: 'pointer',
@@ -901,7 +901,7 @@ export const HistoricalReplay: React.FC<HistoricalReplayProps> = ({
                 style={{
                   fontSize: '11px',
                   fontWeight: 600,
-                  color: 'rgba(255,255,255,0.5)',
+                  color: 'rgba(var(--fg-rgb),var(--fg-a4))',
                   textTransform: 'uppercase',
                   letterSpacing: '0.06em',
                   marginBottom: '8px',
@@ -940,7 +940,7 @@ export const HistoricalReplay: React.FC<HistoricalReplayProps> = ({
                   style={{
                     fontSize: '11px',
                     fontWeight: 600,
-                    color: 'rgba(255,255,255,0.5)',
+                    color: 'rgba(var(--fg-rgb),var(--fg-a4))',
                     textTransform: 'uppercase',
                     letterSpacing: '0.06em',
                   }}
@@ -949,7 +949,7 @@ export const HistoricalReplay: React.FC<HistoricalReplayProps> = ({
                 </div>
                 <div
                   title="Aggregate scores across all event days"
-                  style={{ fontSize: '10px', color: 'rgba(255,255,255,0.35)' }}
+                  style={{ fontSize: '10px', color: 'rgba(var(--fg-rgb),var(--fg-a3))' }}
                 >
                   {aggregateSkillScores
                     ? `Aggregate CSI: ${fmtScore(aggregateSkillScores.csi)}`
@@ -977,7 +977,7 @@ export const HistoricalReplay: React.FC<HistoricalReplayProps> = ({
                 value={skillScores.gss}
                 tooltip="Equitable Threat Score accounting for random chance. Higher is better."
               />
-              <div style={{ marginTop: '8px', fontSize: '10px', color: 'rgba(255,255,255,0.3)' }}>
+              <div style={{ marginTop: '8px', fontSize: '10px', color: 'rgba(var(--fg-rgb),var(--fg-a3))' }}>
                 Threshold: {EVENT_SCORING_CONFIG[selectedEvent.category].threshold}{' '}
                 {EVENT_SCORING_CONFIG[selectedEvent.category].variable === 'rainfall' ? 'mm/day' : '°C'}
               </div>
@@ -994,9 +994,9 @@ export const HistoricalReplay: React.FC<HistoricalReplayProps> = ({
             marginTop: '10px',
             textAlign: 'center',
             padding: '24px 16px',
-            color: 'rgba(255,255,255,0.25)',
+            color: 'rgba(var(--fg-rgb),var(--fg-a2))',
             fontSize: '12px',
-            border: '1px dashed rgba(255,255,255,0.1)',
+            border: '1px dashed rgba(var(--fg-rgb),var(--fg-a1))',
             borderRadius: '8px',
           }}
         >
@@ -1013,7 +1013,7 @@ export const HistoricalReplay: React.FC<HistoricalReplayProps> = ({
         }
         .event-library::-webkit-scrollbar { width: 4px; }
         .event-library::-webkit-scrollbar-track { background: transparent; }
-        .event-library::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 2px; }
+        .event-library::-webkit-scrollbar-thumb { background: rgba(var(--fg-rgb),var(--fg-a1)); border-radius: 2px; }
       `}</style>
     </div>
   );

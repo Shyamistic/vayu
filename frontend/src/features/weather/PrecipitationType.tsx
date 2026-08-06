@@ -124,7 +124,7 @@ export const PRECIP_TYPE_STYLES: Record<PrecipitationPhase, PrecipTypeStyle> = {
   sleet:         { phase: 'sleet',         label: 'Sleet',         symbol: '🌨', color: '#a78bfa', borderColor: '#c4b5fd' },
   freezing_rain: { phase: 'freezing_rain', label: 'Freezing Rain', symbol: '🧊', color: '#06b6d4', borderColor: '#67e8f9' },
   snow:          { phase: 'snow',          label: 'Snow',          symbol: '❄️', color: '#e0f2fe', borderColor: '#bae6fd' },
-  none:          { phase: 'none',          label: 'No Precip',     symbol: '○',  color: 'rgba(255,255,255,0.12)', borderColor: 'rgba(255,255,255,0.2)' },
+  none:          { phase: 'none',          label: 'No Precip',     symbol: '○',  color: 'rgba(var(--fg-rgb),var(--fg-a12))', borderColor: 'rgba(var(--fg-rgb),var(--fg-a2))' },
 };
 
 // ── Pure Functions (exported for testing) ────────────────────────────────────
@@ -378,13 +378,13 @@ const PrecipLegendChip: React.FC<{
       display: 'flex',
       alignItems: 'center',
       gap: '6px',
-      background: isSelected ? `${style.color}28` : 'rgba(255,255,255,0.04)',
-      border: `1px solid ${isSelected ? style.borderColor : 'rgba(255,255,255,0.1)'}`,
+      background: isSelected ? `${style.color}28` : 'rgba(var(--fg-rgb),var(--fg-a05))',
+      border: `1px solid ${isSelected ? style.borderColor : 'rgba(var(--fg-rgb),var(--fg-a1))'}`,
       borderRadius: '8px',
       padding: '5px 10px',
       cursor: 'pointer',
       transition: 'all 150ms ease',
-      color: isSelected ? style.color : 'rgba(255,255,255,0.65)',
+      color: isSelected ? style.color : 'rgba(var(--fg-rgb),var(--fg-a7))',
       fontSize: '12px',
       fontWeight: isSelected ? 600 : 400,
       flexShrink: 0,
@@ -394,8 +394,8 @@ const PrecipLegendChip: React.FC<{
     <span>{style.label}</span>
     <span
       style={{
-        background: isSelected ? style.color : 'rgba(255,255,255,0.15)',
-        color: isSelected ? '#000' : 'rgba(255,255,255,0.7)',
+        background: isSelected ? style.color : 'rgba(var(--fg-rgb),var(--fg-a15))',
+        color: isSelected ? '#000' : 'rgba(var(--fg-rgb),var(--fg-a7))',
         borderRadius: '10px',
         padding: '0 6px',
         fontSize: '10px',
@@ -426,7 +426,7 @@ const SnowLineCard: React.FC<{ contour: SnowLineContour }> = ({ contour }) => (
       <div style={{ fontSize: '13px', fontWeight: 600, color: '#bae6fd' }}>
         Snow Line (0°C Isotherm)
       </div>
-      <div style={{ fontSize: '12px', color: 'rgba(255,255,255,0.55)', marginTop: '2px' }}>
+      <div style={{ fontSize: '12px', color: 'rgba(var(--fg-rgb),var(--fg-a6))', marginTop: '2px' }}>
         Estimated altitude: <span style={{ color: '#e0f2fe', fontWeight: 600 }}>
           {Math.round(contour.altitudeM).toLocaleString()} m
         </span>
@@ -434,7 +434,7 @@ const SnowLineCard: React.FC<{ contour: SnowLineContour }> = ({ contour }) => (
         {contour.contourCells.length} boundary cells
       </div>
     </div>
-    <div style={{ fontSize: '10px', color: 'rgba(255,255,255,0.3)', textAlign: 'right' }}>
+    <div style={{ fontSize: '10px', color: 'rgba(var(--fg-rgb),var(--fg-a3))', textAlign: 'right' }}>
       {new Date(contour.computedAt).toLocaleTimeString()}
     </div>
   </div>
@@ -446,11 +446,11 @@ const PrecipCellRow: React.FC<{ result: PrecipTypeResult; rank: number }> = ({ r
   return (
     <tr
       style={{
-        background: rank % 2 === 0 ? 'rgba(255,255,255,0.02)' : 'transparent',
+        background: rank % 2 === 0 ? 'rgba(var(--fg-rgb),var(--fg-a05))' : 'transparent',
         fontSize: '12px',
       }}
     >
-      <td style={{ padding: '4px 8px', textAlign: 'center', color: 'rgba(255,255,255,0.3)', fontSize: '11px' }}>
+      <td style={{ padding: '4px 8px', textAlign: 'center', color: 'rgba(var(--fg-rgb),var(--fg-a3))', fontSize: '11px' }}>
         {rank}
       </td>
       <td style={{ padding: '4px 8px' }}>
@@ -471,7 +471,7 @@ const PrecipCellRow: React.FC<{ result: PrecipTypeResult; rank: number }> = ({ r
           {typeStyle.symbol} {typeStyle.label}
         </span>
       </td>
-      <td style={{ padding: '4px 8px', color: 'rgba(255,255,255,0.7)', textAlign: 'center' }}>
+      <td style={{ padding: '4px 8px', color: 'rgba(var(--fg-rgb),var(--fg-a7))', textAlign: 'center' }}>
         {result.lat.toFixed(2)}°N, {result.lon.toFixed(2)}°E
       </td>
       <td style={{ padding: '4px 8px', textAlign: 'center', color: '#93c5fd' }}>
@@ -483,7 +483,7 @@ const PrecipCellRow: React.FC<{ result: PrecipTypeResult; rank: number }> = ({ r
       <td style={{ padding: '4px 8px', textAlign: 'center' }}>
         {result.snowfallEquivalent > 0
           ? <span style={{ color: '#e0f2fe', fontWeight: 600 }}>{result.snowfallEquivalent.toFixed(0)} mm</span>
-          : <span style={{ color: 'rgba(255,255,255,0.2)' }}>—</span>
+          : <span style={{ color: 'rgba(var(--fg-rgb),var(--fg-a2))' }}>—</span>
         }
       </td>
     </tr>
@@ -518,7 +518,7 @@ const SnowfallSummary: React.FC<{
       ].map(({ label, value, color }) => (
         <div key={label}>
           <div style={{ fontSize: '18px', fontWeight: 700, color }}>{value}</div>
-          <div style={{ fontSize: '10px', color: 'rgba(255,255,255,0.4)', marginTop: '2px' }}>{label}</div>
+          <div style={{ fontSize: '10px', color: 'rgba(var(--fg-rgb),var(--fg-a4))', marginTop: '2px' }}>{label}</div>
         </div>
       ))}
     </div>
@@ -620,7 +620,7 @@ export const PrecipitationType: React.FC<PrecipitationTypeProps> = ({
           style={{
             fontSize: '16px',
             fontWeight: 600,
-            color: 'rgba(255,255,255,0.95)',
+            color: 'rgba(var(--fg-rgb),var(--fg-a75))',
             margin: '0 0 12px 0',
             display: 'flex',
             alignItems: 'center',
@@ -628,7 +628,7 @@ export const PrecipitationType: React.FC<PrecipitationTypeProps> = ({
           }}
         >
           🌧 Precipitation Type Classification
-          <span style={{ marginLeft: 'auto', fontSize: '11px', fontWeight: 400, color: 'rgba(255,255,255,0.4)' }}>
+          <span style={{ marginLeft: 'auto', fontSize: '11px', fontWeight: 400, color: 'rgba(var(--fg-rgb),var(--fg-a4))' }}>
             {results.filter((r) => r.phase !== 'none').length} active cells
           </span>
         </h3>
@@ -657,7 +657,7 @@ export const PrecipitationType: React.FC<PrecipitationTypeProps> = ({
               style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}
               aria-label="Precipitation type cells"
             >
-              <thead style={{ position: 'sticky', top: 0, background: 'rgba(6,10,22,0.95)', zIndex: 1 }}>
+              <thead style={{ position: 'sticky', top: 0, background: 'rgba(var(--panel-bg-rgb),0.95)', zIndex: 1 }}>
                 <tr>
                   {['#', 'Type', 'Location', 'Temp', 'Rain', 'Snowfall'].map((col, i) => (
                     <th
@@ -668,8 +668,8 @@ export const PrecipitationType: React.FC<PrecipitationTypeProps> = ({
                         textAlign: i < 2 || i === 2 ? 'center' : 'center',
                         fontSize: '10px',
                         fontWeight: 600,
-                        color: 'rgba(255,255,255,0.45)',
-                        borderBottom: '1px solid rgba(255,255,255,0.08)',
+                        color: 'rgba(var(--fg-rgb),var(--fg-a4))',
+                        borderBottom: '1px solid rgba(var(--fg-rgb),var(--fg-a08))',
                         whiteSpace: 'nowrap',
                       }}
                     >
@@ -685,7 +685,7 @@ export const PrecipitationType: React.FC<PrecipitationTypeProps> = ({
               </tbody>
             </table>
             {displayedResults.length > 50 && (
-              <div style={{ textAlign: 'center', padding: '8px', fontSize: '11px', color: 'rgba(255,255,255,0.3)' }}>
+              <div style={{ textAlign: 'center', padding: '8px', fontSize: '11px', color: 'rgba(var(--fg-rgb),var(--fg-a3))' }}>
                 Showing 50 of {displayedResults.length} cells
               </div>
             )}
@@ -695,7 +695,7 @@ export const PrecipitationType: React.FC<PrecipitationTypeProps> = ({
             style={{
               textAlign: 'center',
               padding: '24px',
-              color: 'rgba(255,255,255,0.35)',
+              color: 'rgba(var(--fg-rgb),var(--fg-a3))',
               fontSize: '13px',
             }}
           >

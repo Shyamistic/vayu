@@ -57,7 +57,7 @@ export default function ExportTools({ gridCells, variable, selectedDate, region 
       // Add a watermark
       ctx.fillStyle = 'rgba(0,0,0,0.5)';
       ctx.fillRect(0, h - 32, 320, 32);
-      ctx.fillStyle = 'rgba(255,255,255,0.9)';
+      ctx.fillStyle = 'rgba(var(--fg-rgb),var(--fg-a75))';
       ctx.font = '12px JetBrains Mono, monospace';
       ctx.fillText(
         `VAYU Climate AI · ${format(selectedDate, 'dd MMM yyyy')} · ${region}`,
@@ -123,8 +123,8 @@ export default function ExportTools({ gridCells, variable, selectedDate, region 
   return (
     <div className="panel-tight p-3 flex flex-col gap-2">
       <div className="flex items-center gap-2">
-        <Download size={12} className="text-white/40" />
-        <span className="text-[10px] text-white/40 uppercase tracking-wider font-medium">Export</span>
+        <Download size={12} className="text-foreground/40" />
+        <span className="text-[10px] text-foreground/40 uppercase tracking-wider font-medium">Export</span>
       </div>
 
       <div className="flex gap-1.5">
@@ -180,7 +180,7 @@ export default function ExportTools({ gridCells, variable, selectedDate, region 
         </div>
       )}
 
-      <p className="text-[9px] text-white/20 text-center">
+      <p className="text-[9px] text-foreground/20 text-center">
         {gridCells.length} cells · {format(selectedDate, 'dd MMM yyyy')}
       </p>
     </div>

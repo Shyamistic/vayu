@@ -491,7 +491,7 @@ export const AIClimateBrief: React.FC<AIClimateBriefProps> = ({
                 margin: 0,
                 fontSize: 'var(--font-body-lg, 15px)',
                 fontWeight: 600,
-                color: 'rgba(255, 255, 255, 0.95)',
+                color: 'rgba(var(--fg-rgb),var(--fg-a75))',
                 lineHeight: 1.4,
               }}
             >
@@ -502,7 +502,7 @@ export const AIClimateBrief: React.FC<AIClimateBriefProps> = ({
               style={{
                 margin: '6px 0 0',
                 fontSize: 'var(--font-small, 12px)',
-                color: 'rgba(255, 255, 255, 0.65)',
+                color: 'rgba(var(--fg-rgb),var(--fg-a7))',
                 lineHeight: 1.55,
               }}
             >
@@ -517,10 +517,10 @@ export const AIClimateBrief: React.FC<AIClimateBriefProps> = ({
               title="Copy as email-ready HTML"
               aria-label="Export brief as email HTML"
               style={{
-                background: 'rgba(255,255,255,0.08)',
-                border: '1px solid rgba(255,255,255,0.15)',
+                background: 'rgba(var(--fg-rgb),var(--fg-a08))',
+                border: '1px solid rgba(var(--fg-rgb),var(--fg-a15))',
                 borderRadius: '6px',
-                color: exportCopied ? '#4ade80' : 'rgba(255,255,255,0.7)',
+                color: exportCopied ? '#4ade80' : 'rgba(var(--fg-rgb),var(--fg-a7))',
                 cursor: 'pointer',
                 fontSize: '11px',
                 fontWeight: 500,
@@ -543,15 +543,15 @@ export const AIClimateBrief: React.FC<AIClimateBriefProps> = ({
               style={{
                 background: 'transparent',
                 border: 'none',
-                color: 'rgba(255,255,255,0.45)',
+                color: 'rgba(var(--fg-rgb),var(--fg-a4))',
                 cursor: 'pointer',
                 fontSize: '16px',
                 lineHeight: 1,
                 padding: '2px 4px',
                 transition: 'color 200ms',
               }}
-              onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.color = 'rgba(255,255,255,0.9)'; }}
-              onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.color = 'rgba(255,255,255,0.45)'; }}
+              onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.color = 'rgba(var(--fg-rgb),var(--fg-a75))'; }}
+              onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.color = 'rgba(var(--fg-rgb),var(--fg-a4))'; }}
             >
               ×
             </button>
@@ -672,7 +672,7 @@ export const AIClimateBrief: React.FC<AIClimateBriefProps> = ({
                   key={idx}
                   style={{
                     fontSize: 'var(--font-small, 12px)',
-                    color: 'rgba(255, 255, 255, 0.75)',
+                    color: 'rgba(var(--fg-rgb),var(--fg-a75))',
                     lineHeight: 1.55,
                   }}
                 >
@@ -686,7 +686,7 @@ export const AIClimateBrief: React.FC<AIClimateBriefProps> = ({
           <div
             style={{
               fontSize: '10px',
-              color: 'rgba(255,255,255,0.3)',
+              color: 'rgba(var(--fg-rgb),var(--fg-a3))',
               textAlign: 'right',
               padding: '2px 4px',
             }}
@@ -754,7 +754,7 @@ const BriefSection: React.FC<BriefSectionProps> = ({ icon, title, accentColor, c
       style={{
         margin: 0,
         fontSize: 'var(--font-small, 12px)',
-        color: 'rgba(255, 255, 255, 0.75)',
+        color: 'rgba(var(--fg-rgb),var(--fg-a75))',
         lineHeight: 1.6,
       }}
     >

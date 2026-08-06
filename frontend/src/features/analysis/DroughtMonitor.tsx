@@ -441,7 +441,7 @@ export const DroughtMonitor: React.FC<DroughtMonitorProps> = ({
               <span
                 style={{
                   fontSize: 'var(--font-small, 12px)',
-                  color: 'rgba(255,255,255,0.9)',
+                  color: 'rgba(var(--fg-rgb),var(--fg-a75))',
                   lineHeight: 1.5,
                 }}
               >
@@ -467,7 +467,7 @@ export const DroughtMonitor: React.FC<DroughtMonitorProps> = ({
             style={{
               fontSize: 'var(--font-heading-sm, 18px)',
               fontWeight: 'var(--font-weight-semibold, 600)',
-              color: 'rgba(255,255,255,0.95)',
+              color: 'rgba(var(--fg-rgb),var(--fg-a75))',
               margin: 0,
             }}
           >
@@ -476,8 +476,8 @@ export const DroughtMonitor: React.FC<DroughtMonitorProps> = ({
           <span
             style={{
               fontSize: 'var(--font-small, 12px)',
-              color: 'rgba(255,255,255,0.5)',
-              background: 'rgba(255,255,255,0.05)',
+              color: 'rgba(var(--fg-rgb),var(--fg-a4))',
+              background: 'rgba(var(--fg-rgb),var(--fg-a05))',
               borderRadius: 'var(--radius-full, 9999px)',
               padding: '2px 8px',
             }}
@@ -494,7 +494,7 @@ export const DroughtMonitor: React.FC<DroughtMonitorProps> = ({
           <div
             style={{
               fontSize: 'var(--font-small, 12px)',
-              color: 'rgba(255,255,255,0.6)',
+              color: 'rgba(var(--fg-rgb),var(--fg-a6))',
               marginBottom: 'var(--space-xs, 4px)',
             }}
           >
@@ -518,7 +518,7 @@ export const DroughtMonitor: React.FC<DroughtMonitorProps> = ({
               display: 'flex',
               justifyContent: 'space-between',
               fontSize: 'var(--font-caption, 10px)',
-              color: 'rgba(255,255,255,0.45)',
+              color: 'rgba(var(--fg-rgb),var(--fg-a4))',
               marginTop: '2px',
             }}
           >
@@ -533,7 +533,7 @@ export const DroughtMonitor: React.FC<DroughtMonitorProps> = ({
           <p
             style={{
               fontSize: 'var(--font-body, 14px)',
-              color: 'rgba(255,255,255,0.4)',
+              color: 'rgba(var(--fg-rgb),var(--fg-a4))',
               textAlign: 'center',
               margin: 'var(--space-lg, 16px) 0',
             }}
@@ -566,7 +566,7 @@ export const DroughtMonitor: React.FC<DroughtMonitorProps> = ({
             <div
               style={{
                 fontSize: 'var(--font-small, 12px)',
-                color: 'rgba(255,255,255,0.6)',
+                color: 'rgba(var(--fg-rgb),var(--fg-a6))',
                 marginBottom: 'var(--space-sm, 8px)',
                 fontWeight: 'var(--font-weight-medium, 500)',
               }}
@@ -622,7 +622,7 @@ const SPICell: React.FC<SPICellProps> = ({ result }) => {
         gridTemplateColumns: '10px 1fr auto auto',
         alignItems: 'center',
         gap: 'var(--space-sm, 8px)',
-        background: 'rgba(255,255,255,0.03)',
+        background: 'rgba(var(--fg-rgb),var(--fg-a05))',
         border: `1px solid ${color}30`,
         borderLeft: `3px solid ${color}`,
         borderRadius: 'var(--radius-sm, 6px)',
@@ -642,7 +642,7 @@ const SPICell: React.FC<SPICellProps> = ({ result }) => {
         <div
           style={{
             fontSize: 'var(--font-body, 14px)',
-            color: 'rgba(255,255,255,0.85)',
+            color: 'rgba(var(--fg-rgb),var(--fg-a75))',
           }}
         >
           ({cell.lat.toFixed(2)}°, {cell.lon.toFixed(2)}°)
@@ -650,7 +650,7 @@ const SPICell: React.FC<SPICellProps> = ({ result }) => {
         <div
           style={{
             fontSize: 'var(--font-caption, 10px)',
-            color: 'rgba(255,255,255,0.5)',
+            color: 'rgba(var(--fg-rgb),var(--fg-a4))',
           }}
         >
           {label}
@@ -706,14 +706,14 @@ const SparklineRow: React.FC<SparklineRowProps> = ({ sparkline }) => {
         alignItems: 'center',
         gap: 'var(--space-sm, 8px)',
         padding: '4px 6px',
-        background: 'rgba(255,255,255,0.02)',
+        background: 'rgba(var(--fg-rgb),var(--fg-a05))',
         borderRadius: 'var(--radius-sm, 6px)',
       }}
     >
       <div
         style={{
           fontSize: 'var(--font-caption, 10px)',
-          color: 'rgba(255,255,255,0.5)',
+          color: 'rgba(var(--fg-rgb),var(--fg-a4))',
           minWidth: '80px',
           lineHeight: 1.3,
         }}
@@ -733,7 +733,7 @@ const SparklineRow: React.FC<SparklineRowProps> = ({ sparkline }) => {
           y1={zeroY}
           x2={W - PAD}
           y2={zeroY}
-          stroke="rgba(255,255,255,0.2)"
+          stroke="rgba(var(--fg-rgb),var(--fg-a2))"
           strokeWidth="1"
           strokeDasharray="2,2"
         />

@@ -33,22 +33,22 @@ function Bar({
   if (value === undefined) {
     return (
       <div className="flex items-center gap-2">
-        <span className="text-xs text-white/30 w-32 truncate">{label}</span>
-        <span className="text-xs text-white/20">—</span>
+        <span className="text-xs text-foreground/30 w-32 truncate">{label}</span>
+        <span className="text-xs text-foreground/20">—</span>
       </div>
     );
   }
   const pct = Math.min(100, (value / max) * 100);
   return (
     <div className="flex items-center gap-2">
-      <span className="text-xs text-white/50 w-32 truncate">{label}</span>
-      <div className="flex-1 h-1.5 bg-white/10 rounded-full overflow-hidden">
+      <span className="text-xs text-foreground/50 w-32 truncate">{label}</span>
+      <div className="flex-1 h-1.5 bg-foreground/10 rounded-full overflow-hidden">
         <div
           className="h-full rounded-full transition-all duration-700"
           style={{ width: `${pct}%`, backgroundColor: color }}
         />
       </div>
-      <span className="text-xs text-white/60 w-16 text-right tabular-nums">
+      <span className="text-xs text-foreground/60 w-16 text-right tabular-nums">
         {value.toFixed(3)} {unit}
       </span>
     </div>
@@ -88,12 +88,12 @@ export default function ModelComparisonPanel({ variable, region }: Props) {
   return (
     <div className="panel p-4 flex flex-col gap-3 w-full">
       <div className="flex items-center justify-between">
-        <h2 className="text-white font-semibold text-sm">Model Comparison</h2>
-        <span className="text-xs text-white/30 uppercase tracking-wide">{region.replace(/_/g, ' ')}</span>
+        <h2 className="text-foreground font-semibold text-sm">Model Comparison</h2>
+        <span className="text-xs text-foreground/30 uppercase tracking-wide">{region.replace(/_/g, ' ')}</span>
       </div>
 
       {loading && (
-        <div className="text-xs text-white/30 text-center py-4">Loading metrics…</div>
+        <div className="text-xs text-foreground/30 text-center py-4">Loading metrics…</div>
       )}
       {error && (
         <div className="text-xs text-red-400 text-center py-2">{error}</div>
@@ -103,7 +103,7 @@ export default function ModelComparisonPanel({ variable, region }: Props) {
         <>
           {/* RMSE comparison */}
           <div className="flex flex-col gap-1.5">
-            <span className="text-xs text-white/30 uppercase tracking-wider">RMSE ↓ lower is better</span>
+            <span className="text-xs text-foreground/30 uppercase tracking-wider">RMSE ↓ lower is better</span>
             {MODELS.map(({ id, label, color }) => (
               <Bar
                 key={id}
@@ -116,11 +116,11 @@ export default function ModelComparisonPanel({ variable, region }: Props) {
             ))}
           </div>
 
-          <div className="border-t border-white/10" />
+          <div className="border-t border-foreground/10" />
 
           {/* R² comparison */}
           <div className="flex flex-col gap-1.5">
-            <span className="text-xs text-white/30 uppercase tracking-wider">R² ↑ higher is better</span>
+            <span className="text-xs text-foreground/30 uppercase tracking-wider">R² ↑ higher is better</span>
             {MODELS.map(({ id, label, color }) => (
               <Bar
                 key={id}
@@ -133,11 +133,11 @@ export default function ModelComparisonPanel({ variable, region }: Props) {
             ))}
           </div>
 
-          <div className="border-t border-white/10" />
+          <div className="border-t border-foreground/10" />
 
           {/* Skill vs persistence */}
           <div className="flex flex-col gap-1">
-            <span className="text-xs text-white/30 uppercase tracking-wider">VAYU Skill vs Persistence</span>
+            <span className="text-xs text-foreground/30 uppercase tracking-wider">VAYU Skill vs Persistence</span>
             <span
               className={`text-2xl font-bold tabular-nums ${
                 (data.vayu?.skill_score ?? 0) > 0 ? 'text-green-400' : 'text-yellow-400'
@@ -147,7 +147,7 @@ export default function ModelComparisonPanel({ variable, region }: Props) {
                 ? `${(data.vayu.skill_score * 100).toFixed(1)}%`
                 : '—'}
             </span>
-            <span className="text-xs text-white/25">
+            <span className="text-xs text-foreground/25">
               {(data.vayu?.skill_score ?? 0) > 0
                 ? 'VAYU outperforms persistence baseline'
                 : 'Below persistence baseline — more training needed'}

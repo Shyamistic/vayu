@@ -149,7 +149,7 @@ const LAYER_ITEMS: Omit<CommandItem, 'action'>[] = [
 
 /** Feature / panel items */
 const FEATURE_ITEMS: Omit<CommandItem, 'action'>[] = [
-  { id: 'feat-split-view',    name: 'Split View Mode',          description: 'Compare two scenarios side by side', type: 'feature', icon: '⬛' },
+  { id: 'feat-split-view',    name: 'Split View Mode',          description: 'Compare two scenarios side by side', type: 'feature', icon: '🪟' },
   { id: 'feat-inspect',       name: 'Inspect Tool',             description: 'Click a grid cell for detailed data',type: 'feature', icon: '🔍' },
   { id: 'feat-anomaly',       name: 'Anomaly Detection',        description: 'Highlight extreme weather events',   type: 'feature', icon: '⚠️' },
   { id: 'feat-flood',         name: 'Flood Risk Panel',         description: 'View flood early warning zones',     type: 'feature', icon: '🌊' },
@@ -226,8 +226,8 @@ const ShortcutOverlay: React.FC<{ onClose: () => void }> = ({ onClose }) => {
       <div
         onClick={(e) => e.stopPropagation()}
         style={{
-          background: 'rgba(6,10,22,0.95)',
-          border: '1px solid rgba(255,255,255,0.12)',
+          background: 'rgba(var(--panel-bg-rgb),0.95)',
+          border: '1px solid rgba(var(--fg-rgb),var(--fg-a12))',
           borderRadius: '16px',
           boxShadow: '0 24px 64px rgba(0,0,0,0.6)',
           maxWidth: '680px',
@@ -238,15 +238,15 @@ const ShortcutOverlay: React.FC<{ onClose: () => void }> = ({ onClose }) => {
         }}
       >
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-          <h2 style={{ color: 'rgba(255,255,255,0.9)', fontSize: '18px', fontWeight: 700, margin: 0 }}>
+          <h2 style={{ color: 'rgba(var(--fg-rgb),var(--fg-a75))', fontSize: '18px', fontWeight: 700, margin: 0 }}>
             ⌨️ Keyboard Shortcuts
           </h2>
           <button
             aria-label="Close shortcut reference"
             onClick={onClose}
             style={{
-              background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.15)',
-              borderRadius: '6px', color: 'rgba(255,255,255,0.6)',
+              background: 'rgba(var(--fg-rgb),var(--fg-a08))', border: '1px solid rgba(var(--fg-rgb),var(--fg-a15))',
+              borderRadius: '6px', color: 'rgba(var(--fg-rgb),var(--fg-a6))',
               cursor: 'pointer', fontSize: '14px', padding: '4px 10px',
             }}
           >
@@ -266,10 +266,10 @@ const ShortcutOverlay: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                   {items.map((sc) => (
                     <div key={sc.key} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
-                      <span style={{ color: 'rgba(255,255,255,0.65)', fontSize: '13px' }}>{sc.description}</span>
+                      <span style={{ color: 'rgba(var(--fg-rgb),var(--fg-a7))', fontSize: '13px' }}>{sc.description}</span>
                       <kbd style={{
-                        background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.2)',
-                        borderRadius: '4px', color: 'rgba(255,255,255,0.85)',
+                        background: 'rgba(var(--fg-rgb),var(--fg-a08))', border: '1px solid rgba(var(--fg-rgb),var(--fg-a2))',
+                        borderRadius: '4px', color: 'rgba(var(--fg-rgb),var(--fg-a75))',
                         fontFamily: 'monospace', fontSize: '12px',
                         padding: '2px 7px', whiteSpace: 'nowrap', flexShrink: 0,
                       }}>
@@ -283,8 +283,8 @@ const ShortcutOverlay: React.FC<{ onClose: () => void }> = ({ onClose }) => {
           })}
         </div>
 
-        <p style={{ color: 'rgba(255,255,255,0.3)', fontSize: '12px', marginTop: '20px', textAlign: 'center' }}>
-          Press <kbd style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.2)', borderRadius: '3px', fontFamily: 'monospace', padding: '1px 5px' }}>Esc</kbd> or click outside to close
+        <p style={{ color: 'rgba(var(--fg-rgb),var(--fg-a3))', fontSize: '12px', marginTop: '20px', textAlign: 'center' }}>
+          Press <kbd style={{ background: 'rgba(var(--fg-rgb),var(--fg-a08))', border: '1px solid rgba(var(--fg-rgb),var(--fg-a2))', borderRadius: '3px', fontFamily: 'monospace', padding: '1px 5px' }}>Esc</kbd> or click outside to close
         </p>
       </div>
     </div>
@@ -319,7 +319,7 @@ const ResultItem: React.FC<{
       style={{
         display: 'flex', alignItems: 'center', gap: '10px',
         padding: '8px 12px', borderRadius: '8px', cursor: 'pointer',
-        background: isActive ? 'rgba(255,255,255,0.08)' : 'transparent',
+        background: isActive ? 'rgba(var(--fg-rgb),var(--fg-a08))' : 'transparent',
         transition: 'background 80ms ease',
       }}
     >
@@ -329,11 +329,11 @@ const ResultItem: React.FC<{
         </span>
       )}
       <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ color: 'rgba(255,255,255,0.9)', fontSize: '13px', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+        <div style={{ color: 'rgba(var(--fg-rgb),var(--fg-a75))', fontSize: '13px', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
           {item.name}
         </div>
         {item.description && (
-          <div style={{ color: 'rgba(255,255,255,0.4)', fontSize: '11px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          <div style={{ color: 'rgba(var(--fg-rgb),var(--fg-a4))', fontSize: '11px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
             {item.description}
           </div>
         )}
@@ -599,7 +599,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
           >
             <GlassPanel padding="none">
               {/* Search input */}
-              <div style={{ padding: '12px 16px', borderBottom: '1px solid rgba(255,255,255,0.08)', display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <div style={{ padding: '12px 16px', borderBottom: '1px solid rgba(var(--fg-rgb),var(--fg-a08))', display: 'flex', alignItems: 'center', gap: '10px' }}>
                 <span aria-hidden="true" style={{ fontSize: '16px', opacity: 0.5 }}>🔍</span>
                 <input
                   ref={inputRef}
@@ -617,21 +617,21 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
                   style={{
                     flex: 1,
                     background: 'none', border: 'none', outline: 'none',
-                    color: 'rgba(255,255,255,0.9)', fontSize: '15px',
+                    color: 'rgba(var(--fg-rgb),var(--fg-a75))', fontSize: '15px',
                   }}
                 />
                 {query && (
                   <button
                     aria-label="Clear search"
                     onClick={() => { setQuery(''); inputRef.current?.focus(); }}
-                    style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.35)', cursor: 'pointer', fontSize: '14px', padding: '2px 6px' }}
+                    style={{ background: 'none', border: 'none', color: 'rgba(var(--fg-rgb),var(--fg-a3))', cursor: 'pointer', fontSize: '14px', padding: '2px 6px' }}
                   >
                     ✕
                   </button>
                 )}
                 <kbd style={{
-                  background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.15)',
-                  borderRadius: '4px', color: 'rgba(255,255,255,0.35)',
+                  background: 'rgba(var(--fg-rgb),var(--fg-a08))', border: '1px solid rgba(var(--fg-rgb),var(--fg-a15))',
+                  borderRadius: '4px', color: 'rgba(var(--fg-rgb),var(--fg-a3))',
                   fontFamily: 'monospace', fontSize: '11px', padding: '2px 6px',
                 }}>
                   Esc
@@ -647,13 +647,13 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
                 style={{ maxHeight: '360px', overflowY: 'auto', padding: '6px' }}
               >
                 {results.length === 0 ? (
-                  <div style={{ color: 'rgba(255,255,255,0.35)', fontSize: '13px', padding: '20px 12px', textAlign: 'center' }}>
-                    No results for "<strong style={{ color: 'rgba(255,255,255,0.6)' }}>{query}</strong>"
+                  <div style={{ color: 'rgba(var(--fg-rgb),var(--fg-a3))', fontSize: '13px', padding: '20px 12px', textAlign: 'center' }}>
+                    No results for "<strong style={{ color: 'rgba(var(--fg-rgb),var(--fg-a6))' }}>{query}</strong>"
                   </div>
                 ) : (
                   <>
                     {!query.trim() && recentItems.length > 0 && (
-                      <div style={{ color: 'rgba(255,255,255,0.3)', fontSize: '10px', fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', padding: '4px 12px 2px' }}>
+                      <div style={{ color: 'rgba(var(--fg-rgb),var(--fg-a3))', fontSize: '10px', fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', padding: '4px 12px 2px' }}>
                         Recent
                       </div>
                     )}
@@ -672,7 +672,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
 
               {/* Footer hint */}
               <div style={{
-                borderTop: '1px solid rgba(255,255,255,0.06)', padding: '8px 16px',
+                borderTop: '1px solid rgba(var(--fg-rgb),var(--fg-a05))', padding: '8px 16px',
                 display: 'flex', gap: '16px',
               }}>
                 {[
@@ -684,12 +684,12 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
                   <span key={label} style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                     {keys.map((k) => (
                       <kbd key={k} style={{
-                        background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.15)',
-                        borderRadius: '3px', color: 'rgba(255,255,255,0.45)',
+                        background: 'rgba(var(--fg-rgb),var(--fg-a08))', border: '1px solid rgba(var(--fg-rgb),var(--fg-a15))',
+                        borderRadius: '3px', color: 'rgba(var(--fg-rgb),var(--fg-a4))',
                         fontFamily: 'monospace', fontSize: '10px', padding: '1px 5px',
                       }}>{k}</kbd>
                     ))}
-                    <span style={{ color: 'rgba(255,255,255,0.25)', fontSize: '11px' }}>{label}</span>
+                    <span style={{ color: 'rgba(var(--fg-rgb),var(--fg-a2))', fontSize: '11px' }}>{label}</span>
                   </span>
                 ))}
               </div>

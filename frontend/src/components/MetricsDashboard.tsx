@@ -27,14 +27,14 @@ function MetricGauge({ value, target, label }: { value: number; target: number; 
 
   return (
     <div className="metric-card">
-      <div className="relative h-1.5 bg-white/10 rounded-full overflow-hidden">
+      <div className="relative h-1.5 bg-foreground/10 rounded-full overflow-hidden">
         <div
           className={`h-full rounded-full transition-all duration-700 ${passes ? 'bg-green-400' : 'bg-yellow-400'}`}
           style={{ width: `${pct}%` }}
         />
         {/* Target marker */}
         <div
-          className="absolute top-0 bottom-0 w-0.5 bg-white/40"
+          className="absolute top-0 bottom-0 w-0.5 bg-foreground/40"
           style={{ left: `${target * 100}%` }}
         />
       </div>
@@ -44,7 +44,7 @@ function MetricGauge({ value, target, label }: { value: number; target: number; 
           {value.toFixed(3)}
         </span>
       </div>
-      <div className="text-xs text-white/25">
+      <div className="text-xs text-foreground/25">
         Target: ≥{(target * 100).toFixed(0)}%
         {passes ? ' ✓' : ` (gap: ${((target - value) * 100).toFixed(1)}%)` }
       </div>
@@ -94,8 +94,8 @@ export default function MetricsDashboard({
     <div className="panel p-4 flex flex-col gap-4 w-full">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <h2 className="text-white font-semibold text-sm">Model Performance</h2>
-        <span className="text-xs text-white/30">2024-2025 test set</span>
+        <h2 className="text-foreground font-semibold text-sm">Model Performance</h2>
+        <span className="text-xs text-foreground/30">2024-2025 test set</span>
       </div>
 
       {/* Variable selector */}
@@ -106,8 +106,8 @@ export default function MetricsDashboard({
             onClick={() => onVariableChange?.(id)}
             className={`flex-1 text-xs py-1.5 rounded-md border transition-colors ${
               selectedVariable === id
-                ? 'border-transparent text-white font-medium'
-                : 'border-white/10 text-white/40 hover:text-white/60'
+                ? 'border-transparent text-foreground font-medium'
+                : 'border-foreground/10 text-foreground/40 hover:text-foreground/60'
             }`}
             style={selectedVariable === id ? { backgroundColor: `${color}33`, borderColor: color } : {}}
           >
@@ -134,14 +134,14 @@ export default function MetricsDashboard({
             <div className="metric-card">
               <span className="metric-label">RMSE</span>
               <span className="metric-value">{current.rmse.toFixed(2)}</span>
-              <span className="text-xs text-white/25">
+              <span className="text-xs text-foreground/25">
                 {selectedVariable === 'rainfall' ? 'mm/day' : '°C'}
               </span>
             </div>
             <div className="metric-card">
               <span className="metric-label">MAE</span>
               <span className="metric-value">{current.mae.toFixed(2)}</span>
-              <span className="text-xs text-white/25">
+              <span className="text-xs text-foreground/25">
                 {selectedVariable === 'rainfall' ? 'mm/day' : '°C'}
               </span>
             </div>
@@ -154,7 +154,7 @@ export default function MetricsDashboard({
               <span className="metric-value text-green-400">
                 {(current.skill_score * 100).toFixed(0)}%
               </span>
-              <span className="text-xs text-white/30 mb-1">better than baseline</span>
+              <span className="text-xs text-foreground/30 mb-1">better than baseline</span>
             </div>
           </div>
         </>
@@ -162,7 +162,7 @@ export default function MetricsDashboard({
 
       {/* Time series chart */}
       <div className="rounded-lg overflow-hidden">
-        <p className="text-xs text-white/50 mb-1 px-1">Predicted vs Observed (90-day sample)</p>
+        <p className="text-xs text-foreground/50 mb-1 px-1">Predicted vs Observed (90-day sample)</p>
         <Plot
           data={[
             {
@@ -171,7 +171,7 @@ export default function MetricsDashboard({
               type: 'scatter',
               mode: 'lines',
               name: 'Observed',
-              line: { color: 'rgba(255,255,255,0.4)', width: 1 },
+              line: { color: 'rgba(var(--fg-rgb),var(--fg-a4))', width: 1 },
             },
             {
               x: mockDates,
@@ -187,15 +187,15 @@ export default function MetricsDashboard({
           ]}
           layout={{
             paper_bgcolor: 'transparent',
-            plot_bgcolor: 'rgba(255,255,255,0.03)',
-            font: { color: 'rgba(255,255,255,0.5)', size: 10 },
+            plot_bgcolor: 'rgba(var(--fg-rgb),var(--fg-a05))',
+            font: { color: 'rgba(var(--fg-rgb),var(--fg-a4))', size: 10 },
             margin: { l: 30, r: 10, t: 10, b: 30 },
             xaxis: {
-              gridcolor: 'rgba(255,255,255,0.05)',
+              gridcolor: 'rgba(var(--fg-rgb),var(--fg-a05))',
               tickfont: { size: 9 },
             },
             yaxis: {
-              gridcolor: 'rgba(255,255,255,0.05)',
+              gridcolor: 'rgba(var(--fg-rgb),var(--fg-a05))',
               tickfont: { size: 9 },
             },
             legend: { x: 0.5, y: 1.1, orientation: 'h', font: { size: 9 } },
@@ -209,7 +209,7 @@ export default function MetricsDashboard({
 
       {/* Eval period */}
       {current && (
-        <p className="text-xs text-white/25 text-center">
+        <p className="text-xs text-foreground/25 text-center">
           Evaluation period: {current.eval_period} · Region: {current.region}
         </p>
       )}

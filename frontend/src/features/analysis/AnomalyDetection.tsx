@@ -208,7 +208,7 @@ export const AnomalyDetection: React.FC<AnomalyDetectionProps> = ({
           <span
             style={{
               fontSize: 'var(--font-small, 12px)',
-              color: 'rgba(255,255,255,0.7)',
+              color: 'rgba(var(--fg-rgb),var(--fg-a7))',
               marginLeft: 'auto',
             }}
           >
@@ -223,7 +223,7 @@ export const AnomalyDetection: React.FC<AnomalyDetectionProps> = ({
           style={{
             fontSize: 'var(--font-heading-sm, 18px)',
             fontWeight: 'var(--font-weight-semibold, 600)',
-            color: 'rgba(255,255,255,0.95)',
+            color: 'rgba(var(--fg-rgb),var(--fg-a75))',
             margin: '0 0 var(--space-md, 12px) 0',
           }}
         >
@@ -249,7 +249,7 @@ export const AnomalyDetection: React.FC<AnomalyDetectionProps> = ({
           <p
             style={{
               fontSize: 'var(--font-body, 14px)',
-              color: 'rgba(255,255,255,0.5)',
+              color: 'rgba(var(--fg-rgb),var(--fg-a4))',
               textAlign: 'center',
               margin: 'var(--space-lg, 16px) 0',
             }}
@@ -312,7 +312,7 @@ const AnomalyCard: React.FC<AnomalyCardProps> = ({ anomaly }) => {
     <div
       className={`anomaly-card-${severity}`}
       style={{
-        background: 'rgba(255, 255, 255, 0.03)',
+        background: 'rgba(var(--fg-rgb),var(--fg-a05))',
         border: `1px solid ${color}`,
         borderRadius: 'var(--radius-sm, 6px)',
         padding: 'var(--space-sm, 8px) var(--space-md, 12px)',
@@ -338,7 +338,7 @@ const AnomalyCard: React.FC<AnomalyCardProps> = ({ anomaly }) => {
         <div
           style={{
             fontSize: 'var(--font-body, 14px)',
-            color: 'rgba(255,255,255,0.9)',
+            color: 'rgba(var(--fg-rgb),var(--fg-a75))',
             fontWeight: 'var(--font-weight-medium, 500)',
           }}
         >
@@ -347,7 +347,7 @@ const AnomalyCard: React.FC<AnomalyCardProps> = ({ anomaly }) => {
         <div
           style={{
             fontSize: 'var(--font-small, 12px)',
-            color: 'rgba(255,255,255,0.6)',
+            color: 'rgba(var(--fg-rgb),var(--fg-a6))',
           }}
         >
           {VARIABLE_LABELS[variable]}: {value.toFixed(1)} {VARIABLE_UNITS[variable]} — +{departure.toFixed(1)} from normal

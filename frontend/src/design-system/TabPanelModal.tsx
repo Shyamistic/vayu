@@ -32,8 +32,7 @@ export function TabPanelModal({ open, title, icon, onClose, children }: TabPanel
 
   return (
     <div
-      className="fixed inset-0 z-[1100] flex items-center justify-center p-4"
-      style={{ background: 'rgba(0,0,0,0.55)' }}
+      className="fixed inset-0 z-[1100] flex items-center justify-center p-4 modal-scrim"
       onClick={onClose}
     >
       <div
@@ -42,19 +41,19 @@ export function TabPanelModal({ open, title, icon, onClose, children }: TabPanel
         aria-label={title}
         className="w-[min(94vw,960px)] max-h-[85vh] rounded-2xl flex flex-col overflow-hidden animate-slide-in-up"
         style={{
-          background: 'rgba(6, 10, 22, 0.97)',
+          background: 'rgba(var(--panel-bg-rgb), 0.97)',
           backdropFilter: 'blur(16px)',
           WebkitBackdropFilter: 'blur(16px)',
-          border: '1px solid rgba(255,255,255,0.1)',
+          border: '1px solid rgba(var(--fg-rgb), var(--fg-a1))',
           boxShadow: '0 12px 48px rgba(0,0,0,0.55)',
         }}
         onClick={(e) => e.stopPropagation()}
       >
         <div
           className="flex items-center justify-between px-4 py-3 flex-shrink-0"
-          style={{ borderBottom: '1px solid rgba(255,255,255,0.08)' }}
+          style={{ borderBottom: '1px solid rgba(var(--fg-rgb), var(--fg-a08))' }}
         >
-          <div className="flex items-center gap-2 text-sm font-semibold text-white">
+          <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
             {icon}
             {title}
           </div>
@@ -62,7 +61,7 @@ export function TabPanelModal({ open, title, icon, onClose, children }: TabPanel
             ref={closeButtonRef}
             onClick={onClose}
             aria-label={`Close ${title}`}
-            className="text-white/50 hover:text-white transition-colors p-1 rounded-md hover:bg-white/10"
+            className="text-foreground/50 hover:text-foreground transition-colors p-1 rounded-md hover:bg-foreground/10"
           >
             <X size={16} />
           </button>

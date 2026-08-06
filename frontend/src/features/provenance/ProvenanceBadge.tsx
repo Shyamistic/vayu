@@ -80,7 +80,7 @@ export const FeaturePanel: React.FC<FeaturePanelProps> = ({ panelId, children, t
       style={{ display: 'flex', flexDirection: 'column', gap: 6 }}
     >
       <header style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-        <h3 style={{ margin: 0, fontSize: 12, fontWeight: 600, color: 'rgba(255,255,255,0.85)' }}>
+        <h3 style={{ margin: 0, fontSize: 12, fontWeight: 600, color: 'rgba(var(--fg-rgb),var(--fg-a75))' }}>
           {title ?? entry?.label ?? panelId}
         </h3>
         <ProvenanceBadge panelId={panelId} />

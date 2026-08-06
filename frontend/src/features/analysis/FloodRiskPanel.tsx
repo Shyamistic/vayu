@@ -467,7 +467,7 @@ export const FloodRiskPanel: React.FC<FloodRiskPanelProps> = ({
           style={{
             marginLeft: 'auto',
             fontSize: 'var(--font-small, 12px)',
-            color: 'rgba(255,255,255,0.5)',
+            color: 'rgba(var(--fg-rgb),var(--fg-a4))',
           }}
         >
           3-day cumulative &gt; threshold
@@ -489,7 +489,7 @@ export const FloodRiskPanel: React.FC<FloodRiskPanelProps> = ({
             style={{
               fontSize: 'var(--font-heading-sm, 18px)',
               fontWeight: 'var(--font-weight-semibold, 600)',
-              color: 'rgba(255,255,255,0.95)',
+              color: 'rgba(var(--fg-rgb),var(--fg-a75))',
               margin: 0,
             }}
           >
@@ -637,7 +637,7 @@ const FloodRiskCard: React.FC<FloodRiskCardProps> = ({ riskCell }) => {
     <div
       className={`flood-card-${riskLevel}`}
       style={{
-        background: 'rgba(255, 255, 255, 0.03)',
+        background: 'rgba(var(--fg-rgb),var(--fg-a05))',
         border: `1px solid ${color}`,
         borderRadius: 'var(--radius-sm, 6px)',
         padding: 'var(--space-sm, 8px) var(--space-md, 12px)',
@@ -664,7 +664,7 @@ const FloodRiskCard: React.FC<FloodRiskCardProps> = ({ riskCell }) => {
         <div
           style={{
             fontSize: 'var(--font-body, 14px)',
-            color: 'rgba(255,255,255,0.9)',
+            color: 'rgba(var(--fg-rgb),var(--fg-a75))',
             fontWeight: 'var(--font-weight-medium, 500)',
           }}
         >
@@ -673,7 +673,7 @@ const FloodRiskCard: React.FC<FloodRiskCardProps> = ({ riskCell }) => {
         <div
           style={{
             fontSize: 'var(--font-small, 12px)',
-            color: 'rgba(255,255,255,0.6)',
+            color: 'rgba(var(--fg-rgb),var(--fg-a6))',
           }}
         >
           3-day total: {cumulativeRainfall.toFixed(1)} mm
@@ -715,7 +715,7 @@ const BasinOverlay: React.FC<BasinOverlayProps> = ({ criticalBasins, allBasins }
         style={{
           fontSize: 'var(--font-body-lg, 16px)',
           fontWeight: 'var(--font-weight-semibold, 600)',
-          color: 'rgba(255,255,255,0.85)',
+          color: 'rgba(var(--fg-rgb),var(--fg-a75))',
           margin: '0 0 var(--space-sm, 8px) 0',
         }}
       >
@@ -735,10 +735,10 @@ const BasinOverlay: React.FC<BasinOverlayProps> = ({ criticalBasins, allBasins }
                 borderRadius: 'var(--radius-sm, 6px)',
                 background: isCritical
                   ? 'rgba(29, 78, 216, 0.15)'
-                  : 'rgba(255,255,255,0.03)',
+                  : 'rgba(var(--fg-rgb),var(--fg-a05))',
                 border: isCritical
                   ? '1px solid #3b82f6'
-                  : '1px solid rgba(255,255,255,0.06)',
+                  : '1px solid rgba(var(--fg-rgb),var(--fg-a05))',
                 animation: isCritical
                   ? 'flood-pulse-high 2s ease-in-out infinite'
                   : 'none',
@@ -748,7 +748,7 @@ const BasinOverlay: React.FC<BasinOverlayProps> = ({ criticalBasins, allBasins }
               <span
                 style={{
                   fontSize: 'var(--font-body, 14px)',
-                  color: isCritical ? '#93c5fd' : 'rgba(255,255,255,0.5)',
+                  color: isCritical ? '#93c5fd' : 'rgba(var(--fg-rgb),var(--fg-a4))',
                   fontWeight: isCritical
                     ? 'var(--font-weight-semibold, 600)'
                     : 'var(--font-weight-regular, 400)',
@@ -775,7 +775,7 @@ const BasinOverlay: React.FC<BasinOverlayProps> = ({ criticalBasins, allBasins }
                 <span
                   style={{
                     fontSize: 'var(--font-small, 12px)',
-                    color: 'rgba(255,255,255,0.35)',
+                    color: 'rgba(var(--fg-rgb),var(--fg-a3))',
                   }}
                 >
                   Normal

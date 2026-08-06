@@ -157,8 +157,8 @@ export default function LayerControlPanel({
 
       {/* Header */}
       <div className="flex items-center gap-2 px-1">
-        <Layers size={11} className="text-white/40" />
-        <span className="text-[10px] text-white/40 uppercase tracking-wider font-medium">Earth Layers</span>
+        <Layers size={11} className="text-foreground/40" />
+        <span className="text-[10px] text-foreground/40 uppercase tracking-wider font-medium">Earth Layers</span>
       </div>
 
       {/* Grouped layer buttons */}
@@ -166,7 +166,7 @@ export default function LayerControlPanel({
         const opts = LAYER_OPTIONS.filter((o) => o.group === group);
         return (
           <div key={group} className="flex flex-col gap-1">
-            <div className="px-1 text-[9px] text-white/25 uppercase tracking-widest font-semibold">
+            <div className="px-1 text-[9px] text-foreground/25 uppercase tracking-widest font-semibold">
               {GROUP_LABELS[group]}
             </div>
             <div className="grid grid-cols-2 gap-1">
@@ -181,7 +181,7 @@ export default function LayerControlPanel({
                       relative flex items-start gap-1.5 p-2 rounded-lg border text-left transition-all duration-200 cursor-pointer
                       ${active
                         ? 'border-blue-500/60 bg-blue-500/15 shadow-[0_0_8px_rgba(59,130,246,0.15)]'
-                        : 'border-white/10 bg-white/5 hover:bg-white/8 hover:border-white/20 hover:scale-[1.02]'}
+                        : 'border-foreground/10 bg-foreground/5 hover:bg-foreground/8 hover:border-foreground/20 hover:scale-[1.02]'}
                     `}
                     style={{
                       borderColor: active ? opt.color + '80' : undefined,
@@ -193,10 +193,10 @@ export default function LayerControlPanel({
                       {opt.icon}
                     </span>
                     <div className="min-w-0">
-                      <div className={`text-[10px] font-medium truncate leading-tight ${active ? 'text-white' : 'text-white/60'}`}>
+                      <div className={`text-[10px] font-medium truncate leading-tight ${active ? 'text-foreground' : 'text-foreground/60'}`}>
                         {opt.label}
                       </div>
-                      <div className="text-[9px] text-white/30 truncate leading-tight">{opt.sublabel}</div>
+                      <div className="text-[9px] text-foreground/30 truncate leading-tight">{opt.sublabel}</div>
                       {opt.badge && (
                         <span
                           className="inline-block mt-0.5 px-1 py-px text-[8px] rounded border"
@@ -227,7 +227,7 @@ export default function LayerControlPanel({
       {/* Date picker for time-aware NASA GIBS layers */}
       {timeAwareLayers.includes(activeLayer) && onDateChange && (
         <div className="mt-1">
-          <label className="block text-[10px] text-white/40 mb-1">
+          <label className="block text-[10px] text-foreground/40 mb-1">
             Layer Date
           </label>
           <input
@@ -236,9 +236,9 @@ export default function LayerControlPanel({
             max={today}
             min="2012-01-01"
             onChange={(e) => onDateChange(e.target.value)}
-            className="w-full text-[11px] bg-white/5 border border-white/15 rounded px-2 py-1 text-white/70 focus:outline-none focus:border-blue-500/50"
+            className="w-full text-[11px] bg-foreground/5 border border-foreground/15 rounded px-2 py-1 text-foreground/70 focus:outline-none focus:border-blue-500/50"
           />
-          <div className="text-[9px] text-white/25 mt-0.5">NASA GIBS imagery is delayed ~3 days</div>
+          <div className="text-[9px] text-foreground/25 mt-0.5">NASA GIBS imagery is delayed ~3 days</div>
         </div>
       )}
 

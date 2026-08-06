@@ -21,7 +21,7 @@ const SPI_CLASSES = [
   { min: 2.0,  max: Infinity,  label: 'Extremely Wet',    color: '#005a32', textColor: '#86efac' },
   { min: 1.5,  max: 2.0,       label: 'Very Wet',         color: '#238b45', textColor: '#4ade80' },
   { min: 1.0,  max: 1.5,       label: 'Moderately Wet',   color: '#74c476', textColor: '#86efac' },
-  { min: -1.0, max: 1.0,       label: 'Near Normal',      color: '#737373', textColor: '#d1d5db' },
+  { min: -1.0, max: 1.0,       label: 'Near Normal',      color: '#737373', textColor: 'var(--color-text-muted)' },
   { min: -1.5, max: -1.0,      label: 'Moderately Dry',   color: '#d4a55a', textColor: '#fcd34d' },
   { min: -2.0, max: -1.5,      label: 'Severely Dry',     color: '#c47a1e', textColor: '#f59e0b' },
   { min: -Infinity, max: -2.0, label: 'Extremely Dry',    color: '#7c2d12', textColor: '#fca5a5' },
@@ -62,7 +62,7 @@ export default function DroughtSPIPanel({ gridCells, selectedDate }: DroughtSPIP
 
   if (!stats) {
     return (
-      <div className="panel-tight p-3 text-xs text-white/30 text-center py-6">
+      <div className="panel-tight p-3 text-xs text-foreground/30 text-center py-6">
         Run a prediction to compute drought index
       </div>
     );
@@ -75,8 +75,8 @@ export default function DroughtSPIPanel({ gridCells, selectedDate }: DroughtSPIP
     const cls = classifySPI(spi);
     const icon = spi > 0.5 ? <TrendingUp size={10} /> : spi < -0.5 ? <TrendingDown size={10} /> : <Minus size={10} />;
     return (
-      <div className="flex items-center justify-between py-1.5 border-b" style={{ borderColor: 'rgba(255,255,255,0.06)' }}>
-        <span className="text-[10px] text-white/50">{label}</span>
+      <div className="flex items-center justify-between py-1.5 border-b" style={{ borderColor: 'rgba(var(--fg-rgb),var(--fg-a05))' }}>
+        <span className="text-[10px] text-foreground/50">{label}</span>
         <div className="flex items-center gap-2">
           <span className="text-[10px]" style={{ color: cls.textColor }}>{icon}</span>
           <span className="text-xs font-bold font-mono tabular-nums" style={{ color: cls.textColor }}>
@@ -98,7 +98,7 @@ export default function DroughtSPIPanel({ gridCells, selectedDate }: DroughtSPIP
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-1.5">
           <Droplets size={13} className="text-amber-400" />
-          <span className="text-xs font-semibold text-white/80">Drought Index (SPI)</span>
+          <span className="text-xs font-semibold text-foreground/80">Drought Index (SPI)</span>
         </div>
         <span
           className="text-[9px] px-1.5 py-0.5 rounded font-mono"
@@ -114,7 +114,7 @@ export default function DroughtSPIPanel({ gridCells, selectedDate }: DroughtSPIP
           <div key={c.label} className="flex-1" style={{ background: c.color }} title={c.label} />
         ))}
       </div>
-      <div className="flex justify-between text-[8px] text-white/25 -mt-1">
+      <div className="flex justify-between text-[8px] text-foreground/25 -mt-1">
         <span>Dry</span>
         <span>Normal</span>
         <span>Wet</span>
@@ -129,19 +129,19 @@ export default function DroughtSPIPanel({ gridCells, selectedDate }: DroughtSPIP
 
       {/* Summary metrics */}
       <div className="grid grid-cols-2 gap-2">
-        <div className="flex flex-col items-center rounded-lg p-2" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)' }}>
-          <span className="text-[9px] text-white/40 mb-0.5">Mean Rainfall</span>
+        <div className="flex flex-col items-center rounded-lg p-2" style={{ background: 'rgba(var(--fg-rgb),var(--fg-a05))', border: '1px solid rgba(var(--fg-rgb),var(--fg-a08))' }}>
+          <span className="text-[9px] text-foreground/40 mb-0.5">Mean Rainfall</span>
           <span className="text-sm font-bold font-mono tabular-nums text-blue-300">{meanRain.toFixed(1)}</span>
-          <span className="text-[9px] text-white/25">mm/day</span>
+          <span className="text-[9px] text-foreground/25">mm/day</span>
         </div>
-        <div className="flex flex-col items-center rounded-lg p-2" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)' }}>
-          <span className="text-[9px] text-white/40 mb-0.5">Deficit Area</span>
+        <div className="flex flex-col items-center rounded-lg p-2" style={{ background: 'rgba(var(--fg-rgb),var(--fg-a05))', border: '1px solid rgba(var(--fg-rgb),var(--fg-a08))' }}>
+          <span className="text-[9px] text-foreground/40 mb-0.5">Deficit Area</span>
           <span className="text-sm font-bold font-mono tabular-nums text-amber-400">{(droughtFraction * 100).toFixed(0)}%</span>
-          <span className="text-[9px] text-white/25">of grid</span>
+          <span className="text-[9px] text-foreground/25">of grid</span>
         </div>
       </div>
 
-      <p className="text-[9px] text-white/20 text-center">
+      <p className="text-[9px] text-foreground/20 text-center">
         SPI: McKee et al. 1993 · India monthly normals baseline
       </p>
     </div>
