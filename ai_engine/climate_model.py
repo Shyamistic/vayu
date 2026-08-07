@@ -9,6 +9,10 @@ Total parameters ≤ 25M to fit on RTX 4050 6GB VRAM.
 
 from __future__ import annotations
 
+import logging
+from collections import defaultdict
+from typing import Any
+
 import torch
 import torch.nn as nn
 from torch_geometric.data import Data as GraphData
@@ -17,6 +21,113 @@ from .config import ModelConfig
 from .graph_encoder import GraphEncoder
 from .prediction_heads import PredictionHeads
 from .temporal_transformer import TemporalTransformer
+
+logger = logging.getLogger(__name__)
+
+
+def describe_load(
+    model: nn.Module,
+    missing: list[str],
+    unexpected: list[str],
+    source: str = "",
+) -> dict[str, Any]:
+    """Turn a `load_state_dict(strict=False)` result into an actionable report.
+
+    A bare count of missing keys cannot distinguish the two cases that matter,
+    and this loader previously logged only the count:
+
+    * **Benign** — the missing tensors belong to layers that are deterministic,
+      or the checkpoint simply predates a module that does not change the output.
+    * **Silent degradation** — the missing tensors are the *prediction heads*.
+      :class:`~ai_engine.prediction_heads.SingleVariableHead` zero-initialises
+      ``out.weight``/``out.bias`` on purpose, so a head that receives no weights
+      emits ``delta = 0`` exactly and the model collapses to
+      ``w_persistence * persistence + w_climatology * climatology`` — the
+      persistence/climatology floor the model exists to beat. Nothing raises,
+      nothing looks random, and ``/health`` still reports healthy. That is the
+      most dangerous failure mode this project has: a wrong answer wearing a
+      correct one's clothes.
+
+    Returns a dict describing the load, and logs at the severity the situation
+    deserves. Also attached to the model as ``model.load_report`` so the API can
+    surface it instead of leaving it in a log nobody reads.
+    """
+    state = model.state_dict()
+    param_names = {n for n, _ in model.named_parameters()}
+
+    missing_params = sum(int(state[k].numel()) for k in missing if k in state)
+    total_params = sum(p.numel() for p in model.parameters())
+
+    by_module: dict[str, int] = defaultdict(int)
+    for key in missing:
+        # Group by the module path minus the final tensor name, so 30 individual
+        # tensors read as "three prediction heads" rather than as a wall of text.
+        by_module[key.rsplit(".", 1)[0]] += 1
+
+    # The specific check that matters: is any residual output layer unfilled?
+    # Named by the *head* rather than by its `out` submodule, because the head is
+    # the unit a reader acts on ("rainfall is untrained", not "rainfall.out is").
+    degenerate_heads = sorted({
+        key[: -len(suffix)]
+        for key in missing
+        for suffix in (".out.weight", ".out.bias")
+        if key.endswith(suffix)
+    })
+
+    report: dict[str, Any] = {
+        "source": source,
+        "missing_count": len(missing),
+        "unexpected_count": len(unexpected),
+        "missing_params": missing_params,
+        "total_params": total_params,
+        "missing_param_fraction": (missing_params / total_params) if total_params else 0.0,
+        "missing_modules": dict(sorted(by_module.items())),
+        "unexpected_keys": sorted(unexpected)[:20],
+        "degenerate_heads": degenerate_heads,
+        "heads_untrained": bool(degenerate_heads),
+        "fully_loaded": not missing and not unexpected,
+    }
+
+    if not missing and not unexpected:
+        logger.info("Checkpoint %s loaded cleanly: %d tensors, %s params",
+                    source or "<unknown>", len(state), f"{total_params:,}")
+        return report
+
+    if degenerate_heads:
+        logger.error(
+            "Checkpoint %s does NOT match this architecture: %d tensors missing "
+            "(%s params, %.2f%%), including the residual output layer of %s. "
+            "Those heads keep their zero initialisation, so this model returns "
+            "exactly the persistence/climatology baseline blend and none of the "
+            "learned correction. Do not present its output as a model forecast.",
+            source or "<unknown>", len(missing), f"{missing_params:,}",
+            100.0 * report["missing_param_fraction"], ", ".join(degenerate_heads),
+        )
+    else:
+        logger.warning(
+            "Checkpoint %s is missing %d tensors (%s params, %.2f%%) in: %s. "
+            "Those tensors keep their random initialisation.",
+            source or "<unknown>", len(missing), f"{missing_params:,}",
+            100.0 * report["missing_param_fraction"],
+            ", ".join(sorted(by_module)) or "<unknown modules>",
+        )
+
+    if unexpected:
+        # The unexpected names identify which older architecture produced the
+        # file, which is what tells you whether to retrain or to reshape.
+        logger.warning(
+            "Checkpoint %s carries %d tensors this architecture has no slot for "
+            "(e.g. %s) — it was saved by a different model version.",
+            source or "<unknown>", len(unexpected), ", ".join(sorted(unexpected)[:4]),
+        )
+    # Missing keys that are not parameters would be buffers; call that out because
+    # a missing buffer is usually harmless and should not be read as a mismatch.
+    non_param = [k for k in missing if k not in param_names]
+    if non_param:
+        logger.info("Of the missing tensors, %d are buffers rather than parameters: %s",
+                    len(non_param), ", ".join(non_param[:6]))
+
+    return report
 
 
 class VayuClimateModel(nn.Module):
@@ -260,9 +371,7 @@ class VayuClimateModel(nn.Module):
 
         model = cls(config=config)
         missing, unexpected = model.load_state_dict(checkpoint["model_state_dict"], strict=False)
-        if missing:
-            _log = logging.getLogger(__name__)
-            _log.warning("Loaded checkpoint with %d missing keys (architecture mismatch or new layers)", len(missing))
+        model.load_report = describe_load(model, missing, unexpected, source=checkpoint_path)
         model.eval()
         return model
 

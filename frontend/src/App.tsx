@@ -624,9 +624,6 @@ export default function App() {
             gridCells={showHeatmap && (state.viewMode === 'prediction' || state.viewMode === 'scenario') ? gridCells : []}
             variable={state.selectedVariable}
             region={state.selectedRegion}
-            // One physical station exists (Sivasagar), so its pin is scoped to
-            // the Environment view where the panel explaining it is also open.
-            showStations={state.viewMode === 'environment'}
             scenarioData={null}
             showSplitScreen={false}
             activeLayer={activeLayer}
@@ -642,7 +639,12 @@ export default function App() {
             showWind={showWind}
             windStyle={windStyle}
             showTerminator={showTerminator}
-            showIoT={showIoT}
+            // Scoped to the Environment view as well as the toolbar toggle.
+            // There is exactly one physical station (Sivasagar, Assam), so a pin
+            // sitting on the globe in every view reads as a sensor network
+            // rather than as one site; Environment is where the station panel
+            // that explains it is also on screen.
+            showIoT={showIoT && state.viewMode === 'environment'}
             mapMode={mapMode}
             heroMode={heroPlaying}
             onHeroDayChange={(d) => update({ forecastDay: d })}
@@ -1096,11 +1098,17 @@ export default function App() {
         <SidebarButton
           icon={Radio}
           label="IoT"
-          active={showIoT && mapMode === '3d'}
-          disabled={mapMode === '2d'}
+          active={showIoT && mapMode === '3d' && state.viewMode === 'environment'}
+          disabled={mapMode === '2d' || state.viewMode !== 'environment'}
           onClick={() => setShowIoT((v) => !v)}
           accent="#22c55e"
-          title={mapMode === '2d' ? 'IoT stations are only available in 3D mode' : 'Toggle IoT sensor station pins'}
+          title={
+            mapMode === '2d'
+              ? 'IoT stations are only available in 3D mode'
+              : state.viewMode !== 'environment'
+                ? 'Open the Environment view to see the Sivasagar station'
+                : 'Toggle IoT sensor station pins'
+          }
           collapsed={sidebarCollapsed}
         />
 
