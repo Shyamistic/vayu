@@ -232,18 +232,18 @@ function BaselineSplitBody({ data }: { data: BaselineComparisonResponse }) {
       {caveats.length > 0 && (
         <div
           aria-labelledby="baseline-split-caveat-heading"
-          className="flex flex-col gap-2 p-3 bg-amber-500/[0.07] border border-amber-500/25 rounded-lg"
+          className="flex flex-col gap-2 p-3 caveat-box"
         >
           <h3
             id="baseline-split-caveat-heading"
-            className="text-xs font-semibold text-amber-200 tracking-wide uppercase flex items-center gap-1.5"
+            className="text-xs font-semibold caveat-heading tracking-wide uppercase flex items-center gap-1.5"
           >
             <AlertTriangle size={13} />
             What this split cannot tell you
           </h3>
           <ul className="flex flex-col gap-1.5 list-disc pl-4">
             {caveats.map((c) => (
-              <li key={c} className="text-xs text-amber-100/85 leading-relaxed">
+              <li key={c} className="text-xs caveat-text leading-relaxed">
                 {c}
               </li>
             ))}

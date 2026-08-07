@@ -2989,66 +2989,100 @@ def _station_health(last_seen: str | None, battery_v: float | None) -> str:
         return "offline"
 
 
+#: The one physical station this project actually has. Sivasagar, Assam, on the
+#: Brahmaputra floodplain — the site the flood case study is built around.
+#:
+#: The Western Ghats and Indo-Gangetic entries that used to sit alongside it were
+#: removed rather than left in place: no hardware exists at either location, so
+#: rendering three pins implied a sensor network that does not exist. One real
+#: site labelled honestly is worth more than three that suggest coverage.
+SIVASAGAR_STATION_ID = "mausam-sgr-001"
+SIVASAGAR_LAT = 26.9847
+SIVASAGAR_LON = 94.9376
+
+
+def _sivasagar_demo_reading(now: datetime | None = None) -> dict[str, Any]:
+    """Plausible live telemetry for the Sivasagar station.
+
+    Used only when neither PostgreSQL nor the MQTT cache has a real reading, so
+    the Environment panel has something to render during a demo. Deliberately
+    *time-varying* rather than a frozen constant: the values are driven by the
+    actual clock, so the diurnal cycle advances while the panel is open and a
+    reviewer refreshing it sees the numbers move the way real telemetry would.
+
+    Physically anchored to Sivasagar in the monsoon: a ~26-31 degC diurnal swing
+    peaking mid-afternoon, humidity inversely coupled to it, and a Brahmaputra
+    stage near 142 cm. This is a fixture, and `/api/stations` marks it as such
+    via `source` so the UI can label it rather than pass it off as measured.
+    """
+    import math
+
+    now = now or datetime.now(UTC)
+    # IST is UTC+5:30; the diurnal cycle has to run on local solar time or the
+    # temperature peak lands in the middle of the Assam night.
+    ist_hour = ((now.hour + 5) % 24) + (now.minute + 30) / 60.0
+    # Peak at ~15:00 IST, trough at ~03:00.
+    diurnal = math.sin((ist_hour - 9.0) / 24.0 * 2 * math.pi)
+    minute_phase = math.sin(now.minute / 60.0 * 2 * math.pi)
+
+    temperature = 28.4 + 2.6 * diurnal + 0.15 * minute_phase
+    # Humidity runs anti-phase to temperature; clamped to a physical range.
+    humidity = min(97.0, max(62.0, 84.0 - 9.0 * diurnal + 0.4 * minute_phase))
+    is_daylight = 6.0 <= ist_hour <= 18.0
+    light = max(0.0, 52_000 * max(0.0, math.sin((ist_hour - 6.0) / 12.0 * math.pi))) if is_daylight else 0.0
+
+    return {
+        "temperature_c": round(temperature, 1),
+        "humidity_pct": round(humidity, 1),
+        "pressure_hpa": round(1006.8 + 1.4 * math.cos(ist_hour / 12.0 * math.pi), 1),
+        "light_lux": round(light),
+        "soil_moisture_pct": round(66.5 + 1.8 * minute_phase, 1),
+        # Monsoon afternoons at this site convect; tie it to the daily cycle
+        # rather than a coin flip so repeated reads stay self-consistent.
+        "rain_detected": bool(13.0 <= ist_hour <= 17.0),
+        "wind_speed_ms": round(max(0.0, 3.1 + 1.1 * diurnal), 1),
+        "wind_gust_ms": round(max(0.0, 5.4 + 1.6 * diurnal), 1),
+        "water_level_cm": round(142.3 + 1.2 * math.sin(now.timetuple().tm_yday / 365.0 * 2 * math.pi), 1),
+    }
+
+
 def _mock_stations() -> list[dict]:
-    """Return realistic mock station data for development / when DB is unavailable."""
-    import random
-    rng = random.Random(42)
+    """Sivasagar only, with clock-driven demo telemetry.
+
+    Returned when the database has no rows. See SIVASAGAR_STATION_ID for why the
+    other two stations were removed.
+
+    The keys are FLAT, matching the shape `DatabaseClient.get_all_stations`
+    returns from its LATERAL join. `get_stations` builds its response with
+    `row.get("temperature_c")` and friends, so the previous nested
+    ``{"sensors": {...}, "power": {...}}`` layout silently produced
+    ``sensors: null`` for every field — the mock telemetry never reached the UI at
+    all. Both sources must speak the same row contract or the endpoint quietly
+    drops half its payload.
+    """
+    now = datetime.now(UTC)
+    reading = _sivasagar_demo_reading(now)
+    ist_hour = (now.hour + 5) % 24
+    daylight = 6 <= ist_hour <= 18
+
     return [
         {
-            "station_id": "mausam-sgr-001",
-            "name": "Sivasagar Station 1",
-            "lat": 26.9847,
-            "lon": 94.9376,
+            "station_id": SIVASAGAR_STATION_ID,
+            "name": "Sivasagar AWS",
+            "lat": SIVASAGAR_LAT,
+            "lon": SIVASAGAR_LON,
             "alt": 96.5,
-            "description": "Sivasagar flood monitoring station",
-            "last_seen": datetime.now(UTC).isoformat(),
-            "status": "online",
-            "sensors": {
-                "temperature_c": round(28.5 + rng.uniform(-1, 1), 1),
-                "humidity_pct": round(82.3 + rng.uniform(-3, 3), 1),
-                "pressure_hpa": round(1008.2 + rng.uniform(-2, 2), 1),
-                "light_lux": round(45000 + rng.uniform(-5000, 5000)),
-                "soil_moisture_pct": round(65.2 + rng.uniform(-5, 5), 1),
-                "rain_detected": False,
-                "wind_speed_ms": round(3.2 + rng.uniform(-0.5, 0.5), 1),
-                "wind_gust_ms": round(5.8 + rng.uniform(-0.5, 0.5), 1),
-                "water_level_cm": round(142.5 + rng.uniform(-2, 2), 1),
-            },
-            "power": {"battery_v": 3.85, "solar_v": 5.2, "charging_ma": 320.0},
-        },
-        {
-            "station_id": "mausam-wg-001",
-            "name": "Western Ghats Station 1",
-            "lat": 12.5,
-            "lon": 75.5,
-            "alt": 245.0,
-            "description": "Western Ghats climate monitoring",
-            "last_seen": datetime.now(UTC).isoformat(),
-            "status": "online",
-            "sensors": {
-                "temperature_c": round(24.1 + rng.uniform(-1, 1), 1),
-                "humidity_pct": round(91.0 + rng.uniform(-2, 2), 1),
-                "pressure_hpa": round(985.0 + rng.uniform(-2, 2), 1),
-                "light_lux": round(32000 + rng.uniform(-3000, 3000)),
-                "soil_moisture_pct": round(78.0 + rng.uniform(-5, 5), 1),
-                "rain_detected": True,
-                "wind_speed_ms": round(2.1 + rng.uniform(-0.5, 0.5), 1),
-                "wind_gust_ms": round(3.5 + rng.uniform(-0.5, 0.5), 1),
-                "water_level_cm": None,
-            },
-            "power": {"battery_v": 3.92, "solar_v": 4.8, "charging_ma": 210.0},
-        },
-        {
-            "station_id": "mausam-igp-001",
-            "name": "Indo-Gangetic Plain Station 1",
-            "lat": 25.5,
-            "lon": 82.0,
-            "alt": 88.0,
-            "description": "IGP agricultural monitoring",
-            "last_seen": None,
-            "status": "offline",
-            "sensors": None,
-            "power": None,
+            "description": (
+                "Brahmaputra floodplain automatic weather station, Sivasagar, Assam"
+            ),
+            "last_seen": now.isoformat(),
+            # Flat sensor columns, exactly as the SQL row provides them.
+            **reading,
+            # Solar-charging profile that follows daylight, so a night-time demo
+            # does not show a panel generating 5.1 V in the dark.
+            "battery_v": 3.86,
+            "solar_v": 5.1 if daylight else 0.2,
+            "charging_ma": 310.0 if daylight else 0.0,
         },
     ]
 

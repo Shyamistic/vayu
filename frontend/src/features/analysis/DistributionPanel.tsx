@@ -248,9 +248,9 @@ function DistributionBody({ data }: { data: DistributionResponse }) {
       </div>
 
       {leverage && (
-        <div className="flex gap-2 p-2.5 bg-amber-500/[0.07] border border-amber-500/25 rounded-lg">
-          <Info size={13} className="text-amber-300/90 mt-0.5 shrink-0" />
-          <p className="text-xs text-amber-100/85 leading-relaxed">
+        <div className="flex gap-2 p-2.5 caveat-box">
+          <Info size={13} className="caveat-icon mt-0.5 shrink-0" />
+          <p className="text-xs caveat-text leading-relaxed">
             The scenario density is wider than the baseline (σ {fmt(scenSigma, 3)} vs{' '}
             {fmt(baseSigma, 3)} {data.response_unit}). That extra width is leverage
             from extrapolating the fit beyond the predictor values actually observed, not a measured
@@ -352,18 +352,18 @@ function DistributionBody({ data }: { data: DistributionResponse }) {
       {caveats.length > 0 && (
         <div
           aria-labelledby="distribution-caveat-heading"
-          className="flex flex-col gap-2 p-3 bg-amber-500/[0.07] border border-amber-500/25 rounded-lg"
+          className="flex flex-col gap-2 p-3 caveat-box"
         >
           <h3
             id="distribution-caveat-heading"
-            className="text-xs font-semibold text-amber-200 tracking-wide uppercase flex items-center gap-1.5"
+            className="text-xs font-semibold caveat-heading tracking-wide uppercase flex items-center gap-1.5"
           >
             <AlertTriangle size={13} />
             What this distribution cannot tell you
           </h3>
           <ul className="flex flex-col gap-1.5 list-disc pl-4">
             {caveats.map((c) => (
-              <li key={c} className="text-xs text-amber-100/85 leading-relaxed">
+              <li key={c} className="text-xs caveat-text leading-relaxed">
                 {c}
               </li>
             ))}

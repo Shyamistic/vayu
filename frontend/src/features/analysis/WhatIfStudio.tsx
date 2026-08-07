@@ -54,6 +54,10 @@ import {
 } from './whatIfFormat';
 
 const WhatIfRegressionChart = lazy(() => import('./WhatIfRegressionChart'));
+// Both diagnostics panels are heavy on canvas/SVG work and only matter once a
+// result exists, so they stay out of the studio's first paint.
+const WhatIfHeatmapCompare = lazy(() => import('./WhatIfHeatmapCompare'));
+const WhatIfErrorAnalytics = lazy(() => import('./WhatIfErrorAnalytics'));
 // Lazy so the studio's first paint does not pull in three more charting panels.
 const ClimatologyPanel = lazy(() => import('./ClimatologyPanel'));
 const DistributionPanel = lazy(() => import('./DistributionPanel'));
@@ -501,6 +505,14 @@ export default function WhatIfStudio({
           {/* Before / after + timeline + spatial */}
           <WhatIfBeforeAfter result={result} />
 
+          {/* Before/after maps and residual diagnostics for the same result */}
+          <Suspense fallback={<PanelFallback label="before/after maps" />}>
+            <WhatIfHeatmapCompare result={result} />
+          </Suspense>
+          <Suspense fallback={<PanelFallback label="error analytics" />}>
+            <WhatIfErrorAnalytics result={result} />
+          </Suspense>
+
           {/* Hotspots */}
           {result.hotspots.length > 0 && (
             <section aria-labelledby="whatif-hot-heading" className="flex flex-col gap-2">
@@ -556,18 +568,18 @@ export default function WhatIfStudio({
           {result.caveats.length > 0 && (
             <section
               aria-labelledby="whatif-caveat-heading"
-              className="flex flex-col gap-2 p-3 bg-amber-500/[0.07] border border-amber-500/25 rounded-lg"
+              className="flex flex-col gap-2 p-3 caveat-box"
             >
               <h3
                 id="whatif-caveat-heading"
-                className="text-xs font-semibold text-amber-200 tracking-wide uppercase flex items-center gap-1.5"
+                className="text-xs font-semibold caveat-heading tracking-wide uppercase flex items-center gap-1.5"
               >
                 <AlertTriangle size={13} />
                 What this result cannot tell you
               </h3>
               <ul className="flex flex-col gap-1.5 list-disc pl-4">
                 {result.caveats.map((c) => (
-                  <li key={c} className="text-xs text-amber-100/85 leading-relaxed">{c}</li>
+                  <li key={c} className="text-xs caveat-text leading-relaxed">{c}</li>
                 ))}
               </ul>
             </section>
