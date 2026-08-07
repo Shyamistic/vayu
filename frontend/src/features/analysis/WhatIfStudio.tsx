@@ -18,6 +18,7 @@ import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } fro
 import {
   AlertTriangle,
   BarChart3,
+  Calendar,
   CalendarRange,
   ChevronDown,
   Download,
@@ -103,7 +104,7 @@ export interface WhatIfStudioProps {
   onReset?: () => void;
 }
 
-type RangeMode = 'season' | 'custom';
+type RangeMode = 'season' | 'custom' | 'single';
 
 export default function WhatIfStudio({
   initialRegion,
@@ -151,8 +152,8 @@ export default function WhatIfStudio({
       predictor,
       season,
       delta,
-      windowStart: rangeMode === 'custom' ? windowStart : undefined,
-      windowEnd: rangeMode === 'custom' ? windowEnd : undefined,
+      windowStart: rangeMode !== 'season' ? windowStart : undefined,
+      windowEnd: rangeMode !== 'season' ? windowEnd : undefined,
       startYear,
       endYear,
     }),
@@ -184,7 +185,7 @@ export default function WhatIfStudio({
       start_year: startYear,
       end_year: endYear,
       include_cells: true,
-      ...(rangeMode === 'custom'
+      ...(rangeMode !== 'season'
         ? { window_start: windowStart, window_end: windowEnd }
         : {}),
     };
@@ -287,6 +288,14 @@ export default function WhatIfStudio({
                 <CalendarRange size={12} /> Custom dates
               </span>
             </Choice>
+            <Choice
+              active={rangeMode === 'single'}
+              onClick={() => { setWindowEnd(windowStart); setRangeMode('single'); }}
+            >
+              <span className="flex items-center gap-1">
+                <Calendar size={12} /> Single date
+              </span>
+            </Choice>
           </div>
 
           {rangeMode === 'season' ? (
@@ -301,6 +310,19 @@ export default function WhatIfStudio({
                 </Choice>
               ))}
             </div>
+          ) : rangeMode === 'single' ? (
+            <label className="flex flex-col gap-1">
+              <span className="text-[10px] uppercase tracking-wider text-foreground/45">Date (MM-DD)</span>
+              <input
+                type="text"
+                value={windowStart}
+                onChange={(e) => { setWindowStart(e.target.value); setWindowEnd(e.target.value); }}
+                placeholder="06-15"
+                pattern="\d{2}-\d{2}"
+                className="bg-foreground/[0.06] border border-foreground/15 rounded-md px-2 py-1.5 text-sm
+                           text-foreground font-mono focus:border-amber-400/60 focus:outline-none max-w-[8rem]"
+              />
+            </label>
           ) : (
             <div className="flex items-end gap-2">
               <label className="flex flex-col gap-1 flex-1">
@@ -643,8 +665,8 @@ export default function WhatIfStudio({
             region={region}
             season={season}
             variable="rainfall"
-            windowStart={rangeMode === 'custom' ? windowStart : undefined}
-            windowEnd={rangeMode === 'custom' ? windowEnd : undefined}
+            windowStart={rangeMode !== 'season' ? windowStart : undefined}
+            windowEnd={rangeMode !== 'season' ? windowEnd : undefined}
             startYear={startYear}
             endYear={endYear}
             autoLoad
