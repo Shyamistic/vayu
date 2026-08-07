@@ -37,10 +37,10 @@ const RAINFALL_GRADIENT = gradientFromStops(IMD_RAIN_STOPS);
 const TEMP_MAX_GRADIENT = gradientFromStops(TEMP_MAX_STOPS);
 const TEMP_MIN_GRADIENT = gradientFromStops(TEMP_MIN_STOPS);
 
-// Skip the "trace" (1mm) and top "exceptional" (250mm) helper stops — they're
-// interpolation aids, not IMD's own published category boundaries.
+// Skip the "trace" stop and the final duplicate-category stop (both are
+// interpolation aids, not distinct category boundaries worth a tick label).
 const RAINFALL_TICKS: Tick[] = IMD_RAIN_THRESHOLDS_MM
-  .filter((s) => s.mm === 0 || s.mm === 2.5 || s.mm === 15.6 || s.mm === 64.5 || s.mm === 115.6 || s.mm === 204.5)
+  .filter((s, i) => s.category !== 'Trace' && i !== IMD_RAIN_THRESHOLDS_MM.length - 1)
   .map((s) => ({ label: s.mm % 1 === 0 ? String(s.mm) : s.mm.toFixed(1), pct: s.t * 100 }));
 
 function evenTicks(min: number, max: number, values: number[]): Tick[] {

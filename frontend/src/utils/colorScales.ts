@@ -98,28 +98,30 @@ export const IMD_RAIN_STOPS: [number, RGB][] = [
 export const imd_rain: ColorScale = segmented(IMD_RAIN_STOPS);
 
 /**
- * IMD daily rainfall category thresholds (mm/day) — the same categories the
- * model's POD/FAR/CSI verification scores are computed against, so the map
- * legend and the metrics agree. Each `t` below is the `imd_rain` stop that
- * category's colour band starts at.
+ * IMD daily rainfall category thresholds (mm/day), compressed onto a 0-50mm
+ * scale by scaling the real IMD boundaries (0-250mm) by 50/250. This keeps
+ * the category shape/ordering but is no longer IMD's literal published
+ * boundaries — it trades that for far better colour contrast across the
+ * 0-50mm range most days actually fall in. Each `t` below is the `imd_rain`
+ * stop that category's colour band starts at.
  */
 export const IMD_RAIN_THRESHOLDS_MM = [
-  { mm: 0,     t: 0.00, category: 'No rain' },
-  { mm: 1,     t: 0.05, category: 'Trace' },
-  { mm: 2.5,   t: 0.15, category: 'Light' },
-  { mm: 15.6,  t: 0.30, category: 'Moderate' },
-  { mm: 64.5,  t: 0.50, category: 'Heavy' },
-  { mm: 115.6, t: 0.70, category: 'Very heavy' },
-  { mm: 204.5, t: 0.85, category: 'Extremely heavy' },
-  { mm: 250,   t: 1.00, category: 'Extremely heavy' },
+  { mm: 0,    t: 0.00, category: 'No rain' },
+  { mm: 0.2,  t: 0.05, category: 'Trace' },
+  { mm: 0.5,  t: 0.15, category: 'Light' },
+  { mm: 3.1,  t: 0.30, category: 'Moderate' },
+  { mm: 12.9, t: 0.50, category: 'Heavy' },
+  { mm: 23.1, t: 0.70, category: 'Very heavy' },
+  { mm: 40.9, t: 0.85, category: 'Extremely heavy' },
+  { mm: 50,   t: 1.00, category: 'Extremely heavy' },
 ] as const;
 
 /**
  * Map a physical rainfall value (mm/day) to a `t ∈ [0,1]` for `imd_rain`,
- * piecewise-anchored at the real IMD category thresholds instead of a linear
- * 0→50 (or any fixed max) division. The median day is 0mm and the measured
- * max is 200+mm in some regions — a linear ramp renders almost every cell as
- * the bottom colour and clips true extremes to a single top colour.
+ * piecewise-anchored at the (rescaled) IMD category thresholds instead of a
+ * plain linear division. Values above 50mm clip to the top colour (t=1) —
+ * days that heavy are rare enough that the extra range isn't worth the
+ * contrast it costs across the 0-50mm range almost every day falls in.
  */
 export function rainfallToT(mm: number): number {
   if (mm <= 0) return 0;

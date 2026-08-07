@@ -142,19 +142,24 @@ export function pointInIndia(
  * Returns true when a mask was applied, false when the outline was unavailable —
  * callers should treat false as "unclipped raster" rather than assume success.
  */
-export function clipCanvasToIndia(
+/**
+ * Trace India's outline as a canvas path in pixel space for the given lon/lat
+ * bounds. Shared by `clipCanvasToIndia` (fills it as a mask) and
+ * `strokeIndiaOutline` (strokes it as a visible border) so both draw the
+ * exact same line — pulled out once specifically because two independent
+ * projections of the same coastline would drift, which is the whole reason
+ * this module exists in the first place.
+ */
+function traceIndiaPath(
   ctx: CanvasRenderingContext2D,
   width: number,
   height: number,
   bounds: LonLatBounds,
-  polygons: Polygon[] | null,
+  polygons: Polygon[],
 ): boolean {
-  if (!polygons || polygons.length === 0) return false;
-
   const { west, east, south, north } = bounds;
   const lonSpan = east - west;
   const latSpan = north - south;
-  if (!(lonSpan > 0) || !(latSpan > 0)) return false;
 
   ctx.beginPath();
   let drewAnything = false;
@@ -175,6 +180,23 @@ export function clipCanvasToIndia(
       drewAnything = true;
     }
   }
+  return drewAnything;
+}
+
+export function clipCanvasToIndia(
+  ctx: CanvasRenderingContext2D,
+  width: number,
+  height: number,
+  bounds: LonLatBounds,
+  polygons: Polygon[] | null,
+): boolean {
+  if (!polygons || polygons.length === 0) return false;
+
+  const lonSpan = bounds.east - bounds.west;
+  const latSpan = bounds.north - bounds.south;
+  if (!(lonSpan > 0) || !(latSpan > 0)) return false;
+
+  const drewAnything = traceIndiaPath(ctx, width, height, bounds, polygons);
 
   if (!drewAnything) {
     // The tile lies entirely outside India. Clear it rather than leaving an
@@ -189,5 +211,37 @@ export function clipCanvasToIndia(
   // being filled with data colour, and disjoint island polygons still work.
   ctx.fill('evenodd');
   ctx.globalCompositeOperation = previous;
+  return true;
+}
+
+/**
+ * Stroke India's coastline/border on top of an already-drawn (and usually
+ * already-clipped) canvas. A raster clipped to India but never outlined reads
+ * as a scatter of coloured blobs with no implied shape on days or regions
+ * where the data is sparse — the stroke gives the reader the country's
+ * silhouette regardless of how much of it the data actually covers.
+ */
+export function strokeIndiaOutline(
+  ctx: CanvasRenderingContext2D,
+  width: number,
+  height: number,
+  bounds: LonLatBounds,
+  polygons: Polygon[] | null,
+  options: { color?: string; lineWidth?: number } = {},
+): boolean {
+  if (!polygons || polygons.length === 0) return false;
+
+  const lonSpan = bounds.east - bounds.west;
+  const latSpan = bounds.north - bounds.south;
+  if (!(lonSpan > 0) || !(latSpan > 0)) return false;
+
+  const drewAnything = traceIndiaPath(ctx, width, height, bounds, polygons);
+  if (!drewAnything) return false;
+
+  ctx.save();
+  ctx.strokeStyle = options.color ?? 'rgba(100, 116, 139, 0.6)'; // slate-500, readable on light and dark panels
+  ctx.lineWidth = options.lineWidth ?? 1;
+  ctx.stroke();
+  ctx.restore();
   return true;
 }

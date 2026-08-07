@@ -30,6 +30,7 @@ import type { WhatIfResponse } from '../../types';
 import {
   clipCanvasToIndia,
   parseIndiaOutline,
+  strokeIndiaOutline,
   type LonLatBounds,
   type Polygon,
 } from '../globe/indiaClip';
@@ -613,6 +614,7 @@ function HeatmapCanvas({
     }
 
     clipCanvasToIndia(ctx, canvas.width, canvas.height, bounds, outline);
+    strokeIndiaOutline(ctx, canvas.width, canvas.height, bounds, outline);
   }, [grid, values, domain, colorAt, outline, bounds, lonSpan, latSpan, height]);
 
   return (
