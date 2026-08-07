@@ -3,7 +3,7 @@ import type { ReactNode } from 'react';
 import {
   CloudRain, Thermometer, Activity,
   BarChart2, Database, Layers, BookOpen,
-  SplitSquareHorizontal, Mountain, Leaf, Wind,
+  Mountain, Leaf, Wind,
   Radio, Waves, Download, BarChart, X, Search, Eye, Map, Moon, Sun,
   Plus, Minus, Box,
   Cloud, Zap, FileText, Sparkles, ChevronDown,
@@ -57,8 +57,8 @@ import { fetchPrediction, fetchHealth } from './api/client';
 import { getTimelineSwipeDirection } from './features/platform/mobileGestures';
 import { getGlobeViewportInsets } from './features/globe/viewportSafeArea';
 import type {
-  AppState, GridCell, HealthResponse, RegionId, ScenarioResponse,
-  TimeState, VariableId, ViewMode, WhatIfResponse,
+  AppState, GridCell, HealthResponse, RegionId,
+  TimeState, VariableId, ViewMode,
 } from './types';
 
 // ── Globe Error Boundary ──────────────────────────────────────────────────────
@@ -493,49 +493,6 @@ export default function App() {
       .catch((err) => update({ error: err.message, isLoading: false }));
   }, [state.timeState.selectedDate, state.viewMode, state.selectedRegion, state.forecastDay]);
 
-  // ── Scenario handlers ────────────────────────────────────────────────────────
-  const handleScenarioReset = useCallback(() => {
-    update({ activeScenario: null, showSplitScreen: false });
-  }, [update]);
-
-  /**
-   * Feed a What-If Studio projection into the split-screen globe.
-   *
-   * The globe already consumes the ScenarioResponse shape, so the empirical
-   * before/after field is adapted onto it rather than duplicating the rendering
-   * path. Nulls become NaN: the sensitivity grid is land-only, and a missing
-   * ocean cell must not render as a real zero-change value.
-   */
-  const handleWhatIfResult = useCallback((res: WhatIfResponse) => {
-    const toNumbers = (arr: (number | null)[] | undefined) =>
-      (arr ?? []).map((v) => (v === null ? NaN : v));
-
-    const adapted: ScenarioResponse = {
-      scenario_type: 'temperature_offset',
-      magnitude: res.delta_predictor ?? 0,
-      baseline: { rainfall: toNumbers(res.cell_baseline) },
-      scenario: { rainfall: toNumbers(res.cell_scenario) },
-      delta: { rainfall: toNumbers(res.cell_delta) },
-      hotspots: res.hotspots.map((h) => ({
-        node_idx: h.node_idx,
-        delta_value: h.delta_value ?? 0,
-        percentile_rank: h.percentile_rank,
-      })),
-      summary: {
-        rainfall: {
-          avg_delta: res.regional.delta ?? 0,
-          max_delta: Math.max(0, ...res.hotspots.map((h) => Math.abs(h.delta_value ?? 0))),
-          avg_pct_change: res.regional.delta_percent ?? 0,
-          affected_cells: res.distribution.cells_drier + res.distribution.cells_wetter,
-        },
-      },
-      clamped: res.distribution.clamped_cells > 0,
-      clamp_message: res.caveats[0],
-      computation_time_s: res.computation_time_s,
-    };
-    update({ activeScenario: adapted, showSplitScreen: true });
-  }, [update]);
-
   // ── Keyboard shortcuts (Feature 28) ─────────────────────────────────────────
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -670,8 +627,8 @@ export default function App() {
             // One physical station exists (Sivasagar), so its pin is scoped to
             // the Environment view where the panel explaining it is also open.
             showStations={state.viewMode === 'environment'}
-            scenarioData={state.showSplitScreen ? state.activeScenario : null}
-            showSplitScreen={state.showSplitScreen}
+            scenarioData={null}
+            showSplitScreen={false}
             activeLayer={activeLayer}
             gibsDate={gibsDate}
             terrainExaggeration={terrainExaggeration}
@@ -992,10 +949,6 @@ export default function App() {
                     update({ selectedVariable: id });
                     setShowHeatmap(true);
                   }
-                  // Clear scenario overlay when user explicitly picks a variable
-                  if (state.activeScenario) {
-                    update({ showSplitScreen: false });
-                  }
                   // Re-surface the data/legend panel if the user closed it earlier.
                   setVariablePanelOpen(true);
                 }}
@@ -1068,16 +1021,6 @@ export default function App() {
           </div>
         </SidebarTooltipWrap>
 
-        {state.activeScenario && (
-          <SidebarButton
-            icon={SplitSquareHorizontal}
-            label="Split View"
-            active={state.showSplitScreen}
-            onClick={() => update((s) => ({ showSplitScreen: !s.showSplitScreen }))}
-            accent="#22d3ee"
-            collapsed={sidebarCollapsed}
-          />
-        )}
 
         {/* 3D data-column overlay — extrudes the grid heights by value
             (Rainfall, Tmax, or Tmin). Labeled "Columns" rather than "3D" so
@@ -1383,8 +1326,6 @@ export default function App() {
               // driven by what the backend actually has bundles for rather than
               // by a hardcoded list that can go stale.
               availableRegions={health?.real_data_regions}
-              onResult={handleWhatIfResult}
-              onReset={handleScenarioReset}
             />
           )}
           {state.viewMode === 'metrics' && (
@@ -1514,13 +1455,6 @@ export default function App() {
         <div className="fixed top-20 left-1/2 -translate-x-1/2 z-[1001] panel-tight px-4 py-2 flex items-center gap-2 text-xs text-foreground/60">
           <div className="w-3 h-3 border border-vayu-blue border-t-transparent rounded-full animate-spin" />
           Loading prediction…
-        </div>
-      )}
-      {state.showSplitScreen && state.activeScenario && (
-        <div className="fixed top-[64px] left-1/2 -translate-x-1/2 z-[999] flex gap-3">
-          <div className="panel-tight px-3 py-1 text-xs text-foreground/60">← Baseline</div>
-          <div className="panel-tight px-3 py-1 text-xs text-vayu-accent">Δ {state.activeScenario.scenario_type.replace('_', ' ')} +{state.activeScenario.magnitude}</div>
-          <div className="panel-tight px-3 py-1 text-xs text-foreground/60">Scenario →</div>
         </div>
       )}
 
