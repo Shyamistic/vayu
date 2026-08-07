@@ -33,6 +33,7 @@ import {
 
 import { runWhatIf } from '../../api/client';
 import type { PredictorId, SeasonId, WhatIfRequest, WhatIfResponse } from '../../types';
+import { findStateForPoint, loadIndiaStates, type StateFeature } from '../globe/indiaStates';
 import WhatIfBeforeAfter from './WhatIfBeforeAfter';
 import {
   downloadWhatIfCsv,
@@ -143,8 +144,20 @@ export default function WhatIfStudio({
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [indiaStates, setIndiaStates] = useState<StateFeature[] | null>(null);
 
   const driver = predictorById(predictor);
+
+  // Lazy: india_states.geojson is ~11MB, so only fetch it once a result with
+  // hotspots to label actually exists, not on the studio's first paint.
+  useEffect(() => {
+    if (!result?.hotspots.length || indiaStates) return;
+    let cancelled = false;
+    loadIndiaStates()
+      .then((states) => { if (!cancelled) setIndiaStates(states); })
+      .catch(() => {}); // Table falls back to lat/lon-only rows — not worth surfacing as an error.
+    return () => { cancelled = true; };
+  }, [result, indiaStates]);
 
   const exportMeta: WhatIfExportMeta = useMemo(
     () => ({
@@ -553,6 +566,7 @@ export default function WhatIfStudio({
                 <table className="w-full text-xs">
                   <thead className="bg-foreground/[0.06] text-foreground/60">
                     <tr>
+                      <th scope="col" className="text-left py-1.5 px-2 font-medium">State</th>
                       <th scope="col" className="text-left py-1.5 px-2 font-medium">Lat</th>
                       <th scope="col" className="text-left py-1.5 px-2 font-medium">Lon</th>
                       <th scope="col" className="text-right py-1.5 px-2 font-medium">
@@ -565,6 +579,9 @@ export default function WhatIfStudio({
                   <tbody>
                     {result.hotspots.slice(0, 10).map((h) => (
                       <tr key={h.node_idx} className="border-t border-foreground/[0.06]">
+                        <td className="py-1.5 px-2 text-foreground/75">
+                          {indiaStates ? (findStateForPoint(h.lat, h.lon, indiaStates)?.name ?? '—') : '…'}
+                        </td>
                         <td className="py-1.5 px-2 font-mono text-foreground/75">{fmt(h.lat, 2)}</td>
                         <td className="py-1.5 px-2 font-mono text-foreground/75">{fmt(h.lon, 2)}</td>
                         <td
