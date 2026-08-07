@@ -378,6 +378,7 @@ function CesiumGlobeInner({
   const osmBuildingsRef = useRef<Cesium.Cesium3DTileset | null>(null);
   const iotStationsSourceRef = useRef<Cesium.CustomDataSource | null>(null);
   const terminatorTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const terminatorIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const onHeroDayChangeRef = useRef(onHeroDayChange);
   const onHeroCompleteRef = useRef(onHeroComplete);
   // Refs for stable closure access in event handlers
@@ -1779,6 +1780,7 @@ function CesiumGlobeInner({
     const layer = terminatorLayerRef.current;
 
     if (terminatorTimerRef.current) clearTimeout(terminatorTimerRef.current);
+    if (terminatorIntervalRef.current) clearInterval(terminatorIntervalRef.current);
 
     if (!showTerminator) {
       layer?.clear();
@@ -1786,12 +1788,21 @@ function CesiumGlobeInner({
       return;
     }
 
-    terminatorTimerRef.current = setTimeout(() => {
+    // Day/night is a real-time phenomenon, not a property of the selected
+    // forecast date: `selectedDate` is always constructed as local midnight
+    // (`new Date(year, month, day)` never carries an hour), and the timeline
+    // only ever varies it by whole days. Deriving the terminator from it
+    // pinned the sun to a fixed, meaningless "midnight" snapshot regardless
+    // of the actual time — e.g. showing India as night while it was
+    // actually morning there. Use the real wall-clock time instead, and
+    // refresh it periodically so the terminator keeps sweeping as time
+    // actually passes rather than freezing at whatever moment the toggle
+    // was flipped.
+    const applyRealTime = () => {
       if (viewer.isDestroyed()) return;
-      const date = selectedDate ?? new Date();
+      const now = new Date();
 
-      // Reference time for the sun direction, then enable per-pixel lighting.
-      viewer.clock.currentTime = Cesium.JulianDate.fromDate(date);
+      viewer.clock.currentTime = Cesium.JulianDate.fromDate(now);
       viewer.scene.globe.enableLighting = true;
 
       layer?.update({
@@ -1808,15 +1819,22 @@ function CesiumGlobeInner({
         showUncertainty: false,
         scenarioData,
         gibsDate: gibsDate ?? '',
-        selectedDate: date,
+        selectedDate: now,
         heatmapOpacity: 0.78,
       });
-    }, 500);
+    };
+
+    terminatorTimerRef.current = setTimeout(applyRealTime, 500);
+    // The sub-solar point moves 15°/hour — a minute is a small enough step
+    // that the line's motion is imperceptible tick-to-tick but stays
+    // accurate over the course of a session.
+    terminatorIntervalRef.current = setInterval(applyRealTime, 60_000);
 
     return () => {
       if (terminatorTimerRef.current) clearTimeout(terminatorTimerRef.current);
+      if (terminatorIntervalRef.current) clearInterval(terminatorIntervalRef.current);
     };
-  }, [isReady, showTerminator, selectedDate]);
+  }, [isReady, showTerminator]);
 
   // ── Update scenario delta overlay (right half in split-screen) ─────────────
   useEffect(() => {
