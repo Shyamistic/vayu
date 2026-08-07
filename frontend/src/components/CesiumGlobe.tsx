@@ -625,7 +625,7 @@ function CesiumGlobeInner({
       const now = performance.now();
       const dt = Math.min(0.2, (now - lastTime) / 1000);
       lastTime = now;
-      if (dt > 0) viewer.scene.camera.rotate(Cesium.Cartesian3.UNIT_Z, -ROTATE_RADIANS_PER_SEC * dt);
+      if (dt > 0) viewer.scene.camera.rotate(Cesium.Cartesian3.UNIT_Z, ROTATE_RADIANS_PER_SEC * dt);
     }, ROTATE_TICK_MS);
 
     const dayTimer = window.setInterval(() => {
