@@ -18,15 +18,31 @@ export interface TabPanelModalProps {
 export function TabPanelModal({ open, title, icon, onClose, children }: TabPanelModalProps) {
   const closeButtonRef = useRef<HTMLButtonElement>(null);
 
+  // Callers pass `onClose` as an inline arrow (e.g. App.tsx's
+  // `onClose={() => update({ viewMode: 'prediction' })}`), so it's a new
+  // function reference on every render of the caller — which happens
+  // continuously while this modal is open (forecast-day animation ticks
+  // every 1-3s, plus a 30s health poll). With `onClose` in the effect's
+  // dependency array, EVERY one of those unrelated re-renders re-ran
+  // `closeButtonRef.current?.focus()`, yanking focus back to the close
+  // button out from under whatever field the user had focused inside the
+  // modal — surfacing as "any input loses focus a moment after I interact
+  // with it," independent of what that input actually was. A ref sidesteps
+  // this: the effect (and the one-time autofocus it performs) only depends
+  // on `open`, while the Escape handler still always calls the latest
+  // `onClose` via the ref.
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
+
   useEffect(() => {
     if (!open) return;
     closeButtonRef.current?.focus();
     const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
+      if (e.key === 'Escape') onCloseRef.current();
     };
     document.addEventListener('keydown', onKeyDown);
     return () => document.removeEventListener('keydown', onKeyDown);
-  }, [open, onClose]);
+  }, [open]);
 
   if (!open) return null;
 

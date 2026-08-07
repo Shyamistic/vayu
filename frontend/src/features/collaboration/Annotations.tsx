@@ -521,7 +521,7 @@ const AnnotationPopup: React.FC<AnnotationPopupProps> = ({
         style={{
           width: '100%', boxSizing: 'border-box', marginBottom: '8px',
           background: 'rgba(var(--fg-rgb),var(--fg-a05))', border: '1px solid rgba(var(--fg-rgb),var(--fg-a12))',
-          borderRadius: '6px', color: '#e2e8f0', fontSize: '12px', padding: '5px 8px',
+          borderRadius: '6px', color: 'rgba(var(--fg-rgb),var(--fg-a75))', fontSize: '12px', padding: '5px 8px',
         }}
       />
 
@@ -539,7 +539,7 @@ const AnnotationPopup: React.FC<AnnotationPopupProps> = ({
         style={{
           width: '100%', boxSizing: 'border-box', marginBottom: '8px', resize: 'vertical',
           background: 'rgba(var(--fg-rgb),var(--fg-a05))', border: '1px solid rgba(var(--fg-rgb),var(--fg-a12))',
-          borderRadius: '6px', color: '#e2e8f0', fontSize: '12px', padding: '5px 8px',
+          borderRadius: '6px', color: 'rgba(var(--fg-rgb),var(--fg-a75))', fontSize: '12px', padding: '5px 8px',
         }}
       />
 

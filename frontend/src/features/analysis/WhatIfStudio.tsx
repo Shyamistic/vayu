@@ -14,11 +14,12 @@
  * JSON/PDF/CSV download of everything shown.
  */
 
-import { Suspense, lazy, useCallback, useMemo, useState } from 'react';
+import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   AlertTriangle,
   BarChart3,
   CalendarRange,
+  ChevronDown,
   Download,
   FileJson,
   FileSpreadsheet,
@@ -337,7 +338,7 @@ export default function WhatIfStudio({
 
         <Field label="Years included in the fit">
           <div className="flex items-center gap-2">
-            <NumberInput
+            <YearSelect
               value={startYear}
               min={RECORD_FIRST_YEAR}
               max={endYear - 2}
@@ -345,7 +346,7 @@ export default function WhatIfStudio({
               ariaLabel="First year"
             />
             <span className="text-foreground/40">&ndash;</span>
-            <NumberInput
+            <YearSelect
               value={endYear}
               min={startYear + 2}
               max={RECORD_LAST_YEAR}
@@ -717,7 +718,7 @@ function Choice({
   );
 }
 
-function NumberInput({
+function YearSelect({
   value,
   min,
   max,
@@ -730,20 +731,84 @@ function NumberInput({
   onChange: (v: number) => void;
   ariaLabel: string;
 }) {
+  // A dropdown instead of a free-text field: typed-number inputs went
+  // through several rounds of trying to tame focus/commit timing (clamp on
+  // every keystroke, then draft-until-blur, then a digit-only text field)
+  // and still lost focus mid-keystroke in Safari specifically — a
+  // controlled-input/IME timing quirk in WebKit, not something fixable from
+  // the input side. Picking from a list sidesteps typing (and therefore
+  // focus timing) entirely, and it's impossible to pick a value outside
+  // [min,max] since only valid years are ever listed.
+  //
+  // Custom popover rather than a native <select>: with a 44-year range the
+  // native element just dumps every option as one long unstyled OS list —
+  // no scroll affordance, no match for the app's panel styling. This gives
+  // the same click-to-choose interaction in a fixed-height, scrollable,
+  // themed panel instead (same popover pattern as the timeline's calendar).
+  const years = useMemo(() => {
+    const list: number[] = [];
+    for (let y = min; y <= max; y++) list.push(y);
+    return list;
+  }, [min, max]);
+
+  const [open, setOpen] = useState(false);
+  const wrapRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const onDocClick = (e: MouseEvent) => {
+      if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener('mousedown', onDocClick);
+    return () => document.removeEventListener('mousedown', onDocClick);
+  }, [open]);
+
   return (
-    <input
-      type="number"
-      value={value}
-      min={min}
-      max={max}
-      aria-label={ariaLabel}
-      onChange={(e) => {
-        const n = Number(e.target.value);
-        if (Number.isFinite(n)) onChange(Math.min(max, Math.max(min, Math.round(n))));
-      }}
-      className="bg-foreground/[0.06] border border-foreground/15 rounded-md px-2 py-1.5 text-sm w-20
-                 text-foreground font-mono focus:border-amber-400/60 focus:outline-none"
-    />
+    <div className="relative" ref={wrapRef}>
+      <button
+        type="button"
+        aria-label={ariaLabel}
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        onClick={() => setOpen((v) => !v)}
+        className="bg-foreground/[0.06] border border-foreground/15 rounded-md px-2 py-1.5 text-sm w-20
+                   text-foreground font-mono focus:border-amber-400/60 focus:outline-none cursor-pointer
+                   flex items-center justify-between gap-1"
+      >
+        {value}
+        <ChevronDown size={12} className={`text-foreground/40 transition-transform ${open ? 'rotate-180' : ''}`} />
+      </button>
+      {open && (
+        <div
+          role="listbox"
+          aria-label={ariaLabel}
+          className="absolute top-full left-0 mt-1 z-50 w-20 max-h-40 overflow-y-auto rounded-lg shadow-2xl"
+          style={{
+            background: 'rgba(var(--panel-bg-rgb),0.98)',
+            border: '1px solid rgba(var(--fg-rgb),var(--fg-a12))',
+            backdropFilter: 'blur(16px)',
+            WebkitBackdropFilter: 'blur(16px)',
+          }}
+        >
+          {years.map((y) => (
+            <button
+              key={y}
+              type="button"
+              role="option"
+              aria-selected={y === value}
+              onClick={() => { onChange(y); setOpen(false); }}
+              className={`w-full text-left px-2 py-1 text-sm font-mono transition-colors ${
+                y === value
+                  ? 'bg-vayu-blue text-foreground font-semibold'
+                  : 'text-foreground/70 hover:bg-foreground/10'
+              }`}
+            >
+              {y}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
 
