@@ -42,6 +42,7 @@ from __future__ import annotations
 
 import logging
 import threading
+import warnings
 from dataclasses import dataclass, field
 from functools import lru_cache
 from pathlib import Path
@@ -575,7 +576,16 @@ def _extract_series(
         valid_days[i] = int(finite.any(axis=1).sum())
         del finite
 
-        with np.errstate(invalid="ignore"):
+        with np.errstate(invalid="ignore"), warnings.catch_warnings():
+            # A cell that is all-NaN for this season-year (ocean, for a land
+            # variable; or a cell outside satellite coverage) is exactly the
+            # case nanmean is supposed to report as NaN — that is the correct
+            # answer, not an error. numpy raises "Mean of empty slice" through
+            # the warnings module rather than the floating-point error state,
+            # so errstate alone does not silence it; at full-India scale
+            # (thousands of ocean cells x 45 seasons) it drowned every other
+            # log line without indicating an actual problem.
+            warnings.filterwarnings("ignore", message="Mean of empty slice")
             per_cell[i] = np.nanmean(chunk, axis=0)
             # Cosine-latitude weighted so a 0.5 deg full-India mean is not biased
             # toward the Himalaya, where cells cover less ground.
@@ -758,7 +768,8 @@ def compute_sensitivity(
     ]
 
     cell_slope, cell_std_err, cell_r2, cell_p = fit_ols_per_cell(pred_anomaly, resp_cells)
-    with np.errstate(invalid="ignore"):
+    with np.errstate(invalid="ignore"), warnings.catch_warnings():
+        warnings.filterwarnings("ignore", message="Mean of empty slice")
         cell_baseline = np.nanmean(resp_cells, axis=0)
 
     return SensitivityResult(
@@ -1456,7 +1467,8 @@ def compute_climatology(
         slope, r2, p_val = float("nan"), float("nan"), float("nan")
         trend_decade = float("nan")
 
-    with np.errstate(invalid="ignore"):
+    with np.errstate(invalid="ignore"), warnings.catch_warnings():
+        warnings.filterwarnings("ignore", message="Mean of empty slice")
         cell_mean = np.nanmean(cells, axis=0)
 
     areas = cell_areas_km2(lats, lons)

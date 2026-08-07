@@ -366,6 +366,74 @@ export interface BaselineComparisonResponse {
   cell_slope_delta?: (number | null)[];
 }
 
+// ── ERA5 independent validation (GET /api/era5-comparison) ────────────────────
+
+/** Paired-sample agreement between our bundle and the reference. */
+export interface Era5AgreementStats {
+  n: number;
+  observed_mean: number | null;
+  reference_mean: number | null;
+  /** Signed reference − observed: positive means ERA5 reads higher than ours. */
+  bias: number | null;
+  mae: number | null;
+  rmse: number | null;
+  pearson_r: number | null;
+  pearson_p: number | null;
+  r_squared: number | null;
+  /** Rainfall only — two datasets can track day to day and still differ on totals. */
+  observed_total?: number | null;
+  reference_total?: number | null;
+  total_ratio?: number | null;
+}
+
+export interface Era5ComparisonResponse {
+  region: string;
+  variable: 'rainfall' | 'tmax' | 'tmin' | string;
+  unit: string;
+  start_date: string;
+  end_date: string;
+  requested_lat: number | null;
+  requested_lon: number | null;
+  /** The cell we actually read, so the spatial-support mismatch is visible. */
+  our_grid_cell: {
+    cell_lat: number | null;
+    cell_lon: number | null;
+    flat_index: number;
+    distance_from_request_km: number | null;
+    denormalized: boolean;
+    availability_masked: boolean;
+    unit: string;
+    n_days: number;
+  };
+  daily_stats: Era5AgreementStats;
+  daily?: {
+    dates: string[];
+    observed: (number | null)[];
+    reference: (number | null)[];
+  };
+  /**
+   * Monthly aggregates. For rainfall these are the cleaner comparison: IMD's
+   * rain-day is 0830–0830 IST while the archive aggregates 0000–2400, and that
+   * offset moves rain between adjacent days without moving a monthly total.
+   */
+  monthly: {
+    aggregation: 'sum' | 'mean' | string;
+    /**
+     * Unit of the monthly aggregate, which differs from the daily unit whenever
+     * the series accumulates: a month of mm/day summed is mm.
+     */
+    unit: string;
+    labels: string[];
+    observed: (number | null)[];
+    reference: (number | null)[];
+    paired_days: number[];
+    stats: Era5AgreementStats | null;
+  };
+  reference_point?: { lat: number | null; lon: number | null; label: string };
+  caveats: string[];
+  provenance: Record<string, unknown>;
+}
+
 // ── 30-day-in / 7-day-out summary (GET /api/forecast-summary) ─────────────────
 
 export interface ForecastSummaryDay {

@@ -21,7 +21,11 @@ htmlcov/
 .coverage
 *.pt
 *.pth
-checkpoints/
+checkpoints/*
+!checkpoints/regions/
+!checkpoints/regions/**/
+!checkpoints/regions/*/vayu_best.pt
+!checkpoints/vayu_best.pt
 
 # ── Data files (large .nc, raw datasets) ──────────────────────────────────
 data/*
@@ -65,7 +69,10 @@ DATA_ACQUISITION_TASKS.md
 IMPLEMENTATION_CONTEXT.md
 
 # ── Large binary / model weights ──────────────────────────────────────────
-vayu_best*.pt
+# Root-level stray Kaggle downloads (e.g. "vayu_best (3).pt") stay ignored;
+# the canonical region checkpoints are explicitly un-ignored above and
+# tracked via Git LFS (see .gitattributes) so mentors can reproduce inference.
+/vayu_best*.pt
 *.nc
 
 # ── Local research docs and working notes ─────────────────────────────────

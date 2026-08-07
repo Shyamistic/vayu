@@ -65,6 +65,9 @@ const WhatIfErrorAnalytics = lazy(() => import('./WhatIfErrorAnalytics'));
 const ClimatologyPanel = lazy(() => import('./ClimatologyPanel'));
 const DistributionPanel = lazy(() => import('./DistributionPanel'));
 const BaselineSplitPanel = lazy(() => import('./BaselineSplitPanel'));
+// The independent cross-check: ERA5 is the only reference here that does not
+// come out of our own bundle, so it validates the pipeline rather than querying it.
+const Era5ValidationPanel = lazy(() => import('./Era5ValidationPanel'));
 
 /**
  * Regions offered when the caller does not pass `availableRegions`.
@@ -703,6 +706,11 @@ export default function WhatIfStudio({
         </Suspense>
         <Suspense fallback={<PanelFallback label="baseline split panel" />}>
           <BaselineSplitPanel region={region} predictor={predictor} season={season} />
+        </Suspense>
+        {/* Last, and on demand: it is the only panel here whose reference sits
+            outside our pipeline, and it makes a live archive call. */}
+        <Suspense fallback={<PanelFallback label="ERA5 cross-check panel" />}>
+          <Era5ValidationPanel region={region} variable="rainfall" />
         </Suspense>
       </div>
     </div>

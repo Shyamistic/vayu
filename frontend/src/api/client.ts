@@ -6,6 +6,7 @@ import type {
   BaselineComparisonResponse,
   ClimatologyResponse,
   DistributionResponse,
+  Era5ComparisonResponse,
   ForecastSummaryResponse,
   GridCell,
   HealthResponse,
@@ -269,6 +270,43 @@ export async function fetchBaselineComparison(params: {
   return apiFetch<BaselineComparisonResponse>(
     `/api/baseline-comparison?${q.toString()}`,
   );
+}
+
+/**
+ * Score our observed bundle against ERA5 reanalysis over the same days.
+ *
+ * This is the only endpoint here whose reference is *outside* our own pipeline.
+ * Everything else — the sensitivity, the climatology, the What-If baseline — is
+ * read from the same normalized bundle, so a regridding or denormalization error
+ * would be invisible to all of them at once. ERA5 comes from a different
+ * observing system and model, which is what makes agreement meaningful.
+ *
+ * No offline fallback, and more strictly than elsewhere: a fabricated reference
+ * series would turn a validation into a rubber stamp.
+ */
+export async function fetchEra5Comparison(params: {
+  region: string;
+  variable: 'rainfall' | 'tmax' | 'tmin';
+  startDate: string;
+  endDate?: string;
+  lat?: number;
+  lon?: number;
+  includeDaily?: boolean;
+}): Promise<Era5ComparisonResponse> {
+  const q = new URLSearchParams({
+    region: params.region,
+    variable: params.variable,
+    start_date: params.startDate,
+    include_daily: String(params.includeDaily ?? true),
+  });
+  if (params.endDate) q.set('end_date', params.endDate);
+  // Only sent when the caller overrides: omitting them lets the backend use its
+  // named land reference point for the region, which is a better sample than a
+  // bounding-box centroid (the Western Ghats box is a third Arabian Sea).
+  if (params.lat !== undefined) q.set('lat', String(params.lat));
+  if (params.lon !== undefined) q.set('lon', String(params.lon));
+
+  return apiFetch<Era5ComparisonResponse>(`/api/era5-comparison?${q.toString()}`);
 }
 
 /**

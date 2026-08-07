@@ -48,6 +48,12 @@ from ai_engine.config import ModelConfig, PilotRegion
 from backend.cache import CacheClient
 from backend.database import DatabaseClient
 from backend.enkf import assimilate, build_ensemble, fuse_gaussian
+from backend.era5_validation import (
+    CIRCULAR_VARIABLES,
+    ERA5_FIELD_FOR_VARIABLE,
+    MAX_WINDOW_DAYS,
+    compare_with_era5,
+)
 from backend.evidence_ingestion import LiveReplayIngestionAdapter
 from backend.openmeteo_client import OpenMeteoClient, get_openmeteo
 from backend.pipeline import start_pipeline, stop_pipeline, get_pipeline
@@ -497,6 +503,24 @@ class HealthResponse(BaseModel):
     cache_backend: str = "unknown"
     persistence_connected: bool = False
     real_data_regions: list[str] = []
+    # ── Checkpoint integrity ──────────────────────────────────────────────────
+    # A checkpoint saved by an older architecture still loads (strict=False), and
+    # because SingleVariableHead zero-initialises its residual output layer, a
+    # model whose heads were not filled returns exactly the
+    # persistence/climatology blend rather than a learned forecast. It looks
+    # plausible and answers 200. `model_checkpoint_ok` is False whenever the
+    # globally loaded checkpoint failed to fill every tensor, and
+    # `model_heads_untrained` is True for the specific degenerate-head case.
+    model_checkpoint_ok: bool = True
+    model_heads_untrained: bool = False
+    model_param_count: int | None = None
+    #: Region checkpoints resident in memory *right now*. This is a cache
+    #: occupancy figure, not a list of what loaded successfully: the cache is
+    #: capped at MAX_CACHED_REGIONS (1), so serving a second region evicts the
+    #: first and this list will usually hold a single entry. Read it as "which
+    #: region is warm", never as "which regions have working checkpoints" — for
+    #: that, run scripts/verify_region_checkpoints.py.
+    region_checkpoints_cached: list[str] = []
 
 
 class TwinStateResponse(BaseModel):
@@ -2547,6 +2571,18 @@ async def health_check():
             region for region in _REGION_DATA_DIRS
             if region not in _REGION_ALIASES and _resolve_dataset_path(region)
         ),
+        model_checkpoint_ok=bool(
+            _model is not None
+            and getattr(_model, "load_report", {}).get("fully_loaded", True)
+        ),
+        model_heads_untrained=bool(
+            _model is not None
+            and getattr(_model, "load_report", {}).get("heads_untrained", False)
+        ),
+        model_param_count=(
+            sum(p.numel() for p in _model.parameters()) if _model is not None else None
+        ),
+        region_checkpoints_cached=sorted(_region_models),
     )
 
 
@@ -2603,6 +2639,130 @@ async def era5_history(
     client = get_openmeteo()
     data = await client.get_era5_history(lat=lat, lon=lon, start=start_date, end=end_date)
     return data
+
+
+#: Where each region is sampled when the caller does not pass an explicit point.
+#: These are named land points rather than bounding-box centroids: the Western
+#: Ghats box is a third Arabian Sea, so its geometric centre is a poor place to
+#: validate rainfall. North-east India deliberately samples Sivasagar, the same
+#: coordinate as our hardware node and the July 2026 flood case study.
+_ERA5_REFERENCE_POINTS: dict[str, tuple[float, float, str]] = {
+    "western_ghats": (12.5, 75.5, "Mysuru-Coorg corridor"),
+    "indo_gangetic_plain": (26.85, 80.95, "Lucknow"),
+    "north_east_india": (26.9847, 94.9376, "Sivasagar (hardware node)"),
+    "central_india": (21.15, 79.09, "Nagpur"),
+    "full_india": (23.26, 77.41, "Bhopal"),
+}
+
+
+@app.get("/api/era5-comparison", tags=["Validation"])
+async def get_era5_comparison(
+    region: str = Query("western_ghats", description="Region id"),
+    variable: str = Query("rainfall", description="rainfall | tmax | tmin"),
+    start_date: str = Query("2024-01-01", description="yyyy-mm-dd"),
+    end_date: str | None = Query(None, description="yyyy-mm-dd; defaults to today-5d"),
+    lat: float | None = Query(None, ge=-90.0, le=90.0),
+    lon: float | None = Query(None, ge=-180.0, le=180.0),
+    include_daily: bool = Query(True, description="Include the paired daily arrays"),
+):
+    """Score our observed bundle against ERA5 reanalysis over the same days.
+
+    Every empirical figure this project quotes is read out of one family of
+    inputs, so an error in the regridding or the per-cell denormalization would
+    be invisible to tests that read the same bundle. ERA5 comes from a different
+    observing system, assimilation scheme and model, which makes this the one
+    check that is about the pipeline rather than about itself.
+
+    Returns paired daily series, monthly aggregates, and bias / MAE / RMSE /
+    Pearson r for both. Rainfall additionally carries period totals and their
+    ratio, because two datasets can track each other day to day and still
+    disagree on the seasonal accumulation - which is the quantity that matters.
+
+    Fails with 503 rather than substituting anything if either side is missing.
+    """
+    import pandas as pd
+
+    region = _sensitivity_region(region)
+    ds_path = _resolve_dataset_path(region)
+    if not ds_path:
+        raise HTTPException(
+            503,
+            f"No normalized dataset available for region '{region}'. There is "
+            f"nothing to validate against ERA5.",
+        )
+
+    if variable not in ERA5_FIELD_FOR_VARIABLE:
+        detail = f"variable must be one of {sorted(ERA5_FIELD_FOR_VARIABLE)}"
+        if variable in CIRCULAR_VARIABLES:
+            detail = (
+                f"'{variable}' cannot be validated against ERA5: "
+                f"{CIRCULAR_VARIABLES[variable]}. {detail}"
+            )
+        raise HTTPException(400, detail)
+
+    # The archive trails real time by roughly five days.
+    latest = pd.Timestamp.utcnow().tz_localize(None).normalize() - pd.Timedelta(days=5)
+    try:
+        start_ts = pd.Timestamp(start_date)
+        end_ts = pd.Timestamp(end_date) if end_date else latest
+    except ValueError as exc:
+        raise HTTPException(400, f"Unparseable date: {exc}") from exc
+    if end_ts > latest:
+        end_ts = latest
+    if start_ts > end_ts:
+        raise HTTPException(400, "start_date must not be after end_date")
+    span_days = int((end_ts - start_ts).days) + 1
+    if span_days > MAX_WINDOW_DAYS:
+        raise HTTPException(
+            400,
+            f"Window is {span_days} days; the maximum is {MAX_WINDOW_DAYS}. "
+            f"Narrow the range - this endpoint returns per-day pairs.",
+        )
+
+    if lat is None or lon is None:
+        ref_lat, ref_lon, _label = _ERA5_REFERENCE_POINTS.get(
+            region, _ERA5_REFERENCE_POINTS["full_india"]
+        )
+        lat = ref_lat if lat is None else lat
+        lon = ref_lon if lon is None else lon
+
+    start_s = start_ts.strftime("%Y-%m-%d")
+    end_s = end_ts.strftime("%Y-%m-%d")
+
+    client = get_openmeteo()
+    era5 = await client.get_era5_history(lat=lat, lon=lon, start=start_s, end=end_s)
+    if era5.get("error") or not (era5.get("daily") or {}).get("time"):
+        raise HTTPException(
+            503,
+            "The ERA5 archive is unreachable or returned no days for this window "
+            f"({era5.get('error', 'empty response')}). No substitute is used.",
+        )
+
+    try:
+        result = await asyncio.to_thread(
+            compare_with_era5,
+            ds_path,
+            era5,
+            region=region,
+            variable=variable,
+            lat=lat,
+            lon=lon,
+            start_date=start_s,
+            end_date=end_s,
+        )
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from exc
+    except Exception as exc:
+        logger.exception("ERA5 comparison failed for %s/%s", region, variable)
+        raise HTTPException(500, f"ERA5 comparison failed: {exc}") from exc
+
+    payload = result.to_dict(include_daily=include_daily)
+    payload["reference_point"] = {
+        "lat": lat,
+        "lon": lon,
+        "label": _ERA5_REFERENCE_POINTS.get(region, (None, None, "custom"))[2],
+    }
+    return JSONResponse(content=payload)
 
 
 # ── Current Weather (Open-Meteo — free, no API key) ───────────────────────────
