@@ -312,15 +312,19 @@ export default function WhatIfStudio({
             </div>
           ) : rangeMode === 'single' ? (
             <label className="flex flex-col gap-1">
-              <span className="text-[10px] uppercase tracking-wider text-foreground/45">Date (MM-DD)</span>
+              <span className="text-[10px] uppercase tracking-wider text-foreground/45">Date</span>
+              {/* A leap-year carrier date (2024) so Feb 29 is pickable — only the
+                  MM-DD is used. The picked year is cosmetic: the fit still repeats
+                  this calendar date across every year in "Years included in the fit". */}
               <input
-                type="text"
-                value={windowStart}
-                onChange={(e) => { setWindowStart(e.target.value); setWindowEnd(e.target.value); }}
-                placeholder="06-15"
-                pattern="\d{2}-\d{2}"
+                type="date"
+                value={`2024-${windowStart}`}
+                onChange={(e) => {
+                  const md = e.target.value.slice(5);
+                  if (md) { setWindowStart(md); setWindowEnd(md); }
+                }}
                 className="bg-foreground/[0.06] border border-foreground/15 rounded-md px-2 py-1.5 text-sm
-                           text-foreground font-mono focus:border-amber-400/60 focus:outline-none max-w-[8rem]"
+                           text-foreground font-mono focus:border-amber-400/60 focus:outline-none max-w-[10rem]"
               />
             </label>
           ) : (
