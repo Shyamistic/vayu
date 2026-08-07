@@ -404,10 +404,21 @@ input:focus-visible {
    was reported fully invisible in light mode). Swap to a darker shade of
    the same hue so the semantic color (warning/error) is preserved. */
 :root[data-theme='light'] .text-amber-300,
-:root[data-theme='light'] .text-amber-300\/80 { color: #b45309 !important; }
+:root[data-theme='light'] .text-amber-300\/80,
+:root[data-theme='light'] .text-amber-200,
+:root[data-theme='light'] .text-amber-100 { color: #b45309 !important; }
 :root[data-theme='light'] .text-red-300,
 :root[data-theme='light'] .text-red-300\/80,
 :root[data-theme='light'] .text-red-200 { color: #b91c1c !important; }
+:root[data-theme='light'] .text-sky-200,
+:root[data-theme='light'] .text-sky-100 { color: #0369a1 !important; }
+:root[data-theme='light'] .text-cyan-200,
+:root[data-theme='light'] .text-cyan-100 { color: #0e7490 !important; }
+:root[data-theme='light'] .text-rose-200 { color: #be123c !important; }
+:root[data-theme='light'] .text-violet-200,
+:root[data-theme='light'] .text-violet-100 { color: #6d28d9 !important; }
+:root[data-theme='light'] .text-purple-200 { color: #7e22ce !important; }
+:root[data-theme='light'] .text-emerald-200 { color: #047857 !important; }
 
 /* Modal scrim — a dark dimming backdrop is correct behind either a dark or
    a white card (that's the universal modal pattern, keep it in both

@@ -379,7 +379,7 @@ const BasinCard: React.FC<BasinCardProps> = ({ basinVolume, isSelected, onSelect
       aria-label={`${basin.name} basin${isAbove90thPercentile ? ' — above 90th percentile' : ''}`}
     >
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <span style={{ fontSize: '13px', fontWeight: 600, color: '#e2e8f0' }}>
+        <span style={{ fontSize: '13px', fontWeight: 600, color: 'rgba(var(--fg-rgb),var(--fg-a75))' }}>
           {basin.name}
         </span>
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
@@ -539,7 +539,7 @@ export const WatershedAnalysis: React.FC<WatershedAnalysisProps> = ({
                 margin: 0,
                 fontSize: '14px',
                 fontWeight: 700,
-                color: '#e2e8f0',
+                color: 'rgba(var(--fg-rgb),var(--fg-a75))',
                 letterSpacing: '0.02em',
               }}
             >

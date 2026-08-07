@@ -44,6 +44,10 @@ function clampDate(d: Date, min: Date, max: Date): Date {
 
 const SPEEDS = [0.5, 1, 2, 4];
 const WEEKDAY_LABELS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
+const MONTH_LABELS = [
+  'January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December',
+];
 
 export default function TimeSlider({ timeState, onChange }: TimeSliderProps) {
   const { selectedDate, granularity, isPlaying, playbackSpeed, rangeStart, rangeEnd } = timeState;
@@ -290,12 +294,34 @@ export default function TimeSlider({ timeState, onChange }: TimeSliderProps) {
       {/* Daily grid */}
       {granularity === 'daily' && (
         <>
-          <div className="flex items-center justify-between">
-            <button onClick={() => setViewDate(addMonths(viewDate, -1))} className="btn-ghost p-1">
+          <div className="flex items-center justify-between gap-1">
+            <button onClick={() => setViewDate(addMonths(viewDate, -1))} className="btn-ghost p-1" aria-label="Previous month">
               <ChevronLeft size={14} />
             </button>
-            <span className="text-xs font-medium text-foreground/80">{format(viewDate, 'MMMM yyyy')}</span>
-            <button onClick={() => setViewDate(addMonths(viewDate, 1))} className="btn-ghost p-1">
+            {/* Direct month/year jump — stepping one month at a time to cross
+                a 16-year range (2010–2025) took ~190 clicks; these selects
+                make it a single interaction. */}
+            <select
+              aria-label="Jump to month"
+              value={viewDate.getMonth()}
+              onChange={(e) => setViewDate(new Date(viewDate.getFullYear(), Number(e.target.value), 1))}
+              className="text-xs font-medium text-foreground/80 bg-transparent border-none outline-none cursor-pointer text-center"
+            >
+              {MONTH_LABELS.map((m, i) => (
+                <option key={m} value={i} className="text-foreground bg-[var(--bg-elevated)]">{m}</option>
+              ))}
+            </select>
+            <select
+              aria-label="Jump to year"
+              value={viewDate.getFullYear()}
+              onChange={(e) => setViewDate(new Date(Number(e.target.value), viewDate.getMonth(), 1))}
+              className="text-xs font-medium text-foreground/80 bg-transparent border-none outline-none cursor-pointer text-center"
+            >
+              {YEARS.map((y) => (
+                <option key={y} value={y} className="text-foreground bg-[var(--bg-elevated)]">{y}</option>
+              ))}
+            </select>
+            <button onClick={() => setViewDate(addMonths(viewDate, 1))} className="btn-ghost p-1" aria-label="Next month">
               <ChevronRight size={14} />
             </button>
           </div>
@@ -339,12 +365,21 @@ export default function TimeSlider({ timeState, onChange }: TimeSliderProps) {
       {/* Monthly grid */}
       {granularity === 'monthly' && (
         <>
-          <div className="flex items-center justify-between">
-            <button onClick={() => setViewDate(addYears(viewDate, -1))} className="btn-ghost p-1">
+          <div className="flex items-center justify-between gap-1">
+            <button onClick={() => setViewDate(addYears(viewDate, -1))} className="btn-ghost p-1" aria-label="Previous year">
               <ChevronLeft size={14} />
             </button>
-            <span className="text-xs font-medium text-foreground/80">{format(viewDate, 'yyyy')}</span>
-            <button onClick={() => setViewDate(addYears(viewDate, 1))} className="btn-ghost p-1">
+            <select
+              aria-label="Jump to year"
+              value={viewDate.getFullYear()}
+              onChange={(e) => setViewDate(new Date(Number(e.target.value), viewDate.getMonth(), 1))}
+              className="text-xs font-medium text-foreground/80 bg-transparent border-none outline-none cursor-pointer text-center"
+            >
+              {YEARS.map((y) => (
+                <option key={y} value={y} className="text-foreground bg-[var(--bg-elevated)]">{y}</option>
+              ))}
+            </select>
+            <button onClick={() => setViewDate(addYears(viewDate, 1))} className="btn-ghost p-1" aria-label="Next year">
               <ChevronRight size={14} />
             </button>
           </div>
