@@ -667,6 +667,9 @@ export default function App() {
             gridCells={showHeatmap && (state.viewMode === 'prediction' || state.viewMode === 'scenario') ? gridCells : []}
             variable={state.selectedVariable}
             region={state.selectedRegion}
+            // One physical station exists (Sivasagar), so its pin is scoped to
+            // the Environment view where the panel explaining it is also open.
+            showStations={state.viewMode === 'environment'}
             scenarioData={state.showSplitScreen ? state.activeScenario : null}
             showSplitScreen={state.showSplitScreen}
             activeLayer={activeLayer}

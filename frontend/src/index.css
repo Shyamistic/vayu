@@ -106,6 +106,36 @@
     color: rgba(var(--fg-rgb), var(--fg-a6));
   }
 
+  /* ─── Advisory / caveat callouts ─────────────────────────────────────────────
+     The amber "what this cannot tell you" boxes. These MUST flip with the
+     theme, and Tailwind cannot do it here: `darkMode` is unset in
+     tailwind.config.js (so it defaults to the `media` strategy and follows the
+     OS), while the app toggles [data-theme="light"] on <html>. A `dark:` variant
+     would therefore disagree with the actual toggle. Worse, the dark values were
+     amber-100/amber-200 — near-white tints chosen for a dark panel, which land
+     at roughly 1.2:1 on the white light-mode panel and simply vanish. These
+     classes read the same attribute the toggle sets, so the text stays legible
+     in both themes. Light values are amber-900/950, which clear WCAG AA on the
+     light amber wash. */
+  .caveat-box {
+    @apply rounded-lg;
+    background: rgba(245, 158, 11, 0.07);
+    border: 1px solid rgba(245, 158, 11, 0.25);
+  }
+  .caveat-heading { color: #fde68a; }              /* amber-200 */
+  .caveat-text    { color: rgba(254, 243, 199, 0.88); }
+  .caveat-icon    { color: rgba(252, 211, 77, 0.9); }
+  .caveat-emphasis { color: rgba(252, 211, 77, 0.95); }
+
+  :root[data-theme="light"] .caveat-box {
+    background: rgba(245, 158, 11, 0.14);
+    border-color: rgba(180, 83, 9, 0.4);
+  }
+  :root[data-theme="light"] .caveat-heading  { color: #78350f; }  /* amber-900 */
+  :root[data-theme="light"] .caveat-text     { color: #713f12; }  /* amber-950 */
+  :root[data-theme="light"] .caveat-icon     { color: #92400e; }  /* amber-800 */
+  :root[data-theme="light"] .caveat-emphasis { color: #92400e; }
+
   /* Part B: Active element breathing glow */
   .active-glow {
     animation: breathingGlow 2s ease-in-out infinite;
